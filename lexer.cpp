@@ -10,17 +10,17 @@ namespace ScriptCompile
 		line = 1;
 	}
 	
-	void Lexer::Begin()
+	void Lexer::TakeNotes()
 	{
 		position = index;
 	}
 	
-	void Lexer::End() 
+	void Lexer::Restore() 
 	{
 		index = position;
 	}
 	
-	Token Lexer::Get()
+	Token Lexer::GetNextToken()
 	{
 		WhiteSpace();
 		
@@ -167,34 +167,8 @@ namespace ScriptCompile
 			else break;
 		}
 		
-		if (wcscmp(token.value.c_str(), L"if") == 0)
-		{
-			token.kind = TK_IF;
-		}
-		else if (wcscmp(token.value.c_str(), L"while") == 0)
-		{
-			token.kind = TK_WHILE;
-		}
-		else if (wcscmp(token.value.c_str(), L"else") == 0)
-		{
-			token.kind = TK_ELSE;
-		}
-		else if (wcscmp(token.value.c_str(), L"break") == 0)
-		{
-			token.kind = TK_BREAK;
-		}
-		else if (wcscmp(token.value.c_str(), L"return") == 0)
-		{
-			token.kind = TK_RETURN;
-		}
-		else if (wcscmp(token.value.c_str(), L"var") == 0)
-		{
-			token.kind = TK_VAR;
-		}
-		else if (wcscmp(token.value.c_str(), L"function") == 0)
-		{
-			token.kind = TK_FUNCTION;
-		}
+		if (keywords.find(token.value) != keywords.end())
+			token.kind = keywords[token.value];
 		
 		return token;
 	}
@@ -208,33 +182,36 @@ namespace ScriptCompile
 		switch (*index)
 		{
 		case L'|':
-			token.kind = TK_OR;
+			token.kind = TK_VERTICAL;
 			break;
 		case L'&':
 			token.kind = TK_AND;
 			break;
 		case L'+':
-			token.kind = TK_ADD;
+			token.kind = TK_PLUS;
 			break;
 		case L'-':
-			token.kind = TK_SUB;
+			token.kind = TK_MINUS;
 			break;
 		case L'*':
-			token.kind = TK_MUL;
+			token.kind = TK_STAR;
 			break;
 		case L'/':
 			if (*(index + 1) == L'/')
 			{
 				Comments();
-				return Get();
+				return GetNextToken();
 			}
-			token.kind = TK_DIV;
+			token.kind = TK_SLASH;
 			break;
 		case L'%':
-			token.kind = TK_MOD;
+			token.kind = TK_PERCENT;
 			break;
 		case L'!':
-			token.kind = TK_NOT;
+			if (*(index + 1) == L'=')
+				token.kind = TK_NOT_EQUAL, ++index;
+			else
+				token.kind = TK_NOT;
 			break;
 		case L'(':
 			token.kind = TK_LBRA;
@@ -257,6 +234,19 @@ namespace ScriptCompile
 		case L',':
 			token.kind = TK_COMMA;
 			break;
+
+		case L'<':
+			if (*(index + 1) == L'=')
+				token.kind = TK_LEFT_ARROW_EQUAL, ++index;
+			else
+				token.kind = TK_LEFT_ARROW;
+			break;
+		case L'>':
+			if (*(index + 1) == L'=')
+				token.kind = TK_RIGHT_ARROW_EQUAL, ++index;
+			else
+				token.kind = TK_RIGHT_ARROW;
+			break;
 		default:
 			token.kind = TK_ERROR;
 			token.value = L"不认识的符号：";
@@ -266,6 +256,17 @@ namespace ScriptCompile
 		++index;
 
 		return token;
+	}
+
+	void Lexer::Initializer()
+	{
+		keywords[L"if"] = TK_IF;
+		keywords[L"while"] = TK_WHILE;
+		keywords[L"else"] = TK_ELSE;
+		keywords[L"break"] = TK_BREAK;
+		keywords[L"return"] = TK_RETURN;
+		keywords[L"var"] = TK_VARIABLE;
+		keywords[L"function"] = TK_FUNCTION;
 	}
 }
 

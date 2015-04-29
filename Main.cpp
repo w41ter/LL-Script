@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <conio.h>
+#include <windows.h>
 
 #include "lexer.h"
 #include "syntax.h"
@@ -11,12 +12,36 @@ using namespace std;
 //using namespace ScriptCompile;
 namespace ScriptCompile
 {
-	class PrintPlugin : public Plugin
+	class ScriptPlugin : public Plugin
 	{
 	public:
-		PrintPlugin() { name = L"print"; length = -1; }
+		using Callback = Variable(ScriptPlugin::*)(vector<wstring>& params);
 
-		virtual Variable Execute(vector<wstring>& params)
+		ScriptPlugin() 
+		{
+			name.insert(L"print");
+			name.insert(L"input");
+			pluginName[L"print"] = -1;
+			pluginName[L"input"] = 0;
+			pluginFunction[L"print"] = &ScriptPlugin::Print; 
+			pluginFunction[L"input"] = &ScriptPlugin::Input; 
+		}
+
+		Variable Call(wstring& name, vector<wstring>& params)
+		{
+			if (pluginName.find(name) == pluginName.end())
+			{
+				throw wstring(L"未定义函数 " + name);
+			}
+
+			if (pluginName.find(name)->second != -1 &&
+				pluginName.find(name)->second != params.size())
+				throw wstring(L"函数 " + name + L"参数不匹配");
+
+			return (this->*(pluginFunction.find(name)->second))(params);
+		}
+
+		Variable Print(vector<wstring>& params)
 		{
 			for (auto i : params)
 			{
@@ -26,20 +51,17 @@ namespace ScriptCompile
 
 			return{ ScriptCompile::TK_END, L"END" };
 		}
-	};
 
-	class InputPlugin : public Plugin
-	{
-	public:
-		InputPlugin() { name = L"input"; length = 0; }
-
-		virtual Variable Execute(vector<wstring>& params)
+		Variable Input(vector<wstring>& params)
 		{
-			wstring temp;
+			wstring temp;// = L"20";
 			wcin >> temp;
 
 			return ConstructVariable(temp);
 		}
+
+	private:
+		unordered_map<wstring, Callback> pluginFunction;
 	};
 }
 
@@ -65,6 +87,16 @@ int wmain(int argc, wchar_t* argv[])
 			return 0;
 		}
 
+	//wstring Code;
+	//{
+	//	FILE* f = _wfopen(L"TEST.TXT", L"rb");
+	//	if (f == NULL)
+	//	{
+	//		wcout << L"打不开文件" << L"TEST.TXT" << endl;
+	//		_getch();
+	//		return 0;
+	//	}
+
 		fpos_t fsize;
 		size_t size;
 		fseek(f, 0, SEEK_END);
@@ -86,9 +118,9 @@ int wmain(int argc, wchar_t* argv[])
 		delete[] AnsiBuffer;
 	}
 
-	ScriptCompile::Lexer lexer(Code);
-	ScriptCompile::Token token = lexer.Get();
-	int index = 0;
+	//ScriptCompile::Lexer lexer(Code);
+	//ScriptCompile::Token token = lexer.GetNextToken();
+	//int index = 0;
 
 	//while (token.kind != ScriptCompile::TK_EOF)
 	//{
@@ -112,14 +144,16 @@ int wmain(int argc, wchar_t* argv[])
 	//}
 
 	ScriptCompile::Program program;
-	ScriptCompile::PrintPlugin print;
-	ScriptCompile::InputPlugin input;
-	program.AddPlugin(&print);
-	program.AddPlugin(&input);
+	ScriptCompile::ScriptPlugin plugin;
+	program.AddPlugin(&plugin);
 
 	try
 	{
+		auto beginTime = GetTickCount();
 		ScriptCompile::Parser(Code, program);
+		auto endTime = GetTickCount();
+
+		wcout << L"编译花时(0.015)：" << double(endTime - beginTime) / 1000 << endl;
 	}
 	catch (ScriptCompile::ASTError e)
 	{
@@ -130,7 +164,10 @@ int wmain(int argc, wchar_t* argv[])
 
 	try
 	{
+		auto beginTime = GetTickCount();
 		ScriptCompile::Run(&program);
+		auto endTime = GetTickCount();
+		wcout << L"运行花时(24)：" << double(endTime - beginTime) / 1000 << endl;
 	}
 	catch (wstring e)
 	{

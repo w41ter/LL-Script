@@ -2,41 +2,57 @@
 
 #include <cctype>
 #include <string>
+#include <unordered_map>
 
 namespace ScriptCompile
 {
 	using std::wstring;
-	enum TK
+	using std::unordered_map;
+
+	enum Tokens
 	{
 		TK_NONE,
+
+		// type
 		TK_INTEGER,
 		TK_REAL,
 		TK_STRING,
 		TK_IDENTIFIER,
-		TK_VAR,
+
+		// keywords
+		TK_VARIABLE,
 		TK_FUNCTION,
 		TK_IF,
 		TK_ELSE,
 		TK_WHILE,
 		TK_BREAK,
 		TK_RETURN,
-		TK_OR,
+
+		// operator
+		TK_VERTICAL,
 		TK_AND,
-		TK_ADD,
-		TK_SUB,
-		TK_MUL,
-		TK_DIV,
-		TK_MOD,
+		TK_PLUS,
+		TK_MINUS,
+		TK_STAR,
+		TK_SLASH,
+		TK_PERCENT,
 		TK_NOT,
+		TK_EQUAL,
+		TK_NOT_EQUAL,
+		TK_LEFT_ARROW,
+		TK_RIGHT_ARROW,
+		TK_LEFT_ARROW_EQUAL,
+		TK_RIGHT_ARROW_EQUAL,
+
+		// others sign
 		TK_LBRA,
 		TK_RBRA,
 		TK_LBRACE,
 		TK_RBRACE,
-		TK_EQUAL,
 		TK_END,
+		TK_COMMA,
 		TK_EOF,
 		TK_ERROR,
-		TK_COMMA,
 	};
 	
 	struct Token
@@ -49,9 +65,10 @@ namespace ScriptCompile
 	class Lexer
 	{
 	public:
-		Lexer() = default;
+		Lexer() { Initializer(); }
 		Lexer(wstring &str) : program(str) 
 		{
+			Initializer();
 			index = position = program.begin();
 			line = 1;
 		}
@@ -59,11 +76,12 @@ namespace ScriptCompile
 		
 		// 对外公开接口
 		void 	SetProgram(wstring& str);
-		void 	Begin();
-		void 	End();
-		Token 	Get();
+		void 	TakeNotes();
+		void 	Restore();
+		Token 	GetNextToken();
 		
 	private:
+		void	Initializer();
 		void 	WhiteSpace();
 		void	Comments();
 		Token  	String();
@@ -76,5 +94,6 @@ namespace ScriptCompile
 		wstring 			program;
 		wstring::iterator 	position;
 		wstring::iterator 	index;
+		unordered_map<wstring, Tokens> keywords;
 	};
 }

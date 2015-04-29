@@ -27,6 +27,12 @@
     <ClCompile Include="interpret.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="AST.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Program.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lexer.h">
@@ -36,6 +42,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Interpret.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AST.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Program.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

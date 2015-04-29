@@ -145,7 +145,7 @@ namespace ScriptCompile
 
 		switch (op)
 		{	
-		case TK_ADD:
+		case TK_PLUS:
 			{
 				if (kind == TK_STRING)
 					return{ TK_STRING, left.value + right.value };
@@ -155,7 +155,7 @@ namespace ScriptCompile
 				});
 			}
 
-		case TK_SUB:
+		case TK_MINUS:
 			{
 				if (kind == TK_STRING)
 					throw wstring(L"字符串只支持 + 号连接");
@@ -165,7 +165,7 @@ namespace ScriptCompile
 				});
 			}
 
-		case TK_MUL:
+		case TK_STAR:
 			{
 				if (kind == TK_STRING)
 					throw wstring(L"字符串只支持 + 号连接");
@@ -174,7 +174,7 @@ namespace ScriptCompile
 					return l * r;
 				});
 			}
-		case TK_DIV:
+		case TK_SLASH:
 			{
 				if (kind == TK_STRING)
 					throw wstring(L"字符串只支持 + 号连接");
@@ -184,19 +184,19 @@ namespace ScriptCompile
 					return l / r;
 				});
 			}
-		case TK_MOD:
-			{
-				if (kind == TK_STRING)
-					throw wstring(L"字符串只支持 + 号连接");
+		//case TK_MOD:
+		//	{
+		//		if (kind == TK_STRING)
+		//			throw wstring(L"字符串只支持 + 号连接");
 
-				if (kind == TK_REAL)
-					throw wstring(L"取模运算只针对整数");
+		//		if (kind == TK_REAL)
+		//			throw wstring(L"取模运算只针对整数");
 
-				if (ToInt(right.value))
-					throw wstring(L"除数不能为零");
+		//		if (ToInt(right.value))
+		//			throw wstring(L"除数不能为零");
 
-				return ConstructVariable(ToStr(ToInt(left.value) % ToInt(right.value)));
-			}
+		//		return ConstructVariable(ToStr(ToInt(left.value) % ToInt(right.value)));
+		//	}
 		}
 	}
 
@@ -209,7 +209,7 @@ namespace ScriptCompile
 				ASTreeBinary* binary = static_cast<ASTreeBinary*>(expression.GetBinary());
 				ASTreeExpression binaryExpression;
 
-				if (binary->GetOperator() == TK_OR)
+				if (binary->GetOperator() == TK_VERTICAL)
 				{
 					binaryExpression.SetBinary(binary->GetLeft());
 					Variable left = EvalExpression(binaryExpression, envir);
@@ -267,87 +267,47 @@ namespace ScriptCompile
 				break;
 			}
 			
-		case AST_VAR:
+		case AST_VALUE:
 			{
-				ASTreeVar* var = static_cast<ASTreeVar*>(expression.GetBinary());
+				ASTreeVariable* var = static_cast<ASTreeVariable*>(expression.GetBinary());
 
-				if (var->GetValueKind() == TK_IDENTIFIER && 
-					envir.find(var->GetValue()) == envir.end() && 
-					g_envir.find(var->GetValue()) == g_envir.end())
-				{
-					throw wstring(L"没有找到名为：" + var->GetValue() + L"的变量");
-				}
+				//if (var->GetValueKind() == TK_IDENTIFIER && 
+				//	envir.find(var->GetValue()) == envir.end() && 
+				//	g_envir.find(var->GetValue()) == g_envir.end())
+				//{
+				//	throw wstring(L"没有找到名为：" + var->GetValue() + L"的变量");
+				//}
 				
 				return{ var->GetValueKind(), var->GetValue() };
 			}
 			
-		case AST_CALL:
+		case AST_FUNCTION_CALL:
 			{
 				ASTreeCall* call = static_cast<ASTreeCall*>(expression.GetBinary());
-				// 检查函数是否存在
+			
 				if (!g_program->FindFunction(call->GetName()))
 				{
-					if (!g_program->FindPlugin(call->GetName()))
-						throw wstring(L"没有找到名为：" + call->GetName() + L"的函数");
-					else
-					{
-						vector<wstring> params;
-						// 检查参数是否存在
-						for (size_t i = 0; i < call->Size(); i++)
-						{
-							if (envir.find(call->GetParam(i)) == envir.end())
-							{
-								if (g_envir.find(call->GetParam(i)) == g_envir.end())
-								{
-									throw wstring(L"没有找到名为：" + call->GetParam(i) + L"的变量");
-								}
-								else
-								{
-									params.push_back(g_envir.find(call->GetParam(i))->second);
-								}
-							}
-							else
-							{
-								params.push_back(envir.find(call->GetParam(i))->second);
-							}
-						}
-						return g_program->GetPlugin(call->GetName()).Call(params);
-					}
+					vector<wstring> params;
+					for (size_t i = 0; i < call->Size(); i++)
+						params.push_back(GetValue(call->GetParam(i), envir));
+
+					return g_program->GetPlugin().Call(call->GetName(), params);
 				}
 					
-
 				Function* function = g_program->GetFunction(call->GetName());
-				if (function->GetParamLength() != call->Size())
-					throw wstring(L"调用函数 " + call->GetName() + L" 时参数不匹配");
 
 				map<wstring, wstring> temp;
-				set<wstring>& identifier = function->GetIdentifier();
+				unordered_set<wstring>& identifier = function->GetVariable();
 				for (const auto i : identifier)
 					temp[i] = L"";
 
-				// 检查参数是否存在
+				// 初始化参数值
 				for (size_t i = 0; i < call->Size(); i++)
-				{
-					if (envir.find(call->GetParam(i)) == envir.end())
-					{
-						if (g_envir.find(call->GetParam(i)) == g_envir.end())
-						{
-							throw wstring(L"没有找到名为：" + call->GetParam(i) + L"的变量");
-						}
-						else
-						{
-							temp[function->GetParamName(i)] = g_envir.find(call->GetParam(i))->second;
-						}
-					}
-					else
-					{
-						temp[function->GetParamName(i)] = envir.find(call->GetParam(i))->second;
-					}
-				}
+					temp[function->GetParams()[i]] = GetValue(call->GetParam(i), envir);
 
 				return RunFunction(function, temp);
 			}
-		case AST_EXPR:
+		case AST_EXPRESSION:
 			{
 				// 特殊情况
 				ASTreeExpression* expr = static_cast<ASTreeExpression*>(expression.GetBinary());
@@ -366,9 +326,9 @@ namespace ScriptCompile
 			ASTree* tree = statements.GetStatement(i);
 			switch (tree->GetKind())
 			{
-			case AST_IF:
+			case AST_IF_STATEMENT:
 				{
-					ASTreeIf* astIf = static_cast<ASTreeIf*>(tree);
+					ASTreeIfStatement* astIf = static_cast<ASTreeIfStatement*>(tree);
 					Variable slove = EvalExpression(astIf->GetCondition(), envir);
 					bool open = Condition(slove, envir);
 
@@ -378,7 +338,7 @@ namespace ScriptCompile
 						if (var.kind == TK_RETURN || var.kind == TK_BREAK)
 							return var;
 					}
-					else if (astIf->GetHasElse())
+					else if (astIf->HasElse())
 					{
 						ReturnValue var = RunStatements(astIf->GetElseStatements(), envir);
 						if (var.kind == TK_RETURN || var.kind == TK_BREAK)
@@ -387,9 +347,9 @@ namespace ScriptCompile
 					break;
 				}
 
-			case AST_WHILE:
+			case AST_WHILE_STATEMENT:
 				{
-					ASTreeWhile* astWhile = static_cast<ASTreeWhile*>(tree);
+					ASTreeWhileStatement* astWhile = static_cast<ASTreeWhileStatement*>(tree);
 					Variable slove = EvalExpression(astWhile->GetCondition(), envir);
 					while (Condition(slove, envir))
 					{
@@ -404,18 +364,18 @@ namespace ScriptCompile
 					break;
 				}
 
-			case AST_BREAK:
+			case AST_BREAK_STATEMENT:
 				{
 					ReturnValue value = { TK_BREAK, { TK_BREAK, L"break" } };
 					return value;
 				}
 
-			case AST_RETURN:
+			case AST_RETURN_STATEMENT:
 				{
 					if (g_InFunction == 0)
 						throw wstring(L"企图在函数外使用 return");
 				
-					ASTreeReturn* astReturn = static_cast<ASTreeReturn*>(tree);
+					ASTreeReturnStatement* astReturn = static_cast<ASTreeReturnStatement*>(tree);
 
 					// 将EvalExpression返回的变量转换成对应的值类型
 					Variable var = EvalExpression(astReturn->GetExpression(), envir);
@@ -427,7 +387,7 @@ namespace ScriptCompile
 					return{ TK_RETURN, var };
 				}
 
-			case AST_EXPR:
+			case AST_EXPRESSION:
 				{
 					ASTreeExpression* expression = static_cast<ASTreeExpression*>(tree);
 					EvalExpression(*expression, envir);
@@ -455,12 +415,9 @@ namespace ScriptCompile
 	{
 		g_program = pro;
 
-		set<wstring>& identifier = g_program->GetIdentifier();
+		unordered_set<wstring>& identifier = g_program->GetVariable();
 		for (auto i : identifier)
-		{
-			if (!g_program->FindFunction(i))
-				g_envir[i] = L"";
-		}
+			g_envir[i] = L"";
 			
 		ASTreeStatements& states = g_program->GetStatements();
 		ReturnValue var = RunStatements(states, empty);

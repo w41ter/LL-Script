@@ -76,14 +76,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AST.cpp" />
     <ClCompile Include="interpret.cpp" />
     <ClCompile Include="lexer.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Program.cpp" />
     <ClCompile Include="syntax.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AST.h" />
     <ClInclude Include="Interpret.h" />
     <ClInclude Include="lexer.h" />
+    <ClInclude Include="Program.h" />
     <ClInclude Include="syntax.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
