@@ -1,0 +1,16 @@
+function flb(n) {
+	var temp1 = n-1;
+	var temp2 = n-2;
+	
+	if (temp1 & temp2) {
+		return flb(temp1) + flb(temp2);
+	}
+	
+	return 1;
+}
+
+var p = "Input the Numer";
+print(p);
+p = input();
+p = flb(p);
+print(p);
