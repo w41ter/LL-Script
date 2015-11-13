@@ -419,7 +419,7 @@ namespace ScriptCompile
 			default:
 				break;
 			}
-			ToStr(123);
+			//2ToStr(123);
 		}
 		return{ TK_END, { TK_END, L"end" } };
 	}

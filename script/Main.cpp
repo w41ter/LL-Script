@@ -9,7 +9,7 @@
 #include "Interpret/Interpret.h"
 
 using namespace std;
-//using namespace ScriptCompile;
+
 namespace ScriptCompile
 {
 	class ScriptPlugin : public Plugin
@@ -55,7 +55,7 @@ namespace ScriptCompile
 		Variable Input(vector<wstring>& params)
 		{
 			wstring temp = L"20";
-			//wcin >> temp;
+			wcin >> temp;
 
 			return ConstructVariable(temp);
 		}
@@ -68,7 +68,8 @@ namespace ScriptCompile
 
 int wmain(int argc, wchar_t* argv[])
 {
-	setlocale(LC_ALL, "Chinese-simplified");
+	std::locale::global(std::locale(""));
+	wcout.imbue(locale(""));
 
 	if (argc < 2)
 	{
@@ -87,15 +88,15 @@ int wmain(int argc, wchar_t* argv[])
 			return 0;
 		}
 
-	//wstring Code;
-	//{
-	//	FILE* f;
-	//	if (_wfopen_s(&f, L"TEST.TXT", L"rb") == EINVAL)
-	//	{
-	//		wcout << L"打不开文件" << L"TEST.TXT" << endl;
-	//		_getch();
-	//		return 0;
-	//	}
+	/*wstring Code;
+	{
+		FILE* f;
+		if (_wfopen_s(&f, L"TEST.TXT", L"rb") == EINVAL)
+		{
+			wcout << L"打不开文件" << L"TEST.TXT" << endl;
+			_getch();
+			return 0;
+		}
 
 		fpos_t fsize;
 		size_t size;
@@ -116,32 +117,7 @@ int wmain(int argc, wchar_t* argv[])
 
 		delete[] Buffer;
 		delete[] AnsiBuffer;
-	}
-
-	//ScriptCompile::Lexer lexer(Code);
-	//ScriptCompile::Token token = lexer.GetNextToken();
-	//int index = 0;
-
-	//while (token.kind != ScriptCompile::TK_EOF)
-	//{
-	//	index++;
-	//	wcout << L"第 " << index << L"个：\n"
-	//		<< L"Kind:" << token.kind
-	//		<< L"\tLine:" << token.line
-	//		<< L"\tValue：" << token.value << endl;
-
-	//	if (token.kind == ScriptCompile::TK_ERROR)
-	//		break;
-
-	//	token = lexer.Get();
-	//}
-	//try {
-	//	ScriptCompile::Program* program = ScriptCompile::Parser(Code);
-	//}
-	//catch (ScriptCompile::ASTError e)
-	//{
-	//	wcout << L"Line:" << e.GetToken().line << L" 错误信息：" << e.GetMsg() << endl;
-	//}
+	}*/
 
 	ScriptCompile::Program program;
 	ScriptCompile::ScriptPlugin plugin;
@@ -153,7 +129,7 @@ int wmain(int argc, wchar_t* argv[])
 		ScriptCompile::ParserASTreeUnit(Code, program);
 		auto endTime = GetTickCount();
 
-		wcout << L"编译花时(0.015)：" << double(endTime - beginTime) / 1000 << endl;
+		wcout << L"编译花时：" << double(endTime - beginTime) / 1000 << endl;
 	}
 	catch (ScriptCompile::ASTError e)
 	{
@@ -167,7 +143,7 @@ int wmain(int argc, wchar_t* argv[])
 		auto beginTime = GetTickCount();
 		ScriptCompile::Run(&program);
 		auto endTime = GetTickCount();
-		wcout << L"运行花时(24)：" << double(endTime - beginTime) / 1000 << endl;
+		wcout << L"运行花时：" << double(endTime - beginTime) / 1000 << endl;
 	}
 	catch (wstring e)
 	{

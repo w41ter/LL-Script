@@ -35,20 +35,20 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Syntax\syntax.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="Syntax\AST.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Syntax\Program.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Parser\lexer.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Interpret\Interpret.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Parser\lexer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Syntax\Program.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Syntax\syntax.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
