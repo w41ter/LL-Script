@@ -1,0 +1,22 @@
+function main() {
+    let a = 1 + 2 - 0.4 * 5 / 6;
+    if (a | 1 & 2) {
+        return ;
+        return a = 1;
+    }
+    while (true) {
+        break;
+        continue;
+    }
+    "string";
+    'c';
+    '\n';
+    '\r';
+    '\t';
+    '\\';
+    '\"';
+    '\'';
+    a(a, a, a);
+    a[a];
+    let b = [ "good", 123 ];
+}

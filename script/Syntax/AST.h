@@ -6,39 +6,44 @@
 
 namespace ScriptCompile
 {
-	using std::wstring;
-	using std::vector;
-	using std::map;
+    class ASTree;
+    class ASTIf;
+    class ASTJmp;
+    class ASTReturn;
+    class ASTWhile;
+    class ASTBlock;
+    class ASTFunction;
+    class ASTDecal;
+    class AssignExpr;
+    class ExpressionList;
+    class BooleanExpr;
+    class RelationalExpr;
+    class AdditiveExpr;
+    class NotTerm;
+    class Term;
+    class Factor;
+    class PositiveFactor;
 
-	enum ASTKind
-	{
-		AST_BASE,
-		AST_UNARY,
-		AST_LOGIC,
-		AST_VALUE,
-		AST_BINARY,
-		AST_EXPRESSION,
-		AST_STATEMENTS,
-		AST_IF_STATEMENT,
-		AST_FUNCTION_CALL,
-		AST_BREAK_STATEMENT,
-		AST_WHILE_STATEMENT,
-		AST_RETURN_STATEMENT,
-	};
-
-	enum Type
-	{
-		T_REAL,
-		T_STRING,
-		T_IDENTIFIER,
-	};
-
-	struct Operator
-	{
-		int kind;
-		int lever;
-		int bit;
-	};
+    class Visitor
+    {
+    public:
+        virtual void visit(NotTerm &ast) = 0;
+        virtual void visit(Term &ast) = 0;
+        virtual void visit(Factor &ast) = 0;
+        virtual void visit(PositiveFactor &ast) = 0;
+        virtual void visit(ASTIf &ast) = 0;
+        virtual void visit(ASTJmp &ast) = 0;
+        virtual void visit(ASTReturn &ast) = 0;
+        virtual void visit(ASTWhile &ast) = 0;
+        virtual void visit(ASTBlock &ast) = 0;
+        virtual void visit(ASTFunction &ast) = 0;
+        virtual void visit(ASTDecal &ast) = 0;
+        virtual void visit(AssignExpr &ast) = 0;
+        virtual void visit(ExpressionList &ast) = 0;
+        virtual void visit(BooleanExpr &ast) = 0;
+        virtual void visit(RelationalExpr &ast) = 0;
+        virtual void visit(AdditiveExpr &ast) = 0;
+    };
 
 	//
 	//	Óï·¨Ê÷²¿·Ö
@@ -240,4 +245,5 @@ namespace ScriptCompile
 		ASTreeStatements* ifStatements;
 		ASTreeStatements* elseStatements;
 	};
+
 }

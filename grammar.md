@@ -11,10 +11,10 @@ factor:
     | keyword_constant
     | ID 
     | "(" expression ")"
-    | "[" expression "]"
+    | "[" expression_list "]"
 
 positive_factor:
-    factor { ( [ "[" expression_list "]" ] | [ "(" expression ")" ] ) }
+    factor { ( [ "[" expression "]" ] | [ "(" expression_list ")" ] ) }
     
 not_factor:
     [ "!" ] positive_factor

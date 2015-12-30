@@ -64,7 +64,7 @@ namespace script
         unsigned lineNum_;
         unsigned linePos_;
         const char *fileName_;
-        TokenCoord() : lineNum_(0), linePos_(0), fileName_(nullptr) {}
+        TokenCoord() : lineNum_(1), linePos_(0), fileName_(nullptr) {}
     };
 
     struct Token
@@ -84,12 +84,12 @@ namespace script
             , coord_(coord)
             , value_(value)
         {}
-        Token(int num, TokenCoord coord) 
+        Token(TokenCoord coord, int num) 
             : kind_(TK_LitInteger)
             , coord_(coord)
             , num_(num)
         {}
-        Token(float fnum, TokenCoord coord)
+        Token(TokenCoord coord, float fnum)
             : kind_(TK_LitFloat)
             , coord_(coord)
             , fnum_(fnum)
@@ -117,7 +117,7 @@ namespace script
         }
 
         Token lookAhead(unsigned num);
-        void registerKeyword(std::string &str, unsigned tok);
+        void registerKeyword(const std::string &str, unsigned tok);
 
     private:
         char lookChar()

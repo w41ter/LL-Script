@@ -1,4 +1,5 @@
-﻿
+﻿#include <iostream>
+
 #include "lexer.h"
 
 using std::string;
@@ -67,8 +68,9 @@ namespace script
     void Lexer::whiteSpace()
 	{
         char startChar = lookChar();
-        while (!startChar)
+        while (startChar)
         {
+            // std::cout << "find char " << startChar <<  std::endl;
             if (!isspace(startChar))
             {
                 unget();
@@ -109,6 +111,9 @@ namespace script
                 throw std::runtime_error("以外结束文件查找");
             c = escapeChar(c);
         }
+        char tmp = lookChar();
+        if (tmp != '\'')
+            throw std::runtime_error("缺少 ' ");
         return Token(TK_LitCharacter, coord_, string(1, c).c_str());
     }
 
@@ -146,7 +151,7 @@ namespace script
         if (startChar != '.')
         {
             unget();
-            return Token(value);
+            return Token(coord_, value);
         }
         startChar = lookChar();
         float fnum = value;
@@ -161,7 +166,7 @@ namespace script
         float tmp = value;
         while (tmp > 1) tmp /= 10;
         fnum += tmp;
-        return Token(fnum);
+        return Token(coord_, fnum);
 	}
 
 	Token Lexer::readSign(char startChar)
@@ -188,28 +193,28 @@ namespace script
             if (lookChar() == '=')
                 return Token(TK_NotEqualThan, coord_);
             unget();
-            return Token(TK_Not);
+            return Token(TK_Not, coord_);
         }
         case '=': 
         {
             if (lookChar() == '=')
                 return Token(TK_EqualThan, coord_);
             unget();
-            return Token(TK_EqualThan);
+            return Token(TK_Assign, coord_);
         }
         case '<': 
         {
             if (lookChar() == '=')
                 return Token(TK_LessThan, coord_);
             unget();
-            return Token(TK_Less);
+            return Token(TK_Less, coord_);
         }
         case '>':
         {
             if (lookChar() == '=')
                 return Token(TK_GreatThan, coord_);
             unget();
-            return Token(TK_Great);
+            return Token(TK_Great, coord_);
         }
 		}
         throw std::runtime_error("bad char");
@@ -233,7 +238,7 @@ namespace script
         return tokens_[num - 1];
     }
 
-    void Lexer::registerKeyword(string & str, unsigned tok)
+    void Lexer::registerKeyword(const string & str, unsigned tok)
     {
         keywords_.insert(std::pair<string, unsigned>(str, tok));
     }
