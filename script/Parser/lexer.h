@@ -1,100 +1,162 @@
 #pragma once
 
+#include <deque>
 #include <cctype>
 #include <string>
+#include <fstream>
 #include <unordered_map>
 
-namespace ScriptCompile
+namespace script
 {
-	using std::wstring;
-	using std::unordered_map;
+    enum BasicTokenID 
+    {
+        TK_None = 0,
+        TK_EOF,
+        TK_Error,
+        TK_Newline,
+        TK_Whitespace,
+        TK_Comment,
+        TK_BasicTokenEnd
+    };
 
-	enum Tokens
-	{
-		TK_NONE,
+    enum DefaultTokenIDs 
+    {
+        TK_Identifier = TK_BasicTokenEnd,
 
-		// type
-		TK_INTEGER,
-		TK_REAL,
-		TK_STRING,
-		TK_IDENTIFIER,
+        TK_LitCharacter,
+        TK_LitInteger,
+        TK_LitFloat,
+        TK_LitString,
 
-		// keywords
-		TK_VARIABLE,
-		TK_FUNCTION,
-		TK_IF,
-		TK_ELSE,
-		TK_WHILE,
-		TK_BREAK,
-		TK_RETURN,
+        TK_Plus,
+        TK_Sub,
+        TK_Mul,
+        TK_Div,
+        TK_Not,
+        TK_Assign,
 
-		// operator
-		TK_VERTICAL,
-		TK_AND,
-		TK_PLUS,
-		TK_MINUS,
-		TK_STAR,
-		TK_SLASH,
-		TK_PERCENT,
-		TK_NOT,
-		TK_EQUAL,
-		TK_NOT_EQUAL,
-		TK_LEFT_ARROW,
-		TK_RIGHT_ARROW,
-		TK_LEFT_ARROW_EQUAL,
-		TK_RIGHT_ARROW_EQUAL,
-		TK_LEFT_RIGHT,
+        TK_GreatThan,
+        TK_LessThan,
+        TK_Less,
+        TK_Great,
+        TK_NotThan,
+        TK_EqualThan,
+        TK_NotEqualThan,
+        TK_And, 
+        TK_Or,
 
-		// others sign
-		TK_LBRA,
-		TK_RBRA,
-		TK_LBRACE,
-		TK_RBRACE,
-		TK_END,
-		TK_COMMA,
-		TK_EOF,
-		TK_ERROR,
-	};
-	
-	struct Token
-	{
-		int 	kind;
-		int 	line;
-		wstring value;
-	};
-	
-	class Lexer
-	{
-	public:
-		Lexer() { Initializer(); }
-		Lexer(wstring &str) : program(str) 
-		{
-			Initializer();
-			index = position = program.begin();
-			line = 1;
-		}
-		~Lexer() { }
-		
-		// 对外公开接口
-		void 	SetProgram(wstring& str);
-		void 	TakeNotes();
-		void 	Restore();
-		Token 	GetNextToken();
-		
-	private:
-		void	Initializer();
-		void 	WhiteSpace();
-		void	Comments();
-		Token  	String();
-		Token 	Number();
-		Token 	Identifier();
-		Token 	Sign();
-		
-	private:
-		unsigned int 		line;
-		wstring 			program;
-		wstring::iterator 	position;
-		wstring::iterator 	index;
-		unordered_map<wstring, Tokens> keywords;
-	};
+        TK_LParen,
+        TK_RParen,
+        TK_LCurlyBrace,
+        TK_RCurlyBrace,
+        TK_LSquareBrace,
+        TK_RSquareBrace,
+        TK_Comma,
+        TK_Semicolon,
+        TK_Colon,
+        TK_Period,
+
+        TK_BeginKeywordIDs
+    };
+
+    struct TokenCoord
+    {
+        unsigned lineNum_;
+        unsigned linePos_;
+        const char *fileName_;
+        TokenCoord() : lineNum_(0), linePos_(0), fileName_(nullptr) {}
+    };
+
+    struct Token
+    {
+        unsigned short kind_;
+        int num_;
+        float fnum_;
+        TokenCoord coord_;
+        std::string value_;
+        Token(unsigned short kind = TK_EOF) : kind_(kind) {}
+        Token(unsigned short kind, TokenCoord coord)
+            : kind_(kind)
+            , coord_(coord)
+        {}
+        Token(unsigned short kind, TokenCoord coord, const char *value)
+            : kind_(kind)
+            , coord_(coord)
+            , value_(value)
+        {}
+        Token(int num, TokenCoord coord) 
+            : kind_(TK_LitInteger)
+            , coord_(coord)
+            , num_(num)
+        {}
+        Token(float fnum, TokenCoord coord)
+            : kind_(TK_LitFloat)
+            , coord_(coord)
+            , fnum_(fnum)
+        {}
+    };
+
+    class Lexer
+    {
+        using KeywordsKind = std::unordered_map<std::string, unsigned>;
+    public:
+        Lexer() { }
+
+        Token getToken();
+        
+        void setProgram(std::string &file)
+        {
+            if (file_)
+                file_.close();
+            file_.open(file);
+            if (!file_)
+                throw std::runtime_error("open file is false");
+            fileName_ = file;
+            coord_ = TokenCoord();
+            coord_.fileName_ = fileName_.c_str();
+        }
+
+        Token lookAhead(unsigned num);
+        void registerKeyword(std::string &str, unsigned tok);
+
+    private:
+        char lookChar()
+        {
+            char ch = 0;
+            file_.get(ch);
+            coord_.linePos_++;
+            return ch;
+        }
+
+        void unget()
+        {
+            if (coord_.linePos_ > 0)
+                coord_.linePos_--;
+            file_.unget();
+        }
+
+        unsigned short getKeywordsID(const char *name);
+
+        void whiteSpace();
+        void readComments();
+
+        char escapeChar(char c);
+
+        Token readToken();
+        Token readChar();
+        Token readString();
+        Token readSign(char startChar);
+        Token readDigit(char startChar);
+        Token readIdentifier(char startChar);
+
+    private:
+        std::ifstream file_;
+        TokenCoord coord_;
+
+        std::string fileName_;
+
+        KeywordsKind keywords_;
+
+        std::deque<Token> tokens_;
+    };
 }

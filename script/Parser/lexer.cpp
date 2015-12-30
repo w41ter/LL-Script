@@ -1,276 +1,241 @@
 ﻿
 #include "lexer.h"
 
-namespace ScriptCompile
+using std::string;
+
+namespace script
 {
-	void Lexer::SetProgram(wstring& str)
-	{
-		program = str;
-		position = index = program.begin();
-		line = 1;
-	}
+    char Lexer::escapeChar(char c)
+    {
+        switch (c)
+        {
+        case 'n': c = '\n'; break;
+        case 'r': c = '\r'; break;
+        case 't': c = '\t'; break;
+        case '\\': c = '\\'; break;
+        case '"': c = '"';  break;
+        case '\'': c = '\''; break;
+        default:
+            throw std::runtime_error("unexcepted excape char");
+            break;
+        }
+        return c;
+    }
+
+    Token Lexer::readIdentifier(char startChar) 
+    {
+        char c = startChar;
+        char id[128] = { 0 };
+        size_t len = 0;
+        while (isalpha(c) || isdigit(c) || c == '_') 
+        {
+            if (len > 126)
+                throw std::runtime_error("length of identifier must in 1~126");
+            id[len++] = c;
+            c = lookChar();
+        };
+        file_.unget();
+        unsigned short tok = getKeywordsID(id);
+        return Token(tok, coord_, id);
+    }
 	
-	void Lexer::TakeNotes()
-	{
-		position = index;
-	}
+    Token Lexer::readToken()
+    {
+        whiteSpace();
+        char ch = lookChar();
+        if (!ch)
+            return Token();
+        if (isalpha(ch) || ch == '_')
+            return readIdentifier(ch);
+        if (isdigit(ch))
+            return readDigit(ch);
+        if (ch == '"')
+            return readString();
+        if (ch == '\'')
+            return readChar();
+        return readSign(ch);
+    }
 	
-	void Lexer::Restore() 
+    unsigned short Lexer::getKeywordsID(const char * name)
+    {
+        if (keywords_.count(name) == 0)
+            return TK_Identifier;
+        else
+            return keywords_[name];
+    }
+
+    void Lexer::whiteSpace()
 	{
-		index = position;
-	}
-	
-	Token Lexer::GetNextToken()
-	{
-		WhiteSpace();
-		
-		if (index != program.end())
-		{
-			if (isalpha(*index) || *index == '_')
-			{
-				return Identifier();
-			}
-			else if (isdigit(*index))
-			{
-				return Number();
-			}
-			else if (*index == '"')
-			{
-				return String();
-			}
-			else
-			{
-				return Sign();
-			}
-		}
-		else
-		{
-			Token token = {TK_EOF, line, L"EOF"};
-			return token;
-		}
-	}
-	
-	void Lexer::WhiteSpace()
-	{
-		while (index != program.end())
-		{
-			if (isspace(*index))
-			{
-				if (*index == '\n')
-				{
-					line++;
-				}
-				++index;
-			}
-			else
-			{
-				break;
-			}
-		}
+        char startChar = lookChar();
+        while (!startChar)
+        {
+            if (!isspace(startChar))
+            {
+                unget();
+                break;
+            }
+            if (startChar == '\n')
+            {
+                coord_.lineNum_++;
+                coord_.linePos_ = 0;
+            }
+            startChar = lookChar();
+        }
 	}
 
-	void Lexer::Comments()
+	void Lexer::readComments()
 	{
-		while (index != program.end())
+        char c = lookChar();
+		while (c)
 		{
-			if (*index != '\n')
-			{
-				index++;
-			}
-			else
-			{
-				line++;
-				break;
-			}
+            if (c == '\n')
+            {
+                coord_.lineNum_++;
+                coord_.linePos_ = 0;
+            }
+            c = lookChar();
 		}
 	}
 	
-	Token Lexer::String()
-	{
-		++index;
-		Token token;
-		token.kind = TK_STRING;
-		token.line = line;
-		//token.value += *index++;
-		
-		while (index != program.end())
-		{
-			
-			if (*index == L'"')
-			{
-				++index;			// 保证指向下一个位置
-				return token;
-			}
-			else if (*index == L'\n')
-			{
-				line++;
-			}
-			token.value += *index;
-			++index;
-		}
-		
-		token.kind = TK_ERROR;
-		token.value = L"引号没有闭合";
-		return token;
-	}
-	
-	Token Lexer::Number()
-	{
-		Token token;
-		token.kind = TK_INTEGER;
-		token.line = line;
-		
-		while (index != program.end() 
-			&& (isdigit(*index) || *index == L'.'))
-		{
-			token.value += *index;
-			++index;
-		}
-		
-		int count = 0;
-		for (auto c : token.value)
-		{
-			if (c == L'.')
-			{
-				count++;
-			}
-		}
-		
-		if (count == 1 && *(index - 1) != L'.')
-		{
-			token.kind = TK_REAL;
-		}
-		else if (count != 0)
-		{
-			token.kind = TK_ERROR;
-			token.value = L"实数写错了";
-		}
-		
-		return token;
-	}
-	
-	Token Lexer::Identifier()
-	{
-		Token token;
-		token.kind = TK_IDENTIFIER;
-		token.line = line;
-		token.value += *index;
-		
-		++index;
-		while (index != program.end())
-		{
-			if (isalnum(*index) || *index == L'_')
-			{
-				token.value += *index;
-				++index;
-			}
-			else break;
-		}
-		
-		if (keywords.find(token.value) != keywords.end())
-			token.kind = keywords[token.value];
-		
-		return token;
-	}
-	
-	Token Lexer::Sign()
-	{
-		Token token;
-		token.line = line;
-		token.value = *index;
-		
-		switch (*index)
-		{
-		case L'|':
-			token.kind = TK_VERTICAL;
-			break;
-		case L'&':
-			token.kind = TK_AND;
-			break;
-		case L'+':
-			token.kind = TK_PLUS;
-			break;
-		case L'-':
-			token.kind = TK_MINUS;
-			break;
-		case L'*':
-			token.kind = TK_STAR;
-			break;
-		case L'/':
-			if (*(index + 1) == L'/')
-			{
-				Comments();
-				return GetNextToken();
-			}
-			token.kind = TK_SLASH;
-			break;
-		case L'%':
-			token.kind = TK_PERCENT;
-			break;
-		case L'!':
-			if (*(index + 1) == L'=')
-				token.kind = TK_NOT_EQUAL, ++index;
-			else
-				token.kind = TK_NOT;
-			break;
-		case L'(':
-			token.kind = TK_LBRA;
-			break;
-		case L')':
-			token.kind = TK_RBRA;
-			break;
-		case L'{':
-			token.kind = TK_LBRACE;
-			break;
-		case L'}':
-			token.kind = TK_RBRACE;
-			break;
-		case L';':
-			token.kind = TK_END;
-			break;
-		case L'=':
-			if (*(index + 1) == L'=')
-				token.kind = TK_LEFT_RIGHT, ++index;
-			else
-				token.kind = TK_EQUAL;
-			break;
-			break;
-		case L',':
-			token.kind = TK_COMMA;
-			break;
+    Token Lexer::readChar()
+    {
+        char c = lookChar();
+        if (!c)
+            throw std::runtime_error("以外结束文件查找");
+        if (c == '\\')
+        {
+            c = lookChar();
+            if (!c)
+                throw std::runtime_error("以外结束文件查找");
+            c = escapeChar(c);
+        }
+        return Token(TK_LitCharacter, coord_, string(1, c).c_str());
+    }
 
-		case L'<':
-			if (*(index + 1) == L'=')
-				token.kind = TK_LEFT_ARROW_EQUAL, ++index;
-			else
-				token.kind = TK_LEFT_ARROW;
-			break;
-		case L'>':
-			if (*(index + 1) == L'=')
-				token.kind = TK_RIGHT_ARROW_EQUAL, ++index;
-			else
-				token.kind = TK_RIGHT_ARROW;
-			break;
-		default:
-			token.kind = TK_ERROR;
-			token.value = L"不认识的符号：";
-			token.value += *index;
-		}
-		 
-		++index;
-
-		return token;
+    Token Lexer::readString()
+	{
+        string value;
+        char c = lookChar();
+        while (c)
+        {
+            if (c == '"')
+            {
+                return Token(TK_LitString, coord_, value.c_str());
+            }
+            if (c == '\\')
+            {
+                c = lookChar();
+                if (!c) break;
+                c = escapeChar(c);
+            }
+            value += c;
+            c = lookChar();
+        }
+        throw std::runtime_error("以外结束文件查找！");
+	}
+	
+	Token Lexer::readDigit(char startChar)
+    {	
+        int value = 0;
+        while (isdigit(startChar))
+        {
+            value *= 10;
+            value += startChar - '0';
+            startChar = lookChar();
+        }
+        if (startChar != '.')
+        {
+            unget();
+            return Token(value);
+        }
+        startChar = lookChar();
+        float fnum = value;
+        value = 0;
+        while (isdigit(startChar))
+        {
+            value *= 10;
+            value += startChar - '0';
+            startChar = lookChar();
+        }
+        unget();
+        float tmp = value;
+        while (tmp > 1) tmp /= 10;
+        fnum += tmp;
+        return Token(fnum);
 	}
 
-	void Lexer::Initializer()
+	Token Lexer::readSign(char startChar)
 	{
-		keywords[L"if"] = TK_IF;
-		keywords[L"while"] = TK_WHILE;
-		keywords[L"else"] = TK_ELSE;
-		keywords[L"break"] = TK_BREAK;
-		keywords[L"return"] = TK_RETURN;
-		keywords[L"var"] = TK_VARIABLE;
-		keywords[L"function"] = TK_FUNCTION;
+		switch (startChar)
+		{
+        case '(': return Token(TK_LParen, coord_);
+        case ')': return Token(TK_RParen, coord_);
+        case '[': return Token(TK_LSquareBrace, coord_);
+        case ']': return Token(TK_RSquareBrace, coord_);
+        case '{': return Token(TK_LCurlyBrace, coord_);
+        case '}': return Token(TK_RCurlyBrace, coord_);
+        case '+': return Token(TK_Plus, coord_);
+        case '-': return Token(TK_Sub, coord_);
+        case '*': return Token(TK_Mul, coord_);
+        case '/': return Token(TK_Div, coord_);
+        case ';': return Token(TK_Semicolon, coord_);
+        case ',': return Token(TK_Comma, coord_);
+        case '.': return Token(TK_Period, coord_);
+        case '|': return Token(TK_Or, coord_);
+        case '&': return Token(TK_And, coord_);
+        case '!': 
+        {
+            if (lookChar() == '=')
+                return Token(TK_NotEqualThan, coord_);
+            unget();
+            return Token(TK_Not);
+        }
+        case '=': 
+        {
+            if (lookChar() == '=')
+                return Token(TK_EqualThan, coord_);
+            unget();
+            return Token(TK_EqualThan);
+        }
+        case '<': 
+        {
+            if (lookChar() == '=')
+                return Token(TK_LessThan, coord_);
+            unget();
+            return Token(TK_Less);
+        }
+        case '>':
+        {
+            if (lookChar() == '=')
+                return Token(TK_GreatThan, coord_);
+            unget();
+            return Token(TK_Great);
+        }
+		}
+        throw std::runtime_error("bad char");
 	}
+
+    Token Lexer::getToken()
+    {
+        if (tokens_.size() == 0)
+            return readToken();
+        Token tok = tokens_[0];
+        tokens_.pop_front();
+        return tok;
+    }
+
+    Token Lexer::lookAhead(unsigned num)
+    {
+        if (num > tokens_.size())
+        {
+            tokens_.push_back(readToken());
+        }
+        return tokens_[num - 1];
+    }
+
+    void Lexer::registerKeyword(string & str, unsigned tok)
+    {
+        keywords_.insert(std::pair<string, unsigned>(str, tok));
+    }
 }
 

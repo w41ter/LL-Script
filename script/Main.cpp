@@ -116,8 +116,8 @@ int wmain(int argc, wchar_t* argv[])
 		Code = Buffer;
 
 		delete[] Buffer;
-		delete[] AnsiBuffer;
-	}*/
+		delete[] AnsiBuffer;*/
+	}
 
 	ScriptCompile::Program program;
 	ScriptCompile::ScriptPlugin plugin;
