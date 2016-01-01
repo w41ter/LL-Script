@@ -1,4 +1,4 @@
-var temp = "Please in you name";
+let temp = "Please in you name";
 print(temp);
 temp = input();
 temp = "Welcome " + temp;

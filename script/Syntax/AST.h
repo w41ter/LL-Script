@@ -4,246 +4,361 @@
 #include <vector>
 #include <map>
 
-namespace ScriptCompile
+namespace script
 {
     class ASTree;
-    class ASTIf;
-    class ASTJmp;
-    class ASTReturn;
-    class ASTWhile;
+    class ASTIdentifier;
+    class ASTNull;
+    class ASTConstant;
+    class ASTArray;
+    class ASTCall;
+    class ASTArrayIndex;
+    class ASTSingleExpression;
+    class ASTBinaryExpression;
+    class ASTAndExpression;
+    class ASTOrExpression;
+    class ASTAssignExpression;
+    class ASTVarDeclStatement;
+    class ASTContinueStatement;
+    class ASTBreakStatement;
+    class ASTReturnStatement;
+    class ASTWhileStatement;
+    class ASTIfStatement;
     class ASTBlock;
     class ASTFunction;
-    class ASTDecal;
-    class AssignExpr;
-    class ExpressionList;
-    class BooleanExpr;
-    class RelationalExpr;
-    class AdditiveExpr;
-    class NotTerm;
-    class Term;
-    class Factor;
-    class PositiveFactor;
+    class ASTProgram;
 
     class Visitor
     {
     public:
-        virtual void visit(NotTerm &ast) = 0;
-        virtual void visit(Term &ast) = 0;
-        virtual void visit(Factor &ast) = 0;
-        virtual void visit(PositiveFactor &ast) = 0;
-        virtual void visit(ASTIf &ast) = 0;
-        virtual void visit(ASTJmp &ast) = 0;
-        virtual void visit(ASTReturn &ast) = 0;
-        virtual void visit(ASTWhile &ast) = 0;
-        virtual void visit(ASTBlock &ast) = 0;
-        virtual void visit(ASTFunction &ast) = 0;
-        virtual void visit(ASTDecal &ast) = 0;
-        virtual void visit(AssignExpr &ast) = 0;
-        virtual void visit(ExpressionList &ast) = 0;
-        virtual void visit(BooleanExpr &ast) = 0;
-        virtual void visit(RelationalExpr &ast) = 0;
-        virtual void visit(AdditiveExpr &ast) = 0;
+        virtual bool visit(ASTIdentifier &v) = 0;
+        virtual bool visit(ASTNull &v) = 0;
+        virtual bool visit(ASTConstant &v) = 0;
+        virtual bool visit(ASTArray &v) = 0;
+        virtual bool visit(ASTCall &v) = 0;
+        virtual bool visit(ASTArrayIndex &v) = 0;
+        virtual bool visit(ASTSingleExpression &v) = 0;
+        virtual bool visit(ASTBinaryExpression &v) = 0;
+        virtual bool visit(ASTRelationalExpression &v) = 0;
+        virtual bool visit(ASTAndExpression &v) = 0;
+        virtual bool visit(ASTOrExpression &v) = 0;
+        virtual bool visit(ASTAssignExpression &v) = 0;
+        virtual bool visit(ASTVarDeclStatement &v) = 0;
+        virtual bool visit(ASTContinueStatement &v) = 0;
+        virtual bool visit(ASTBreakStatement &v) = 0;
+        virtual bool visit(ASTReturnStatement &v) = 0;
+        virtual bool visit(ASTWhileStatement &v) = 0;
+        virtual bool visit(ASTIfStatement &v) = 0;
+        virtual bool visit(ASTBlock &v) = 0;
+        virtual bool visit(ASTFunction &v) = 0;
+        virtual bool visit(ASTProgram &v) = 0;
     };
 
-	//
-	//	语法树部分
-	//
-	class ASTree
-	{
-	public:
-		ASTree() {}
-		virtual ~ASTree() {}
+    class ASTree
+    {
+    public:
+        virtual bool accept(Visitor &v) = 0;
+    };
 
-		virtual int GetKind() const { return AST_BASE; }
-	};
+    class ASTIdentifier : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTIdentifier(std::string name) : name_(name) {}
 
-	class ASTreeVariable : public ASTree
-	{
-	public:
-		ASTreeVariable() {}
-		virtual ~ASTreeVariable() {}
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
 
-		virtual int GetKind() const { return AST_VALUE; }
+    private:
+        std::string name_;
+    };
 
-		int		 GetValueKind() const { return kind; }
-		void	 SetValueKind(int k)  { kind = k; }
-		void	 SetValue(const wstring& t) { temp = t; }
-		wstring& GetValue()			  { return temp; }
-	private:
-		int kind;
-		wstring temp;
-	};
+    class ASTNull : public ASTree
+    {
+        friend class Visitor;
+    public:
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    };
 
-	class ASTreeCall : public ASTree
-	{
-	public:
-		ASTreeCall() {}
-		virtual ~ASTreeCall() {}
+    class ASTConstant : public ASTree
+    {
+        friend class Visitor;
+        enum {
+            T_Charactor,
+            T_Integer,
+            T_Float,
+            T_String,
+        };
+    public:
+        ASTConstant(char c) : type_(T_Charactor), c_(c) {}
+        ASTConstant(int num) : type_(T_Integer), num_(num) {}
+        ASTConstant(float fnum) : type_(T_Float), fnum_(fnum) {}
+        ASTConstant(std::string &str) : type_(T_String), str_(str) {}
 
-		virtual int GetKind() const { return AST_FUNCTION_CALL; }
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
 
-		void	 AddParam(const wstring& p) { params.push_back(p); }
-		void	 SetName(const wstring& n)  { name = n; }
-		size_t	 Size()				  { return params.size(); }
-		wstring& GetName()			  { return name; }
-		wstring& GetParam(unsigned int pos) { return params.at(pos); }
-		vector<wstring>& GetParams() { return params; }
-	private:
-		wstring name;
-		vector<wstring> params;
-	};
+    private:
+        unsigned type_;
+        char c_;
+        int num_;
+        float fnum_;
+        std::string str_;
+    };
 
-	class ASTreeUnary : public ASTree
-	{
-	public:
-		ASTreeUnary() : exprssion(NULL) {}
-		virtual ~ASTreeUnary() {}
+    class ASTArray : public ASTree
+    {
+        friend class Visitor;
+    public:
+       
+        void push_back(ASTree *tree) { array_.push_back(tree); }
 
-		virtual int GetKind() const { return AST_UNARY; }
+        virtual bool accept(Visitor &v) override { v.visit(*this); }
 
-		void	SetExprssion(ASTree* l)	{ exprssion = l; }
-		void	SetOperator(Operator o)		{ op = o; }
-		Operator GetOperator() const		{ return op; }
-		ASTree* GetExprssion()			{ return exprssion; }
-	private:
-		Operator op;
-		ASTree* exprssion;
-	};
+    private:
+        std::vector<ASTree *> array_;
+    };
 
-	class ASTreeBinary : public ASTree
-	{
-	public:
-		ASTreeBinary() : left(NULL), right(NULL) {}
-		virtual ~ASTreeBinary() {}
+    class ASTCall : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTCall(ASTree *function, ASTree *arguments)
+            : function_(function)
+            , arguments_(arguments)
+        {}
 
-		virtual int GetKind() const { return AST_BINARY; }
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        ASTree *function_;
+        ASTree *arguments_;
+    };
 
-		Operator GetOperator() const	{ return op; }
-		void	SetLeft(ASTree* l)	{ left = l; }
-		void	SetOperator(Operator o)	{ op = o; }
-		void	SetRight(ASTree* r) { right = r; }
-		ASTree* GetLeft()			{ return left; }
-		ASTree* GetRight()			{ return right; }
-	private:
-		Operator op;
-		ASTree* left;
-		ASTree* right;
-	};
+    class ASTArrayIndex : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTArrayIndex(ASTree *array, ASTree *index)
+            : array_(array), index_(index)
+        {}
 
-	//class ASTreeLogic : public ASTree
-	//{
-	//public:
-	//	ASTreeLogic() {}
-	//	virtual ~ASTreeLogic() {}
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        ASTree *array_;
+        ASTree *index_;
+    };
 
-	//	virtual int GetKind() const { return AST_LOGIC; }
+    class ASTSingleExpression : public ASTree
+    {
+        friend class Visitor;
+        enum {
+            OP_Not,
+            OP_Sub,
+        };
+    public:
+        ASTSingleExpression(unsigned op, ASTree *expr)
+            : op_(op), expr_(expr)
+        {}
 
-	//	int		GetOperator() const				{ return op; }
-	//	void	SetOperator(int o)				{ op = o; }
-	//	void	AddCondition(ASTree* t)			{ conditions.push_back(t); }
-	//	size_t	Size()		 					{ return conditions.size(); }
-	//	ASTree& GetCondition(unsigned int pos)  { return *conditions.at(pos); }
-	//private:
-	//	vector<ASTree*> conditions;
-	//	int				op;
-	//};
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
 
-	class ASTreeExpression : public ASTree
-	{
-	public:
-		ASTreeExpression() : binary(NULL) {}
-		virtual ~ASTreeExpression() {}
+    private:
+        unsigned op_;
+        ASTree *expr_;
+    };
 
-		virtual int GetKind() const { return AST_EXPRESSION; }
+    class ASTBinaryExpression : public ASTree
+    {
+        friend class Visitor;
+        enum {
+            OP_Add,
+            OP_Sub,
+            OP_Mul,
+            OP_Div,
+            RL_GreatThan,
+            RL_Great,
+            RL_LessThan,
+            RL_Less,
+            RL_Equal,
+            RL_NotEqual,
+        };
+    public:
+        ASTBinaryExpression(unsigned op, ASTree *left, ASTree *right)
+            : op_(op), left_(left), right_(right)
+        {}
 
-		void	SetBinary(ASTree* b) { binary = b; }
-		ASTree* GetBinary()			 { return binary; }
-	private:
-		ASTree* binary;
-	};
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        unsigned op_;
+        ASTree *left_;
+        ASTree *right_;
+    };
 
-	class ASTreeStatements : public ASTree
-	{
-	public:
-		ASTreeStatements() {}
-		virtual ~ASTreeStatements() {}
+    class ASTRelationalExpression : public ASTree
+    {
+        friend class Visitor;
+        enum {
+            
+        };
+    public:
+        ASTRelationalExpression(unsigned relation, ASTree *left, ASTree *right)
+            : relation_(relation), left_(left), right_(right)
+        {}
 
-		virtual int GetKind() const { return AST_STATEMENTS; }
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        unsigned relation_;
+        ASTree *left_;
+        ASTree *right_;
+    };
 
-		void InsertStatement(ASTreeStatements& rls);
-		void InsertStatement(ASTree* s)	{ statements.push_back(s); }
-		ASTree* GetStatement(int pos)	{ return statements.at(pos); }
-		size_t GetSize() const			{ return statements.size(); }
+    class ASTAndExpression : public ASTree
+    {
+        friend class Visitor;
+    public:
+        void push_back(ASTree *relation) { relations_.push_back(relation); }
 
-	private:
-		vector<ASTree*> statements;
-	};
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        std::vector<ASTree*> relations_;
+    };
 
-	class ASTreeBreakStatement : public ASTree
-	{
-	public:
-		ASTreeBreakStatement() {}
-		virtual ~ASTreeBreakStatement() {}
+    class ASTOrExpression : public ASTree
+    {
+        friend class Visitor;
+    public:
+        void push_back(ASTree *relation) { relations_.push_back(relation); }
 
-		virtual int GetKind() const { return AST_BREAK_STATEMENT; }
-	};
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        std::vector<ASTree*> relations_;
+    };
 
-	// 返回值处应当为expresion
-	// 所以没有使用statement
-	class ASTreeReturnStatement : public ASTree
-	{
-	public:
-		ASTreeReturnStatement() : expression(NULL) {}
-		virtual ~ASTreeReturnStatement() {}
+    class ASTAssignExpression : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTAssignExpression(ASTree *left, ASTree *right)
+            : left_(left), right_(right) {}
 
-		virtual int GetKind() const { return AST_RETURN_STATEMENT; }
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        ASTree *left_;
+        ASTree *right_;
+    };
 
-		void SetExprssion(ASTreeExpression* e) { expression = e; }
-		ASTreeExpression& GetExpression()	   { return *expression; }
-	private:
-		ASTreeExpression* expression;
-	};
+    class ASTVarDeclStatement : public ASTree
+    {
+        friend class Vistor;
+    public:
+        ASTVarDeclStatement(std::string &str, ASTree *expr)
+            : name_(str), expr_(expr) {}
 
-	class ASTreeWhileStatement : public ASTree
-	{
-	public:
-		ASTreeWhileStatement() : condition(nullptr), statements(nullptr) {}
-		virtual ~ASTreeWhileStatement() {}
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        std::string name_;
+        ASTree *expr_;
+    };
 
-		virtual int GetKind() const { return AST_WHILE_STATEMENT; }
+    class ASTContinueStatement : public ASTree
+    {
+        friend class Visitor;
+    public:
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    };
 
-		void SetCondition(ASTreeExpression* c)	{ condition = c; }
-		void SetStatements(ASTreeStatements* s) { statements = s; }
-		ASTreeStatements& GetStatements()		{ return *statements; }
-		ASTreeExpression& GetCondition()		{ return *condition; }
-	private:
-		ASTreeExpression* condition;
-		ASTreeStatements* statements;
-	};
+    class ASTBreakStatement : public ASTree
+    {
+        friend class Visitor;
+    public:
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    };
 
-	// if statements
-	// 管理 if statement 和 else statement
-	// 保存condition
-	class ASTreeIfStatement : public ASTree
-	{
-	public:
-		ASTreeIfStatement() : condition(nullptr), hasElse(nullptr), elseStatements(nullptr) {}
-		virtual ~ASTreeIfStatement() {}
+    class ASTReturnStatement : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTReturnStatement(ASTree *expr = nullptr) : expr_(expr) {}
 
-		virtual int GetKind() const { return AST_IF_STATEMENT; }
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        ASTree *expr_;
+    };
 
-		void SetCondition(ASTreeExpression* c)		{ condition = c; }
-		void SetIfStatements(ASTreeStatements* s)	{ ifStatements = s; }
-		void SetElseStatements(ASTreeStatements* s)	{ hasElse = true, elseStatements = s; }
-		bool HasElse()								{ return hasElse; }
-		ASTreeExpression& GetCondition()			{ return *condition; }
-		ASTreeStatements& GetIfStatements()			{ return *ifStatements; }
-		ASTreeStatements& GetElseStatements()		{ return *elseStatements; }
-	private:
-		bool			  hasElse;
-		ASTreeExpression* condition;
-		ASTreeStatements* ifStatements;
-		ASTreeStatements* elseStatements;
-	};
+    class ASTWhileStatement : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTWhileStatement(ASTree *cond, ASTree *statement)
+            : condition_(cond)
+            , statement_(statement)
+        {}
 
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        ASTree *condition_;
+        ASTree *statement_;
+    };
+
+    class ASTIfStatement : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTIfStatement(ASTree *cond, ASTree *ifState)
+            : condition_(cond)
+            , ifStatement_(ifState)
+            , elseStatement_(nullptr)
+            , hasElse_(false)
+        {}
+        ASTIfStatement(ASTree *cond, ASTree *ifState, ASTree *elseState)
+            : condition_(cond)
+            , ifStatement_(ifState)
+            , elseStatement_(elseStatement_)
+            , hasElse_(true)
+        {}
+
+        bool hasElse() const { return hasElse_; }
+
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        ASTree *condition_;
+        ASTree *ifStatement_;
+        ASTree *elseStatement_;
+        bool hasElse_;
+    };
+
+    class ASTBlock : public ASTree
+    {
+        friend class Visitor;
+    public:
+        void push_back(ASTree *tree) { statements_.push_back(tree); }
+
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        std::vector<ASTree*> statements_;
+    };
+
+    class ASTFunction : public ASTree
+    {
+        friend class Visitor;
+    public:
+        ASTFunction(std::string &name) : name_(name) {}
+        void push_param(std::string &name) { params_.push_back(name); }
+        void setBlock(ASTBlock *block) { block_ = block; }
+
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+
+    private:
+        std::string name_;
+        std::vector<std::string> params_;
+        ASTBlock *block_;
+    };
+
+    class ASTProgram : public ASTree
+    {
+        friend class Visitor;
+    public:
+        void push_back(ASTFunction *function) { functions_.push_back(function); }
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        std::vector<ASTFunction*> functions_;
+    };
 }
