@@ -2,6 +2,7 @@
 #define __PARSER_H__
 
 #include "lexer.h"
+#include "../Syntax/AST.h"
 
 namespace script
 {
@@ -26,29 +27,30 @@ namespace script
     public:
         Parser(Lexer &lexer) : lexer_(lexer) { initialize(); }
 
-        void parse();
+        ASTProgram *parse();
 
     private:
         void initialize();
 
-        void parseKeywordConstant();
-        void parseFactor();
-        void parsePositveFactor();
-        void parseNotFactor();
-        void parseTerm();
-        void parseAdditiveExpr();
-        void parseRelationalExpr();
-        void parseAndExpr();
-        void parseOrExpr();
-        void parseExpr();
-        void parseExprList();
-        void parseAssignExpr();
-        void parseStatement();
-        void parseBlock();
-        void parseFunctionDecl();
+        ASTree * parseKeywordConstant();
+        ASTree * parseFactor();
+        ASTree * parsePositveFactor();
+        ASTree * parseNotFactor();
+        ASTree * parseTerm();
+        ASTree * parseAdditiveExpr();
+        ASTree * parseRelationalExpr();
+        ASTree * parseAndExpr();
+        ASTree * parseOrExpr();
+        ASTree * parseExpr();
+        ASTree * parseExprList();
+        ASTree * parseAssignExpr();
+        ASTree * parseStatement();
+        ASTBlock * parseBlock();
+        ASTFunction * parseFunctionDecl();
 
         void advance();
         void match(unsigned tok);
+        std::string &exceptIdentifier();
 
         bool isRelational(unsigned tok);
     private:

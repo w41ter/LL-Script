@@ -13,6 +13,7 @@ namespace script
     class ASTArray;
     class ASTCall;
     class ASTArrayIndex;
+    class ASTExpressionList;
     class ASTSingleExpression;
     class ASTBinaryExpression;
     class ASTAndExpression;
@@ -31,6 +32,7 @@ namespace script
     class Visitor
     {
     public:
+        virtual bool visit(ASTExpressionList &v) = 0;
         virtual bool visit(ASTIdentifier &v) = 0;
         virtual bool visit(ASTNull &v) = 0;
         virtual bool visit(ASTConstant &v) = 0;
@@ -57,6 +59,7 @@ namespace script
     class ASTree
     {
     public:
+        virtual ~ASTree() = default;
         virtual bool accept(Visitor &v) = 0;
     };
 
@@ -64,6 +67,7 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTIdentifier() = default;
         ASTIdentifier(std::string name) : name_(name) {}
 
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
@@ -76,6 +80,7 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTNull() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     };
 
@@ -89,6 +94,7 @@ namespace script
             T_String,
         };
     public:
+        virtual ~ASTConstant() = default;
         ASTConstant(char c) : type_(T_Charactor), c_(c) {}
         ASTConstant(int num) : type_(T_Integer), num_(num) {}
         ASTConstant(float fnum) : type_(T_Float), fnum_(fnum) {}
@@ -104,11 +110,21 @@ namespace script
         std::string str_;
     };
 
+    class ASTExpressionList : public ASTree
+    {
+    public:
+        virtual ~ASTExpressionList() = default;
+        void push_back(ASTree *tree) { exprs_.push_back(tree); }
+        virtual bool accept(Visitor &v) override { return v.visit(*this); }
+    private:
+        std::vector<ASTree*> exprs_;
+    };
+
     class ASTArray : public ASTree
     {
         friend class Visitor;
     public:
-       
+        virtual ~ASTArray() = default;
         void push_back(ASTree *tree) { array_.push_back(tree); }
 
         virtual bool accept(Visitor &v) override { v.visit(*this); }
@@ -125,7 +141,7 @@ namespace script
             : function_(function)
             , arguments_(arguments)
         {}
-
+        virtual ~ASTCall() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         ASTree *function_;
@@ -140,6 +156,7 @@ namespace script
             : array_(array), index_(index)
         {}
 
+        virtual ~ASTArrayIndex() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         ASTree *array_;
@@ -149,15 +166,17 @@ namespace script
     class ASTSingleExpression : public ASTree
     {
         friend class Visitor;
+        
+    public:
         enum {
             OP_Not,
             OP_Sub,
         };
-    public:
+
         ASTSingleExpression(unsigned op, ASTree *expr)
             : op_(op), expr_(expr)
         {}
-
+        virtual ~ASTSingleExpression() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
 
     private:
@@ -168,23 +187,19 @@ namespace script
     class ASTBinaryExpression : public ASTree
     {
         friend class Visitor;
+        
+    public:
         enum {
             OP_Add,
             OP_Sub,
             OP_Mul,
             OP_Div,
-            RL_GreatThan,
-            RL_Great,
-            RL_LessThan,
-            RL_Less,
-            RL_Equal,
-            RL_NotEqual,
         };
-    public:
+
         ASTBinaryExpression(unsigned op, ASTree *left, ASTree *right)
             : op_(op), left_(left), right_(right)
         {}
-
+        virtual ~ASTBinaryExpression() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         unsigned op_;
@@ -195,14 +210,21 @@ namespace script
     class ASTRelationalExpression : public ASTree
     {
         friend class Visitor;
-        enum {
-            
-        };
+
     public:
+        enum {
+            RL_GreatThan,
+            RL_Great,
+            RL_LessThan,
+            RL_Less,
+            RL_Equal,
+            RL_NotEqual,
+        };
+
         ASTRelationalExpression(unsigned relation, ASTree *left, ASTree *right)
             : relation_(relation), left_(left), right_(right)
         {}
-
+        virtual ~ASTRelationalExpression() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         unsigned relation_;
@@ -214,6 +236,7 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTAndExpression() = default;
         void push_back(ASTree *relation) { relations_.push_back(relation); }
 
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
@@ -225,6 +248,7 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTOrExpression() = default;
         void push_back(ASTree *relation) { relations_.push_back(relation); }
 
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
@@ -238,7 +262,7 @@ namespace script
     public:
         ASTAssignExpression(ASTree *left, ASTree *right)
             : left_(left), right_(right) {}
-
+        virtual ~ASTAssignExpression() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         ASTree *left_;
@@ -251,7 +275,7 @@ namespace script
     public:
         ASTVarDeclStatement(std::string &str, ASTree *expr)
             : name_(str), expr_(expr) {}
-
+        virtual ~ASTVarDeclStatement() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         std::string name_;
@@ -262,6 +286,7 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTContinueStatement() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     };
 
@@ -269,6 +294,7 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTBreakStatement() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     };
 
@@ -277,7 +303,7 @@ namespace script
         friend class Visitor;
     public:
         ASTReturnStatement(ASTree *expr = nullptr) : expr_(expr) {}
-
+        virtual ~ASTReturnStatement() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         ASTree *expr_;
@@ -291,7 +317,7 @@ namespace script
             : condition_(cond)
             , statement_(statement)
         {}
-
+        virtual ~ASTWhileStatement() = default;
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         ASTree *condition_;
@@ -314,7 +340,7 @@ namespace script
             , elseStatement_(elseStatement_)
             , hasElse_(true)
         {}
-
+        virtual ~ASTIfStatement() = default;
         bool hasElse() const { return hasElse_; }
 
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
@@ -329,8 +355,9 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTBlock() = default;
         void push_back(ASTree *tree) { statements_.push_back(tree); }
-
+        
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         std::vector<ASTree*> statements_;
@@ -341,6 +368,7 @@ namespace script
         friend class Visitor;
     public:
         ASTFunction(std::string &name) : name_(name) {}
+        virtual ~ASTFunction() = default;
         void push_param(std::string &name) { params_.push_back(name); }
         void setBlock(ASTBlock *block) { block_ = block; }
 
@@ -356,9 +384,47 @@ namespace script
     {
         friend class Visitor;
     public:
+        virtual ~ASTProgram() = default;
         void push_back(ASTFunction *function) { functions_.push_back(function); }
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
     private:
         std::vector<ASTFunction*> functions_;
     };
+
+    class ASTManager
+    {
+        ASTManager() = default;
+        ~ASTManager()
+        {
+
+        }
+
+        std::vector<ASTree*> manager_;
+    public:
+        static ASTManager &instance()
+        {
+            static ASTManager manager;
+            return manager;
+        }
+
+        void push_back(ASTree *tree) { manager_.push_back(tree); }
+
+        void destroy()
+        {
+            for (auto &i : manager_)
+            {
+                delete i;
+                i = nullptr;
+            }
+        }
+    };
+
+    template<typename T, typename ...Args>
+    T *MallocMemory(Args ...args)
+    {
+        auto &ins = ASTManager::instance();
+        auto *buffer =  new T(args);
+        ins.push_back(buffer);
+        return buffer;
+    }
 }
