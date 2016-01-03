@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 
 namespace script
 {
@@ -28,6 +29,38 @@ namespace script
     class ASTBlock;
     class ASTFunction;
     class ASTProgram;
+
+    class SymbolTable
+    {
+    public:
+        SymbolTable(SymbolTable *parent = nullptr) : parent_(parent) {}
+
+        bool find(std::string &str)
+        {
+            if (table_.count(str) == 0)
+            {
+                if (parent_ == nullptr)
+                    return false;
+                return parent_->find(str);
+            }
+            return true;
+        }
+
+        bool findInCurrent(std::string &str)
+        {
+            return table_.count(str) != 0;
+        }
+
+        void insert(std::string &str)
+        {
+            if (table_.count(str) == 0)
+                table_.insert(str);
+            throw std::runtime_error(str + " has been defined!");
+        }
+
+        SymbolTable *parent_;
+        std::set<std::string> table_;
+    };
 
     class Visitor
     {
@@ -84,13 +117,14 @@ namespace script
 
     class ASTConstant : public ASTree
     {
+       
+    public:
         enum {
             T_Charactor,
             T_Integer,
             T_Float,
             T_String,
         };
-    public:
         virtual ~ASTConstant() = default;
         ASTConstant(char c) : type_(T_Charactor), c_(c) {}
         ASTConstant(int num) : type_(T_Integer), num_(num) {}
@@ -330,12 +364,19 @@ namespace script
     class ASTBlock : public ASTree
     {
     public:
-        virtual ~ASTBlock() = default;
+        ASTBlock(SymbolTable *parent) 
+            : table_(new SymbolTable(parent)) 
+        {}
+        virtual ~ASTBlock()
+        {
+            delete table_;
+        }
         void push_back(ASTree *tree) { statements_.push_back(tree); }
         
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
 
         std::vector<ASTree*> statements_;
+        SymbolTable *table_;
     };
 
     class ASTFunction : public ASTree
@@ -356,11 +397,16 @@ namespace script
     class ASTProgram : public ASTree
     {
     public:
-        virtual ~ASTProgram() = default;
+        ASTProgram() : table_(new SymbolTable(nullptr)) {}
+        virtual ~ASTProgram()
+        {
+            delete table_;
+        }
         void push_back(ASTFunction *function) { functions_.push_back(function); }
         virtual bool accept(Visitor &v) override { return v.visit(*this); }
 
         std::vector<ASTFunction*> functions_;
+        SymbolTable *table_;
     };
 
     class ASTManager

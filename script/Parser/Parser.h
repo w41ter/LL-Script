@@ -2,7 +2,7 @@
 #define __PARSER_H__
 
 #include "lexer.h"
-#include "../Syntax/AST.h"
+#include "../Semantic/AST.h"
 
 namespace script
 {
@@ -25,7 +25,7 @@ namespace script
     class Parser
     {
     public:
-        Parser(Lexer &lexer) : lexer_(lexer) { initialize(); }
+        Parser(Lexer &lexer) : lexer_(lexer), table_(nullptr) { initialize(); }
 
         ASTProgram *parse();
 
@@ -56,6 +56,7 @@ namespace script
     private:
         Lexer &lexer_;
         Token token_;
+        SymbolTable *table_;
     };
 }
 

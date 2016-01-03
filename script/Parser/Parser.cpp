@@ -419,13 +419,15 @@ namespace script
     //
     ASTBlock * Parser::parseBlock()
     {
-        ASTBlock *block = MallocMemory<ASTBlock>();
+        ASTBlock *block = MallocMemory<ASTBlock>(table_);
+        table_ = block->table_;
         match(TK_LCurlyBrace);
         while (token_.kind_ != TK_RCurlyBrace)
         {
             block->push_back(parseStatement());
         }
         advance();
+        table_ = block->table_->parent_;
         return block;
     }
 
@@ -464,6 +466,7 @@ namespace script
     ASTProgram * Parser::parse()
     {
         ASTProgram *program = MallocMemory<ASTProgram>();
+        this->table_ = program->table_;
         advance();
         while (token_.kind_ == TK_Function)
         {
