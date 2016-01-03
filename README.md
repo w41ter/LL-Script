@@ -29,3 +29,6 @@ simple but powerful script, and I am rewriting it.
 
 2016/1/1：
 重新设计抽象语法树部分。
+
+2016/1/2：
+完成语法制导翻译部分。
