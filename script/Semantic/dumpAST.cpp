@@ -4,7 +4,7 @@ namespace script
 {
     bool DumpAST::visit(ASTIdentifier & v)
     {
-        file_ << v.getName();
+        file_ << v.name_;
         return false;
     }
 
