@@ -1,6 +1,7 @@
 #ifndef __QUAD_H__
 #define __QUAD_H__
 
+#include <vector>
 #include <string>
 #include <sstream>
 
@@ -8,7 +9,12 @@ namespace script
 {
     class If;
     class Var;
+    class Float;
+    class Integer;
+    class Character;
+    class String;
     class Call;
+    class Goto;
     class Temp;
     class Copy;
     class Label;
@@ -27,7 +33,12 @@ namespace script
     public:
         virtual ~QuadVisitor() = 0 {};
         virtual bool visit(If &v) = 0;
+        virtual bool visit(Float &v) = 0;
+        virtual bool visit(Integer &v) = 0;
+        virtual bool visit(Character &v) = 0;
+        virtual bool visit(String &v) = 0;
         virtual bool visit(Call &v) = 0;
+        virtual bool visit(Goto &v) = 0;
         virtual bool visit(Temp &v) = 0;
         virtual bool visit(Copy &v) = 0;
         virtual bool visit(Label &v) = 0;
@@ -56,6 +67,42 @@ namespace script
         virtual bool accept(QuadVisitor &v) = 0;
     };
 
+    class Float : public Var
+    {
+    public:
+        Float(float f) : f_(f) {}
+        virtual ~Float() = default;
+        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        float f_;
+    };
+
+    class Integer : public Var
+    {
+    public:
+        Integer(int i) : i_(i) {}
+        virtual ~Integer() = default;
+        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        int i_;
+    };
+
+    class Character : public Var
+    {
+    public:
+        Character(char c) : c_(c) {}
+        virtual ~Character() = default;
+        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        char c_;
+    };
+
+    class String : public Var
+    {
+    public:
+        String(std::string &str) : str_(str) {}
+        virtual ~String() = default;
+        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        std::string &str_;
+    };
+
     class Identifier : public Var
     {
     public:
@@ -63,6 +110,15 @@ namespace script
         virtual ~Identifier() = default;
         virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
         std::string name_;
+    };
+
+    class Goto : public Quad
+    {
+    public:
+        Goto(Label *label) : label_(label) {}
+        virtual ~Goto() = default;
+        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        Label *label_;
     };
 
     class Temp : public Var
@@ -236,7 +292,7 @@ namespace script
         OP op_;
         Var *left_;
         Var *right_;
-        Var *resutl_;
+        Var *result_;
     };
 
     class Param : public Quad
@@ -253,7 +309,7 @@ namespace script
     {
     public:
         Call(Var *name, Var *result, int num)
-            : name_(name), resutl_(result), num_(num)
+            : name_(name), result_(result), num_(num)
         {}
         virtual ~Call() = default;
         virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
@@ -287,7 +343,7 @@ namespace script
             return manager;
         }
 
-        void push_back(ASTree *tree) { manager_.push_back(tree); }
+        void push_back(Quad *quad) { manager_.push_back(quad); }
 
         void destroy()
         {

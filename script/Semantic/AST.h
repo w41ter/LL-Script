@@ -33,17 +33,25 @@ namespace script
     class SymbolTable
     {
     public:
-        SymbolTable(SymbolTable *parent = nullptr) : parent_(parent) {}
+        SymbolTable(SymbolTable *parent = nullptr) 
+            : parent_(parent) 
+        { index_ = getIndex(); }
 
-        bool find(std::string &str)
+        static int getIndex()
+        {
+            static int index = 1;
+            return index++;
+        }
+
+        int find(std::string &str)
         {
             if (table_.count(str) == 0)
             {
                 if (parent_ == nullptr)
-                    return false;
+                    return 0;
                 return parent_->find(str);
             }
-            return true;
+            return index_;
         }
 
         bool findInCurrent(std::string &str)
@@ -60,6 +68,7 @@ namespace script
 
         SymbolTable *parent_;
         std::set<std::string> table_;
+        int index_;
     };
 
     class Visitor
