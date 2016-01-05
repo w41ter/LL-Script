@@ -162,12 +162,13 @@ namespace script
     class ASTArray : public ASTree
     {
     public:
+        ASTArray(ASTree *tree) : array_(tree) {}
         virtual ~ASTArray() = default;
-        void push_back(ASTree *tree) { array_.push_back(tree); }
+        //void push_back(ASTree *tree) { array_.push_back(tree); }
 
         virtual bool accept(Visitor &v) override { v.visit(*this); }
 
-        std::vector<ASTree *> array_;
+        ASTree * array_;
     };
 
     class ASTCall : public ASTree

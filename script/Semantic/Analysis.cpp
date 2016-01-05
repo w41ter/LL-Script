@@ -40,8 +40,9 @@ namespace script
     }
     bool Analysis::visit(ASTArray & v)
     {
-        for (auto i : v.array_)
-            i->accept(*this);
+        /*for (auto i : v.array_)
+            i->accept(*this);*/
+        v.array_->accept(*this);
         type_ = TP_Array;
         return false;
     }

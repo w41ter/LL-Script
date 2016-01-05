@@ -20,7 +20,9 @@ namespace script
     class Label;
     class Param;
     class Return;
+    class Array;
     class IfFalse;
+    class Function;
     class RelopAssign;
     class ArrayAssign;
     class AssignArray;
@@ -42,9 +44,11 @@ namespace script
         virtual bool visit(Temp &v) = 0;
         virtual bool visit(Copy &v) = 0;
         virtual bool visit(Label &v) = 0;
+        virtual bool visit(Array &v) = 0;
         virtual bool visit(Param &v) = 0;
         virtual bool visit(Return &v) = 0;
         virtual bool visit(IfFalse &v) = 0;
+        virtual bool visit(Function &v) = 0;
         virtual bool visit(RelopAssign &v) = 0;
         virtual bool visit(AssignArray &v) = 0;
         virtual bool visit(ArrayAssign &v) = 0;
@@ -119,6 +123,15 @@ namespace script
         virtual ~Goto() = default;
         virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
         Label *label_;
+    };
+
+    class Array : public Var
+    {
+    public:
+        Array(int total) : total_(total) {}
+        virtual ~Array() = default;
+        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        int total_;
     };
 
     class Temp : public Var
@@ -293,6 +306,20 @@ namespace script
         Var *left_;
         Var *right_;
         Var *result_;
+    };
+
+    class Function : public Quad
+    {
+    public:
+        Function(std::string &name, Label *begin, Label *end)
+            : name_(name), begin_(begin), end_(end)
+        {}
+        virtual ~Function() = default;
+        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+
+        std::string name_;
+        Label *begin_;
+        Label *end_;
     };
 
     class Param : public Quad

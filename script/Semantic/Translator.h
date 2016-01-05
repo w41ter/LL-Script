@@ -36,10 +36,13 @@ namespace script
         virtual bool visit(ASTFunction &v) override;
         virtual bool visit(ASTProgram &v) override;
 
+        std::string getName(std::string &str);
+
         SymbolTable *table_ = nullptr;
         Var *var_ = nullptr;
         std::vector<Quad*> quads_;
-        std::stack<Label*> jmpLabels_;
+        std::stack<Label*> breakLabels_;
+        std::stack<Label*> continueLabels_;
     };
 }
 
