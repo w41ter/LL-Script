@@ -99,7 +99,7 @@ namespace script
         ((String *)self)->obType_ = (Pointer)TYPE_STRING;
         ((String *)self)->length_ = length;
         strncpy(((String *)self)->str_, from, length);
-        return 0;
+        return self;
     }
 
     inline bool IsString(Pointer p)
@@ -110,6 +110,23 @@ namespace script
     inline const char *GetString(Pointer p)
     {
         return ((String *)p)->str_;
+    }
+
+    Pointer MakeClosure(Pointer self, size_t length)
+    {
+        ((Closure *)self)->obType_ = (Pointer)TYPE_CLOSURE;
+        ((Closure *)self)->length_ = length;
+        return self;
+    }
+
+    Pointer * ClosureParams(Pointer self)
+    {
+        return ((Closure *)self)->params;
+    }
+
+    bool IsClosure(Pointer p)
+    {
+        return (!IsTagging(p) || ((String *)p)->obType_ == (Pointer)TYPE_CLOSURE);
     }
 
     size_t SizeOfObject(Pointer p)

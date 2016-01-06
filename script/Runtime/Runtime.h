@@ -42,6 +42,7 @@ namespace script
     enum Type {
         TYPE_PAIR = 0,
         TYPE_STRING = 1,
+        TYPE_CLOSURE = 2,
     };
 
     // common property of heap object
@@ -87,7 +88,13 @@ namespace script
     {
         HEAP_OBJECT_HEAD;
         size_t length_;
-    };
+        Pointer params[];
+    } Closure;
+
+    Pointer MakeClosure(Pointer self, size_t length);
+    Pointer *ClosureParams(Pointer self);
+
+    bool IsClosure(Pointer p);
 
     size_t SizeOfObject(Pointer p);
 }
