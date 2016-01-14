@@ -34,7 +34,7 @@ namespace script
         virtual bool visit(ASTBlock &v) override;
         virtual bool visit(ASTFunction &v) override;
         virtual bool visit(ASTProgram &v) override;
-
+        virtual bool visit(ASTPrototype &v) override;
     private:
         void indent() { ++indent_; }
         void decdent() { --indent_; }

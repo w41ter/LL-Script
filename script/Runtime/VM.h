@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+#include <stack>
 
 #include "Runtime.h"
 #include "GC.h"
@@ -14,14 +15,12 @@ namespace script
     {
         ADD, SUB, MUL, DIV,
 
-        
+        GREAT, GREAT_THAN, LESS, LESS_THAN, NOT_EQUAL, EQUAL,
 
-        SINGLE_OPCODE = 50,
-
-        ICONST, CCONST, SCONST, RCONST, CLOSURE,
+        ICONST, CCONST, SCONST, RCONST, 
         NEW_ARRAY, 
-        LOAD_LOCAL, SET_LOCAL, 
-        PARAM, CALL, RET, HALT
+        LOAD_LOCAL, SET_LOCAL, LOAD_GLOBAL, SET_GLOBAL, 
+        PARAM, CALL, CALL_GLOBAL, RET, HALT
     };
 
     class VM
@@ -29,42 +28,38 @@ namespace script
         typedef unsigned char Code;
     public:
         VM(Code *opcode, size_t length, size_t osl, size_t isl)
-            : operandStack_(new Pointer[osl])
-            , operandStackLength_(osl)
-            , ipStack_(new size_t[isl])
-            , ipStackLength_(isl)
-            , opcode_(opcode)
+            : opcode_(opcode)
             , length_(length)
             , gc(1024 * 1024)
+            , ip_(0)
         {}
 
         ~VM()
         {
-            delete []operandStack_;
-            delete []ipStack_;
         }
 
         void excute();
 
-    private:
-        size_t sizeOfOpcode(Code op)
+        void push_back(std::string str)
         {
-            return op < SINGLE_OPCODE ? 1 : 2;
+            globalString_.push_back(std::move(str));
         }
 
     private:
+
+        void callClosure(Pointer closure, size_t length);
+        void calculate(unsigned op, Pointer left, Pointer right);
+        void compare(unsigned op, Pointer left, Pointer right);
+
+    private:
+        Pointer *global_;
+        Pointer *local_;
+        std::stack<Pointer*> localStack_;
+
         // op stack
-        Pointer *operandStack_;
-        size_t operandStackLength_;
-        size_t osp_ = 3;
-
-        size_t *ipStack_;
-        size_t ipStackLength_;
-        size_t isp_ = 0;
-
-        Pointer paramsStack_[32];
-        size_t paramsStackLength = 32;
-        size_t psp_ = 0;
+        std::stack<Pointer> operandStack_;
+        std::stack<Pointer> ipStack_;
+        std::stack<Pointer> paramsStack_;
 
         // code
         Code *opcode_;
@@ -72,8 +67,6 @@ namespace script
         size_t ip_;
 
         std::vector<std::string> globalString_;
-
-        const int tag_ = 3;
 
         GC gc;
     };

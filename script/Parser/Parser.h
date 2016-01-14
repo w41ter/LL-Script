@@ -1,6 +1,8 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
+#include <memory>
+
 #include "lexer.h"
 #include "../Semantic/AST.h"
 
@@ -27,32 +29,33 @@ namespace script
     public:
         Parser(Lexer &lexer) : lexer_(lexer), table_(nullptr) { initialize(); }
 
-        ASTProgram *parse();
+        std::unique_ptr<ASTProgram> parse();
 
     private:
         void initialize();
 
-        ASTree * parseKeywordConstant();
-        ASTree * parseFactor();
-        ASTree * parsePositveFactor();
-        ASTree * parseNotFactor();
-        ASTree * parseTerm();
-        ASTree * parseAdditiveExpr();
-        ASTree * parseRelationalExpr();
-        ASTree * parseAndExpr();
-        ASTree * parseOrExpr();
-        ASTree * parseExpr();
-        ASTree * parseExprList();
-        ASTree * parseAssignExpr();
-        ASTree * parseStatement();
-        ASTBlock * parseBlock();
-        ASTFunction * parseFunctionDecl();
+        std::unique_ptr<ASTree> parseKeywordConstant();
+        std::unique_ptr<ASTree> parseFactor();
+        std::unique_ptr<ASTree> parsePositveFactor();
+        std::unique_ptr<ASTree> parseNotFactor();
+        std::unique_ptr<ASTree> parseTerm();
+        std::unique_ptr<ASTree> parseAdditiveExpr();
+        std::unique_ptr<ASTree> parseRelationalExpr();
+        std::unique_ptr<ASTree> parseAndExpr();
+        std::unique_ptr<ASTree> parseOrExpr();
+        std::unique_ptr<ASTree> parseExpr();
+        std::unique_ptr<ASTree> parseExprList();
+        std::unique_ptr<ASTree> parseAssignExpr();
+        std::unique_ptr<ASTree> parseStatement();
+        std::unique_ptr<ASTBlock> parseBlock();
+        std::unique_ptr<ASTFunction> parseFunctionDecl();
 
         void advance();
         void match(unsigned tok);
         std::string &exceptIdentifier();
 
         bool isRelational(unsigned tok);
+
     private:
         Lexer &lexer_;
         Token token_;

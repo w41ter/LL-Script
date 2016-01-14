@@ -112,16 +112,33 @@ namespace script
         return ((String *)p)->str_;
     }
 
-    Pointer MakeClosure(Pointer self, size_t length)
+    Pointer MakeClosure(Pointer self, size_t position, size_t length, size_t need)
     {
         ((Closure *)self)->obType_ = (Pointer)TYPE_CLOSURE;
+        ((Closure *)self)->position_ = position;
         ((Closure *)self)->length_ = length;
+        ((Closure *)self)->need_ = need;
         return self;
     }
 
     Pointer * ClosureParams(Pointer self)
     {
         return ((Closure *)self)->params;
+    }
+
+    size_t ClosurePosition(Pointer self)
+    {
+        return ((Closure *)self)->position_;
+    }
+
+    size_t ClosureNeed(Pointer self)
+    {
+        return ((Closure *)self)->need_;
+    }
+
+    size_t ClosureLength(Pointer self)
+    {
+        return ((Closure *)self)->length_;
     }
 
     bool IsClosure(Pointer p)

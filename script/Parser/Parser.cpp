@@ -6,6 +6,9 @@
 
 using std::map;
 using std::string;
+using std::vector;
+using std::unique_ptr;
+using std::make_unique;
 
 namespace script
 {
@@ -37,22 +40,22 @@ namespace script
         }
     }
 
-    ASTree * Parser::parseKeywordConstant()
+    unique_ptr<ASTree> Parser::parseKeywordConstant()
     {
-        ASTree *expr = nullptr;
+        unique_ptr<ASTree> expr = nullptr;
         if (token_.kind_ == TK_True)
-            expr = MallocMemory<ASTConstant>(1);
+            expr = make_unique<ASTConstant>(1);
         else if (token_.kind_ == TK_False)
-            expr = MallocMemory<ASTConstant>(0);
+            expr = make_unique<ASTConstant>(0);
         else if (token_.kind_ == TK_Null)
-            expr = MallocMemory<ASTNull>();
+            expr = make_unique<ASTNull>();
         else
         {
             std::cout << "find " << token_.value_ << "(" << token_.coord_.lineNum_ << "," << token_.coord_.linePos_ << std::endl;
             throw std::runtime_error(" i dont konw");
         }
         advance();
-        return expr;
+        return std::move(expr);
     }
 
     //
@@ -65,171 +68,173 @@ namespace script
     //    | "(" expression ")"
     //    | "[" expression_list "]"
     //
-    ASTree * Parser::parseFactor()
+    unique_ptr<ASTree> Parser::parseFactor()
     {
-        ASTree *expr = nullptr;
+        unique_ptr<ASTree> expr = nullptr;
         switch (token_.kind_)
         {
         case TK_LitFloat: 
         {
-            expr = MallocMemory<ASTConstant>(token_.fnum_);
+            expr = make_unique<ASTConstant>(token_.fnum_);
             advance();
             break;
         }
         case TK_LitString:
         {
-            expr = MallocMemory<ASTConstant>(token_.value_);
+            expr = make_unique<ASTConstant>(token_.value_);
             advance();
             break;
         }
         case TK_LitInteger:
         {
-            expr = MallocMemory<ASTConstant>(token_.num_);
+            expr = make_unique<ASTConstant>(token_.num_);
             advance();
             break;
         }
         case TK_LitCharacter:
         {
-            expr = MallocMemory<ASTConstant>(token_.value_[0]);
+            expr = make_unique<ASTConstant>(token_.value_[0]);
             advance();
             break;
         }
         case TK_Identifier:
         {
-            expr = MallocMemory<ASTIdentifier>(token_.value_);
+            expr = make_unique<ASTIdentifier>(token_.value_);
             advance();
             break;
         }
         case TK_LParen:
         {
             advance();
-            expr = parseExpr();
+            expr = std::move(parseExpr());
             match(TK_RParen);
             break;
         }
         case TK_LSquareBrace:
         {
             advance();
-            expr = MallocMemory<ASTArray>(parseExprList());
+            expr = make_unique<ASTArray>(parseExprList());
             match(TK_RSquareBrace);
             break;
         }
         default:
-            expr = parseKeywordConstant();
+            expr = std::move(parseKeywordConstant());
             break;
         }
-        return expr;
+        return std::move(expr);
     }
 
     //
     // positive_factor:
     //  factor{ (["[" expression "]"] | ["(" expression_list ")"]) }
     // 
-    ASTree * Parser::parsePositveFactor()
+    unique_ptr<ASTree> Parser::parsePositveFactor()
     {
-        ASTree *expr = parseFactor();
+        unique_ptr<ASTree> expr = std::move(parseFactor());
         while (token_.kind_ == TK_LSquareBrace ||
             token_.kind_ == TK_LParen)
         {
             if (token_.kind_ == TK_LSquareBrace)
             {
                 advance();
-                expr = MallocMemory<ASTArrayIndex>(expr, parseExpr());
+                expr = make_unique<ASTArrayIndex>(
+                    std::move(expr), std::move(parseExpr()));
                 match(TK_RSquareBrace);
             }
             else
             {
                 advance();
-                expr = MallocMemory<ASTCall>(expr, parseExprList());
+                expr = make_unique<ASTCall>(
+                    std::move(expr), std::move(parseExprList()));
                 match(TK_RParen);
             }
         }
-        return expr;
+        return std::move(expr);
     }
 
     //
     // not_factor:
     //  ["!"] positive_factor
     //
-    ASTree * Parser::parseNotFactor()
+    unique_ptr<ASTree> Parser::parseNotFactor()
     {
         if (token_.kind_ == TK_Not)
         {
             advance();
-            return MallocMemory<ASTSingleExpression>(
+            return make_unique<ASTSingleExpression>(
                 ASTSingleExpression::OP_Not,
-                parsePositveFactor()
+                std::move(parsePositveFactor())
                 );
         }
-        return parsePositveFactor();
+        return std::move(parsePositveFactor());
     }
 
     //
     // term:
     //  ["-"] not_factor
     //
-    ASTree * Parser::parseTerm()
+    unique_ptr<ASTree> Parser::parseTerm()
     {
         if (token_.kind_ == TK_Sub)
         {
             advance();
-            return MallocMemory<ASTSingleExpression>(
+            return make_unique<ASTSingleExpression>(
                 ASTSingleExpression::OP_Sub,
-                parseNotFactor()
+                std::move(parseNotFactor())
                 );
         }
-        return parseNotFactor();
+        return std::move(parseNotFactor());
     }
 
     //
     // additive_expression:
     //  term{ ("*" | "/") term }
     //
-    ASTree * Parser::parseAdditiveExpr()
+    unique_ptr<ASTree> Parser::parseAdditiveExpr()
     {
-        ASTree *expr = parseTerm();
+        unique_ptr<ASTree> expr = std::move(parseTerm());
         while (token_.kind_ == TK_Mul || token_.kind_ == TK_Div)
         {
             advance();
-            expr = MallocMemory<ASTBinaryExpression>(
+            expr = make_unique<ASTBinaryExpression>(
                 token_.kind_ == TK_Plus
                 ? ASTBinaryExpression::OP_Mul
                 : ASTBinaryExpression::OP_Div,
-                expr,
-                parseTerm()
+                std::move(expr),
+                std::move(parseTerm())
                 );
         }
-        return expr;
+        return std::move(expr);
     }
 
     //
     // relational_expression:
     //  additive_expression{ ("+" | "-") additive_expression }
     // 
-    ASTree * Parser::parseRelationalExpr()
+    unique_ptr<ASTree> Parser::parseRelationalExpr()
     {
-        ASTree *expr = parseAdditiveExpr();
+        unique_ptr<ASTree> expr = std::move(parseAdditiveExpr());
         while (token_.kind_ == TK_Plus || token_.kind_ == TK_Sub)
         {
             advance();
-            expr = MallocMemory<ASTBinaryExpression>(
+            expr = make_unique<ASTBinaryExpression>(
                 token_.kind_ == TK_Plus 
                 ? ASTBinaryExpression::OP_Add
                 : ASTBinaryExpression::OP_Sub,
-                expr,
-                parseAdditiveExpr()
+                std::move(expr),
+                std::move(parseAdditiveExpr())
                 );
         }
-        return expr;
+        return std::move(expr);
     }
 
     //
     // and_expression:
     //  relational_expression[("<" | ">" | ">=" | "<=" | "==" | "!=") relational_expression]
     // 
-    ASTree * Parser::parseAndExpr()
+    unique_ptr<ASTree> Parser::parseAndExpr()
     {
-        ASTree *expr = parseRelationalExpr();
+        unique_ptr<ASTree> expr = std::move(parseRelationalExpr());
         if (isRelational(token_.kind_))
         {
             unsigned op;
@@ -255,62 +260,63 @@ namespace script
                 break;
             }
             advance();
-            expr = MallocMemory<ASTRelationalExpression>(
-                expr, parseRelationalExpr()
+            expr = make_unique<ASTRelationalExpression>(
+                op, std::move(expr), std::move(parseRelationalExpr())
                 );
         }
-        return expr;
+        return std::move(expr);
     }
 
     //
     // or_expression:
     //  and_expression{ "&&" and_expression }
     //
-    ASTree * Parser::parseOrExpr()
+    unique_ptr<ASTree> Parser::parseOrExpr()
     {
-        ASTree *expr = parseAndExpr();
+        unique_ptr<ASTree> expr = parseAndExpr();
         if (token_.kind_ != TK_And)
-            return expr;
-        ASTAndExpression *andExpr = MallocMemory<ASTAndExpression>();
-        andExpr->push_back(expr);
+            return std::move(expr);
+        unique_ptr<ASTAndExpression> andExpr = make_unique<ASTAndExpression>();
+        andExpr->push_back(std::move(expr));
         while (token_.kind_ == TK_And)
         {
             advance();
-            andExpr->push_back(parseAndExpr());
+            andExpr->push_back(std::move(parseAndExpr()));
         }
-        return andExpr;
+        return std::move(andExpr);
     }
 
     //
     // expression:
     //  or_expression{ "||" or_expression }
     //
-    ASTree * Parser::parseExpr()
+    unique_ptr<ASTree> Parser::parseExpr()
     {
-        ASTree *expr = parseOrExpr();
+        unique_ptr<ASTree> expr = std::move(parseOrExpr());
         if (token_.kind_ != TK_Or)
-            return expr;
-        ASTOrExpression *orExpr = MallocMemory<ASTOrExpression>();
-        orExpr->push_back(expr);
+            return std::move(expr);
+        unique_ptr<ASTOrExpression> orExpr = make_unique<ASTOrExpression>();
+        orExpr->push_back(std::move(expr));
         while (token_.kind_ == TK_Or)
         {
             advance();
-            orExpr->push_back(parseOrExpr());
+            orExpr->push_back(std::move(parseOrExpr()));
         }
-        return orExpr;
+        return std::move(orExpr);
     }
 
     //
     // assign_expression:
     //  expression { "=" expression }
     //
-    ASTree * Parser::parseAssignExpr()
+    unique_ptr<ASTree> Parser::parseAssignExpr()
     {
-        ASTree *expr = parseExpr();
+        unique_ptr<ASTree> expr = std::move(parseExpr());
         while (token_.kind_ == TK_Assign)
         {
             advance();
-            expr = MallocMemory<ASTAssignExpression>(expr, parseExpr());
+            expr = make_unique<ASTAssignExpression>(
+                std::move(expr), std::move(parseExpr()));
         }
         return expr;
     }
@@ -319,16 +325,16 @@ namespace script
     // expression_list:
     //  expression { "," expression }
     //
-    ASTree * Parser::parseExprList()
+    unique_ptr<ASTree> Parser::parseExprList()
     {
-        ASTExpressionList *list = MallocMemory<ASTExpressionList>();
-        list->push_back(parseExpr());
+        unique_ptr<ASTExpressionList> list = make_unique<ASTExpressionList>();
+        list->push_back(std::move(parseExpr()));
         while (token_.kind_ == TK_Comma)
         {
             advance();
-            list->push_back(parseExpr());
+            list->push_back(std::move(parseExpr()));
         }
-        return list;
+        return std::move(list);
     }
 
     //
@@ -342,74 +348,77 @@ namespace script
     //    | assign_expression ";"
     //    | var_decl
     //
-    ASTree * Parser::parseStatement()
+    unique_ptr<ASTree> Parser::parseStatement()
     {
         switch (token_.kind_)
         {
         case TK_LCurlyBrace:
-            return parseBlock();
+            return std::move(parseBlock());
             break;
         case TK_If:
         {
             advance();
             match(TK_LParen);
-            ASTree *condition = parseAssignExpr();
+            unique_ptr<ASTree> condition = std::move(parseAssignExpr());
             match(TK_RParen);
-            ASTree *ifState = parseStatement();
+            unique_ptr<ASTree> ifState = std::move(parseStatement());
             if (token_.kind_ == TK_Else)
             {
                 advance();
-                ASTree *elseState = parseStatement();
-                return MallocMemory<ASTIfStatement>(
-                    condition, ifState, elseState
-                    );
+                unique_ptr<ASTree> elseState = std::move(parseStatement());
+                return make_unique<ASTIfStatement>(
+                    std::move(condition), 
+                    std::move(ifState), 
+                    std::move(elseState));
             }
-            return MallocMemory<ASTIfStatement>(condition, ifState);
+            return make_unique<ASTIfStatement>(
+                std::move(condition), std::move(ifState));
         }
         case TK_While:
         {
             advance();
             match(TK_LParen);
-            ASTree *condition = parseAssignExpr();
+            unique_ptr<ASTree> condition = std::move(parseAssignExpr());
             match(TK_RParen);
-            ASTree *state = parseStatement();
-            return MallocMemory<ASTWhileStatement>(condition, state);
+            unique_ptr<ASTree> state = std::move(parseStatement());
+            return make_unique<ASTWhileStatement>(
+                std::move(condition), std::move(state));
         }
         case TK_Return:
         {    
             advance();
-            ASTree *expr = nullptr;
+            unique_ptr<ASTree> expr = nullptr;
             if (token_.kind_ != TK_Semicolon)
-                expr = parseAssignExpr();
+                expr = std::move(parseAssignExpr());
             
             match(TK_Semicolon);
-            return MallocMemory<ASTReturnStatement>(expr);
+            return make_unique<ASTReturnStatement>(std::move(expr));
         }
         case TK_Break:
         {
             advance();
             match(TK_Semicolon);
-            return MallocMemory<ASTBreakStatement>();
+            return make_unique<ASTBreakStatement>();
         }
         case TK_Continue:
         {
             advance();
             match(TK_Semicolon);
-            return MallocMemory<ASTContinueStatement>();
+            return make_unique<ASTContinueStatement>();
         }
         case TK_Let:
         {
             advance();
             string &name = exceptIdentifier();
             match(TK_Assign);
-            ASTree *expr = parseAssignExpr();
+            unique_ptr<ASTree> expr = std::move(parseAssignExpr());
             match(TK_Semicolon);
-            return MallocMemory<ASTVarDeclStatement>(name, expr);
+            return make_unique<ASTVarDeclStatement>(name, std::move(expr));
         }
         default:
-            ASTree *expr = parseAssignExpr();
+            unique_ptr<ASTree> expr = std::move(parseAssignExpr());
             match(TK_Semicolon);
-            return expr;
+            return std::move(expr);
         }
     }
 
@@ -417,18 +426,18 @@ namespace script
     // block:
     //  "{" { statement } "}"
     //
-    ASTBlock * Parser::parseBlock()
+    unique_ptr<ASTBlock> Parser::parseBlock()
     {
-        ASTBlock *block = MallocMemory<ASTBlock>(table_);
+        unique_ptr<ASTBlock> block = make_unique<ASTBlock>(table_);
         table_ = block->table_;
         match(TK_LCurlyBrace);
         while (token_.kind_ != TK_RCurlyBrace)
         {
-            block->push_back(parseStatement());
+            block->push_back(std::move(parseStatement()));
         }
         advance();
         table_ = block->table_->parent_;
-        return block;
+        return std::move(block);
     }
 
     //
@@ -438,39 +447,45 @@ namespace script
     // function_decl:
     //  "function" ID "("[param_list] ")" block
     //
-    ASTFunction * Parser::parseFunctionDecl()
+    unique_ptr<ASTFunction> Parser::parseFunctionDecl()
     {
         advance();
-        ASTFunction *function = MallocMemory<ASTFunction>(
-            exceptIdentifier());
+        string &name = exceptIdentifier();
+        
         match(TK_LParen);
+
+        vector<string> params;
         if (token_.kind_ == TK_Identifier)
         {
-            function->push_param(token_.value_);
+            params.push_back(token_.value_);
             advance();
             while (token_.kind_ == TK_Comma)
             {
                 advance();
-                function->push_param(exceptIdentifier());
+                params.push_back(exceptIdentifier());
             }
         }
+        unique_ptr<ASTPrototype> proto = 
+            std::make_unique<ASTPrototype>(name, std::move(params));
+
         match(TK_RParen);
-        function->setBlock(parseBlock());
-        return function;
+        unique_ptr<ASTBlock> block = std::move(parseBlock());
+
+        return make_unique<ASTFunction>(std::move(proto), std::move(block));
     }
 
     //
     // program: 
     //  { function_decl }
     //
-    ASTProgram * Parser::parse()
+    unique_ptr<ASTProgram> Parser::parse()
     {
-        ASTProgram *program = MallocMemory<ASTProgram>();
+        unique_ptr<ASTProgram> program = make_unique<ASTProgram>();
         this->table_ = program->table_;
         advance();
         while (token_.kind_ == TK_Function)
         {
-            program->push_back(parseFunctionDecl());
+            program->push_back(std::move(parseFunctionDecl()));
         }
         return program;
     }
@@ -484,7 +499,9 @@ namespace script
     {
         if (token_.kind_ != tok)
         {
-            std::cout << tok << " need in file but find " << token_.kind_ << " "<< token_.coord_.lineNum_ << " " << token_.coord_.linePos_ << std::endl;
+            std::cout << tok << " need in file but find " 
+                << token_.kind_ << " "<< token_.coord_.lineNum_ 
+                << " " << token_.coord_.linePos_ << std::endl;
             throw std::runtime_error("match false");
         }
         advance();
@@ -494,7 +511,9 @@ namespace script
     {
         if (token_.kind_ != TK_Identifier)
         {
-            std::cout << " Identifier need in file but find " << token_.kind_ << " " << token_.coord_.lineNum_ << " " << token_.coord_.linePos_ << std::endl;
+            std::cout << " Identifier need in file but find " 
+                << token_.kind_ << " " << token_.coord_.lineNum_ 
+                << " " << token_.coord_.linePos_ << std::endl;
             throw std::runtime_error("match false");
         }
         advance();

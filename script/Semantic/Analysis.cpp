@@ -200,10 +200,15 @@ namespace script
     bool Analysis::visit(ASTProgram & v)
     {
         table_ = v.table_;
-        for (auto i : v.functions_)
+        for (auto &i : v.functions_)
             table_->insert(i->name_);
-        for (auto i : v.functions_)
+        for (auto &i : v.functions_)
             i->accept(*this);
+        return false;
+    }
+
+    bool Analysis::visit(ASTPrototype & v)
+    {
         return false;
     }
 }

@@ -87,13 +87,17 @@ namespace script
     typedef struct
     {
         HEAP_OBJECT_HEAD;
+        size_t position_;
+        size_t need_;
         size_t length_;
         Pointer params[];
     } Closure;
 
-    Pointer MakeClosure(Pointer self, size_t length);
+    Pointer MakeClosure(Pointer self, size_t position, size_t length, size_t need);
     Pointer *ClosureParams(Pointer self);
-
+    size_t ClosureNeed(Pointer self);
+    size_t ClosureLength(Pointer self);
+    size_t ClosurePosition(Pointer self);
     bool IsClosure(Pointer p);
 
     size_t SizeOfObject(Pointer p);

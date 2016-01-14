@@ -1,155 +1,43 @@
 #include <iostream>
+#include <stdexcept>
+#include <memory>
 #include <fstream>
-#include <string>
-#include <conio.h>
-#include <windows.h>
 
-#include "Parser/lexer.h"
-#include "Syntax/syntax.h"
-#include "Interpret/Interpret.h"
+#include "driver.h"
+#include "Parser\lexer.h"
+#include "Parser\Parser.h"
+#include "Semantic\Analysis.h"
+#include "Semantic\dumpAST.h"
+#include "Semantic\Translator.h"
 
-using namespace std;
-
-namespace ScriptCompile
+int main(int argc, char* argv[])
 {
-	class ScriptPlugin : public Plugin
-	{
-	public:
-		using Callback = Variable(ScriptPlugin::*)(vector<wstring>& params);
+    script::Driver &driver = script::Driver::instance();
+    driver.ParseArguments(argc, argv);
 
-		ScriptPlugin() 
-		{
-			name.insert(L"print");
-			name.insert(L"input");
-			pluginName[L"print"] = -1;
-			pluginName[L"input"] = 0;
-			pluginFunction[L"print"] = &ScriptPlugin::Print; 
-			pluginFunction[L"input"] = &ScriptPlugin::Input; 
-		}
+    script::Lexer lexer;
+    script::Parser parser(lexer);
+    lexer.setProgram(std::string(driver.filename));
+    
+    script::Analysis analysis;
+    std::unique_ptr<script::ASTProgram> program;
+    try {
+        program = std::move(parser.parse());
+        program->accept(analysis);
+    }
+    catch (std::runtime_error &e) {
+        std::cout << e.what() << std::endl;
+    }
 
-		Variable Call(wstring& name, vector<wstring>& params)
-		{
-			if (pluginName.find(name) == pluginName.end())
-			{
-				throw wstring(L"未定义函数 " + name);
-			}
-
-			if (pluginName.find(name)->second != -1 &&
-				pluginName.find(name)->second != params.size())
-				throw wstring(L"函数 " + name + L"参数不匹配");
-
-			return (this->*(pluginFunction.find(name)->second))(params);
-		}
-
-		Variable Print(vector<wstring>& params)
-		{
-			for (auto i : params)
-			{
-				wcout << i;
-			}
-			wcout << endl;
-
-			return{ ScriptCompile::TK_END, L"END" };
-		}
-
-		Variable Input(vector<wstring>& params)
-		{
-			wstring temp = L"20";
-			wcin >> temp;
-
-			return ConstructVariable(temp);
-		}
-
-	private:
-		unordered_map<wstring, Callback> pluginFunction;
-	};
-}
-
-
-int wmain(int argc, wchar_t* argv[])
-{
-	std::locale::global(std::locale(""));
-	wcout.imbue(locale(""));
-
-	if (argc < 2)
-	{
-		wcout << L"Use: Script.exe input.txt" << endl;
-		_getch();
-		return 0;
-	}
-
-	wstring Code;
-	{
-		FILE* f;
-		if (_wfopen_s(&f, argv[1], L"rb") == EINVAL)
-		{
-			wcout << L"打不开文件" << argv[1] << endl;
-			_getch();
-			return 0;
-		}
-
-	/*wstring Code;
-	{
-		FILE* f;
-		if (_wfopen_s(&f, L"TEST.TXT", L"rb") == EINVAL)
-		{
-			wcout << L"打不开文件" << L"TEST.TXT" << endl;
-			_getch();
-			return 0;
-		}
-
-		fpos_t fsize;
-		size_t size;
-		fseek(f, 0, SEEK_END);
-		fgetpos(f, &fsize);
-		size = (size_t)fsize;
-		fseek(f, 0, SEEK_SET);
-		char* AnsiBuffer = new char[size + 1];
-		fread(AnsiBuffer, 1, size, f);
-		AnsiBuffer[size] = '\0';
-		fclose(f);
-
-		size_t wsize = mbstowcs(0, AnsiBuffer, size);
-		wchar_t* Buffer = new wchar_t[wsize + 1];
-		mbstowcs(Buffer, AnsiBuffer, size);
-		Buffer[size] = L'\0';
-		Code = Buffer;
-
-		delete[] Buffer;
-		delete[] AnsiBuffer;*/
-	}
-
-	ScriptCompile::Program program;
-	ScriptCompile::ScriptPlugin plugin;
-	program.AddPlugin(&plugin);
-
-	try
-	{
-		auto beginTime = GetTickCount();
-		ScriptCompile::ParserASTreeUnit(Code, program);
-		auto endTime = GetTickCount();
-
-		wcout << L"编译花时：" << double(endTime - beginTime) / 1000 << endl;
-	}
-	catch (ScriptCompile::ASTError e)
-	{
-		wcout << L"Line:" << e.GetToken().line << L" 错误信息：" << e.GetMsg() << endl;
-		_getch();
-		return 0;
-	}
-
-	try
-	{
-		auto beginTime = GetTickCount();
-		ScriptCompile::Run(&program);
-		auto endTime = GetTickCount();
-		wcout << L"运行花时：" << double(endTime - beginTime) / 1000 << endl;
-	}
-	catch (wstring e)
-	{
-		wcout << L"错误信息：" << e << endl;
-	}
-	
-	_getch();
+    // Dump ast to file
+    if (driver.dumpAST_)
+    {
+        std::string dumpFilename(driver.filename);
+        dumpFilename += ".ast";
+        std::fstream dumpASTFile(dumpFilename);
+        script::DumpAST dumpAST(dumpASTFile);
+        program->accept(dumpAST);
+    }
+    
 	return 0;
 }
