@@ -1,6 +1,7 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
+#include <set>
 #include <memory>
 
 #include "lexer.h"
@@ -20,6 +21,7 @@ namespace script
         TK_Return,
         TK_Continue,
         TK_Function,
+        TK_Define,
 
         TK_EndKeywordsIDs
     };
@@ -27,7 +29,7 @@ namespace script
     class Parser
     {
     public:
-        Parser(Lexer &lexer) : lexer_(lexer), table_(nullptr) { initialize(); }
+        Parser(Lexer &lexer) : lexer_(lexer) { initialize(); }
 
         std::unique_ptr<ASTProgram> parse();
 
@@ -48,18 +50,24 @@ namespace script
         std::unique_ptr<ASTree> parseAssignExpr();
         std::unique_ptr<ASTree> parseStatement();
         std::unique_ptr<ASTBlock> parseBlock();
-        std::unique_ptr<ASTFunction> parseFunctionDecl();
+        std::unique_ptr<ASTClosure> parseFunctionDecl();
+        std::unique_ptr<ASTDefine> parseDefine();
 
         void advance();
         void match(unsigned tok);
-        std::string &exceptIdentifier();
+        std::string exceptIdentifier();
 
         bool isRelational(unsigned tok);
+
+        std::string getTempIDName(const char *name);
 
     private:
         Lexer &lexer_;
         Token token_;
-        SymbolTable *table_;
+
+        std::vector<Symbols*> symbolTable_;
+        std::vector<std::set<std::string>*> catch_;
+        std::vector<std::unique_ptr<ASTFunction>> *functions_;
     };
 }
 

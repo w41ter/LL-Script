@@ -1,4 +1,4 @@
-function main() {
+define main = function() {
     let a = 1 + 2 - 0.4 * 5 / 6;
     if (a | 1 & 2) {
         return ;
@@ -19,4 +19,6 @@ function main() {
     a(a, a, a);
     a[a];
     let b = [ "good", 123 ];
-}
+};
+
+define a = main();

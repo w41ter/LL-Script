@@ -1,10 +1,12 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include "Parser.h"
 
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 using std::unique_ptr;
@@ -17,6 +19,16 @@ namespace script
         return (tok == TK_Less || tok == TK_LessThan ||
             tok == TK_Great || tok == TK_GreatThan ||
             tok == TK_NotEqualThan || tok == TK_EqualThan);
+    }
+
+    std::string Parser::getTempIDName(const char *name)
+    {
+        static int index = 0;
+        std::stringstream stream;
+        stream << name << "@" << index++;
+        string str;
+        stream >> str;
+        return str;
     }
 
     void Parser::initialize()
@@ -33,6 +45,7 @@ namespace script
             { "return", TK_Return },
             { "continue", TK_Continue },
             { "function", TK_Function },
+            { "define", TK_Define }
         };
         for (auto i : keywords)
         {
@@ -51,7 +64,9 @@ namespace script
             expr = make_unique<ASTNull>();
         else
         {
-            std::cout << "find " << token_.value_ << "(" << token_.coord_.lineNum_ << "," << token_.coord_.linePos_ << std::endl;
+            std::cout << "find " << token_.value_ << "(" 
+                << token_.coord_.lineNum_ << "," 
+                << token_.coord_.linePos_ << ")" << std::endl;
             throw std::runtime_error(" i dont konw");
         }
         advance();
@@ -67,6 +82,7 @@ namespace script
     //    | ID
     //    | "(" expression ")"
     //    | "[" expression_list "]"
+    //    | function_decl
     //
     unique_ptr<ASTree> Parser::parseFactor()
     {
@@ -117,6 +133,11 @@ namespace script
             match(TK_RSquareBrace);
             break;
         }
+        case TK_Function:
+        {
+            return std::move(parseFunctionDecl());
+            break;
+        }
         default:
             expr = std::move(parseKeywordConstant());
             break;
@@ -144,8 +165,12 @@ namespace script
             else
             {
                 advance();
+                unique_ptr<ASTree> exprList = 
+                    make_unique<ASTExpressionList>();
+                if (token_.kind_ != TK_RParen)
+                    exprList = std::move(parseExprList());
                 expr = make_unique<ASTCall>(
-                    std::move(expr), std::move(parseExprList()));
+                    std::move(expr), std::move(exprList));
                 match(TK_RParen);
             }
         }
@@ -162,7 +187,7 @@ namespace script
         {
             advance();
             return make_unique<ASTSingleExpression>(
-                ASTSingleExpression::OP_Not,
+                TK_Not,
                 std::move(parsePositveFactor())
                 );
         }
@@ -179,9 +204,7 @@ namespace script
         {
             advance();
             return make_unique<ASTSingleExpression>(
-                ASTSingleExpression::OP_Sub,
-                std::move(parseNotFactor())
-                );
+                TK_Sub, std::move(parseNotFactor()));
         }
         return std::move(parseNotFactor());
     }
@@ -197,9 +220,7 @@ namespace script
         {
             advance();
             expr = make_unique<ASTBinaryExpression>(
-                token_.kind_ == TK_Plus
-                ? ASTBinaryExpression::OP_Mul
-                : ASTBinaryExpression::OP_Div,
+                token_.kind_,
                 std::move(expr),
                 std::move(parseTerm())
                 );
@@ -218,9 +239,7 @@ namespace script
         {
             advance();
             expr = make_unique<ASTBinaryExpression>(
-                token_.kind_ == TK_Plus 
-                ? ASTBinaryExpression::OP_Add
-                : ASTBinaryExpression::OP_Sub,
+                token_.kind_,
                 std::move(expr),
                 std::move(parseAdditiveExpr())
                 );
@@ -237,31 +256,10 @@ namespace script
         unique_ptr<ASTree> expr = std::move(parseRelationalExpr());
         if (isRelational(token_.kind_))
         {
-            unsigned op;
-            switch (token_.kind_)
-            {
-            case TK_Less:
-                op = ASTRelationalExpression::RL_Less;
-                break;
-            case TK_LessThan:
-                op = ASTRelationalExpression::RL_LessThan;
-                break;
-            case TK_Great:
-                op = ASTRelationalExpression::RL_Great;
-                break;
-            case TK_GreatThan:
-                op = ASTRelationalExpression::RL_GreatThan;
-                break;
-            case TK_NotEqualThan:
-                op = ASTRelationalExpression::RL_NotEqual;
-                break;
-            case TK_EqualThan:
-                op = ASTRelationalExpression::RL_Equal;
-                break;
-            }
             advance();
             expr = make_unique<ASTRelationalExpression>(
-                op, std::move(expr), std::move(parseRelationalExpr())
+                token_.kind_, std::move(expr),
+                std::move(parseRelationalExpr())
                 );
         }
         return std::move(expr);
@@ -409,14 +407,15 @@ namespace script
         case TK_Let:
         {
             advance();
-            string &name = exceptIdentifier();
+            string name = exceptIdentifier();
             match(TK_Assign);
             unique_ptr<ASTree> expr = std::move(parseAssignExpr());
             match(TK_Semicolon);
             return make_unique<ASTVarDeclStatement>(name, std::move(expr));
         }
         default:
-            unique_ptr<ASTree> expr = std::move(parseAssignExpr());
+            unique_ptr<ASTree> expr = 
+                make_unique<ASTStatement>(std::move(parseAssignExpr()));
             match(TK_Semicolon);
             return std::move(expr);
         }
@@ -428,15 +427,13 @@ namespace script
     //
     unique_ptr<ASTBlock> Parser::parseBlock()
     {
-        unique_ptr<ASTBlock> block = make_unique<ASTBlock>(table_);
-        table_ = block->table_;
+        unique_ptr<ASTBlock> block = make_unique<ASTBlock>();
         match(TK_LCurlyBrace);
         while (token_.kind_ != TK_RCurlyBrace)
         {
             block->push_back(std::move(parseStatement()));
         }
         advance();
-        table_ = block->table_->parent_;
         return std::move(block);
     }
 
@@ -445,13 +442,13 @@ namespace script
     //  ID{ ","  ID }
     //
     // function_decl:
-    //  "function" ID "("[param_list] ")" block
+    //  "function" "("[param_list] ")" block
     //
-    unique_ptr<ASTFunction> Parser::parseFunctionDecl()
+    unique_ptr<ASTClosure> Parser::parseFunctionDecl()
     {
+        string name = getTempIDName("lambda");
+
         advance();
-        string &name = exceptIdentifier();
-        
         match(TK_LParen);
 
         vector<string> params;
@@ -465,29 +462,95 @@ namespace script
                 params.push_back(exceptIdentifier());
             }
         }
-        unique_ptr<ASTPrototype> proto = 
-            std::make_unique<ASTPrototype>(name, std::move(params));
-
+        
         match(TK_RParen);
-        unique_ptr<ASTBlock> block = std::move(parseBlock());
 
-        return make_unique<ASTFunction>(std::move(proto), std::move(block));
+        // init symbol table
+        Symbols table(symbolTable_.back());
+        for (auto &i : params)
+        {
+            if (!table.Insert(i, 0))
+            {
+                // error redefined
+            }
+        }
+        symbolTable_.push_back(&table);
+
+        // parse block
+        set<string> catchTable;
+        catch_.push_back(&catchTable);
+        unique_ptr<ASTBlock> block = std::move(parseBlock());
+        catch_.pop_back();
+        symbolTable_.pop_back();
+
+        // insert catch table
+        Symbols *parent = symbolTable_.back();
+
+        vector<string> argument;
+        for (auto &i : catchTable)
+        {
+            argument.push_back(i);
+            // insert catch table into parent
+            if (parent->find(i) == parent->end())
+                catch_.back()->insert(i);
+        }
+
+        for (auto &i : params)
+        {
+            argument.push_back(i);
+        }
+        
+        unique_ptr<ASTPrototype> proto =
+            make_unique<ASTPrototype>(name, std::move(argument));
+        functions_->push_back(
+            make_unique<ASTFunction>(std::move(proto), std::move(block)));
+
+        // Create closure
+        argument.clear();
+        for (auto &i : catchTable)
+        {
+            argument.push_back(i);
+        }
+        return make_unique<ASTClosure>(name, argument);
+    }
+
+    //
+    // define_decl:
+    //  "define" ID "=" expression ";"
+    //
+    unique_ptr<ASTDefine> Parser::parseDefine()
+    {
+        match(TK_Define);
+        string name = exceptIdentifier();
+        match(TK_Assign);
+        unique_ptr<ASTree> tree = std::move(parseExpr());
+        match(TK_Semicolon);
+        return make_unique<ASTDefine>(name, std::move(tree));
     }
 
     //
     // program: 
-    //  { function_decl }
+    //  { define_decl }
     //
     unique_ptr<ASTProgram> Parser::parse()
     {
-        unique_ptr<ASTProgram> program = make_unique<ASTProgram>();
-        this->table_ = program->table_;
+        vector<unique_ptr<ASTDefine>> defines;
+        vector<unique_ptr<ASTFunction>> functions;
+        this->functions_ = &functions;
+
+        Symbols symbol(nullptr);
+        set<string> catchTable;
+        symbolTable_.push_back(&symbol);
+        catch_.push_back(&catchTable);
+
         advance();
-        while (token_.kind_ == TK_Function)
+        while (token_.kind_ == TK_Define)
         {
-            program->push_back(std::move(parseFunctionDecl()));
+            defines.push_back(std::move(parseDefine()));
         }
-        return program;
+
+        this->functions_ = nullptr;
+        return make_unique<ASTProgram>(std::move(defines), std::move(functions));
     }
 
     void Parser::advance()
@@ -507,7 +570,7 @@ namespace script
         advance();
     }
 
-    std::string & Parser::exceptIdentifier()
+    std::string Parser::exceptIdentifier()
     {
         if (token_.kind_ != TK_Identifier)
         {
@@ -516,7 +579,8 @@ namespace script
                 << " " << token_.coord_.linePos_ << std::endl;
             throw std::runtime_error("match false");
         }
+        string value = std::move(token_.value_);
         advance();
-        return token_.value_;
+        return std::move(value);
     }
 }

@@ -10,7 +10,7 @@
 
 namespace script
 {
-    class Analysis : public Visitor
+    class Analysis : public ASTVisitor
     {
         enum Type {
             TP_Integer,

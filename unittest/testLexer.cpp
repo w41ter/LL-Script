@@ -22,6 +22,7 @@ using namespace script;
         TK_Return,
         TK_Continue,
         TK_Function,
+        TK_Define,
 
         TK_EndKeywordsIDs
     };
@@ -30,7 +31,7 @@ using namespace script;
 token_ = lexer.getToken();      \
 TEST_CHECK(token_.kind_ == a, token_.kind_, token_.value_)
 
-// function main() {
+// define main = function() {
 //     let a = 1 + 2 - 0.4 * 5 / 6;
 //     if (a | 1 & 2) {
 //         return ;
@@ -51,7 +52,9 @@ TEST_CHECK(token_.kind_ == a, token_.kind_, token_.value_)
 //     a(a, a, a);
 //     a[a];
 //     let b = [ "good", 123 ];
-// }
+// };
+
+// define a = main();
 
 TEST_CASE(TestLexer)
 {
@@ -69,6 +72,7 @@ TEST_CASE(TestLexer)
         { "return", TK_Return },
         { "continue", TK_Continue },
         { "function", TK_Function },
+        { "define", TK_Define },
     };
     
     Token token_;
@@ -80,8 +84,10 @@ TEST_CASE(TestLexer)
    
     lexer.setProgram(file);
     
-    EXCEPT(TK_Function);
+    EXCEPT(TK_Define);
     EXCEPT(TK_Identifier);
+    EXCEPT(TK_Assign);
+    EXCEPT(TK_Function);
     EXCEPT(TK_LParen);
     EXCEPT(TK_RParen);
     EXCEPT(TK_LCurlyBrace);
@@ -181,4 +187,13 @@ TEST_CASE(TestLexer)
     EXCEPT(TK_Semicolon);
     
     EXCEPT(TK_RCurlyBrace);
+    EXCEPT(TK_Semicolon);
+    
+    EXCEPT(TK_Define);
+    EXCEPT(TK_Identifier);
+    EXCEPT(TK_Assign);
+    EXCEPT(TK_Identifier);
+    EXCEPT(TK_LParen);
+    EXCEPT(TK_RParen);
+    EXCEPT(TK_Semicolon);
 }

@@ -12,6 +12,7 @@ factor:
     | ID 
     | "(" expression ")"
     | "[" expression_list "]"
+    | function_decl
 
 positive_factor:
     factor { ( [ "[" expression "]" ] | [ "(" expression_list ")" ] ) }
@@ -63,8 +64,11 @@ param_list:
     ID { ","  ID }
 
 function_decl:
-    "function" ID "(" [ param_list ] ")" block
+    "function" "(" [ param_list ] ")" block
 
+define_decl:
+    "define" ID "=" expression 
+    
 program: 
-    { function_decl }
+    { define_decl }
 ```

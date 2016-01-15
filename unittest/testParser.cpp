@@ -1,4 +1,5 @@
 #include <string>
+#include <iostream>
 
 #include "../script/Parser/Lexer.h"
 #include "../script/Parser/Parser.h"
@@ -11,6 +12,12 @@ int main() {
     Lexer lexer;
     lexer.setProgram(file);
     Parser parser(lexer);
-    parser.parse();
+    try {
+        parser.parse();
+    }
+    catch (std::runtime_error &e) {
+        std::cout << e.what() << std::endl;
+    }
+    
     return 0;
 }
