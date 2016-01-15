@@ -164,7 +164,7 @@ namespace script
         file_ << "(return ";
         if (v->expr_.get() != nullptr)
             v->expr_->accept(this);
-        file_ << " )" << endl;
+        file_ << ")" << endl;
         return false;
     }
 
@@ -216,7 +216,7 @@ namespace script
         indent();
         v->block_->accept(this);
         printIndent();
-        file_ << ")";
+        file_ << ")" << endl;
         decdent();
         return false;
     }
@@ -246,10 +246,10 @@ namespace script
 
     bool DumpAST::visit(ASTClosure *v)
     {
-        file_ << "(closure " << v->name_;
+        file_ << "(closure (" << v->name_;
         for (auto &i : v->params_)
             file_ << " " << i;
-        file_ << ") ";
+        file_ << ") ) ";
         return false;
     }
 
@@ -285,8 +285,8 @@ namespace script
         case TK_Sub: str = "-"; break;
         case TK_Mul: str = "*"; break;
         case TK_Div: str = "/"; break;
-        case TK_Not: str = "!"; break;
-        default: break;
+        case TK_Not: str = "not"; break;
+        default: str = "<unknow>"; break;
         }
         return str;
     }

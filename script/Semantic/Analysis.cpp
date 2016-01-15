@@ -2,34 +2,37 @@
 
 namespace script
 {
-    bool Analysis::visit(ASTExpressionList & v)
+    bool Analysis::visit(ASTExpressionList *v)
     {
-        for (auto i : v.exprs_)
-            i->accept(*this);
+        for (auto &i : v->exprs_)
+            i->accept(this);
         type_ = TP_Error;
         return false;
     }
 
-    bool Analysis::visit(ASTIdentifier & v)
+    bool Analysis::visit(ASTIdentifier *v)
     {
-        if (table_->find(v.name_))
+        auto end = table_->find(v->name_);
+        if (end == SymbolType::ST_Variable)
             type_ = TP_Identifier;
+        else if (end == SymbolType::ST_Constant)
+            type_ = TP_Constant;
         else
-            throw std::runtime_error("undefined identifier" + v.name_);
+            throw std::runtime_error("undefined identifier" + v->name_);
         return false;
     }
 
-    bool Analysis::visit(ASTNull & v)
+    bool Analysis::visit(ASTNull *v)
     {
         type_ = TP_Error;
         return false;
     }
 
-    bool Analysis::visit(ASTConstant & v)
+    bool Analysis::visit(ASTConstant *v)
     {
-        switch (v.type_)
+        switch (v->type_)
         {
-        case ASTConstant::T_Charactor: type_ = TP_Character; break;
+        case ASTConstant::T_Character: type_ = TP_Character; break;
         case ASTConstant::T_Float: type_ = TP_Float; break;
         case ASTConstant::T_Integer: type_ = TP_Integer; break;
         case ASTConstant::T_String: type_ = TP_String; break;
@@ -38,101 +41,102 @@ namespace script
         }
         return false;
     }
-    bool Analysis::visit(ASTArray & v)
+    bool Analysis::visit(ASTArray *v)
     {
-        /*for (auto i : v.array_)
-            i->accept(*this);*/
-        v.array_->accept(*this);
+        /*for (auto i : v->array_)
+            i->accept(this);*/
+        v->array_->accept(this);
         type_ = TP_Array;
         return false;
     }
 
-    bool Analysis::visit(ASTCall & v)
+    bool Analysis::visit(ASTCall *v)
     {
-        v.function_->accept(*this);
+        v->function_->accept(this);
         except(TP_Identifier);
-        v.arguments_->accept(*this);
+        v->arguments_->accept(this);
         type_ = TP_Identifier;
         return false;
     }
 
-    bool Analysis::visit(ASTArrayIndex & v)
+    bool Analysis::visit(ASTArrayIndex *v)
     {
-        v.array_->accept(*this);
+        v->array_->accept(this);
         except(TP_Array);
-        v.index_->accept(*this);
+        v->index_->accept(this);
         except(TP_Integer);
         type_ = TP_Identifier;
         return false;
     }
 
-    bool Analysis::visit(ASTSingleExpression & v)
+    bool Analysis::visit(ASTSingleExpression *v)
     {
-        v.expr_->accept(*this);
+        v->expr_->accept(this);
         except(TP_Integer);
         type_ = TP_Integer;
         return false;
     }
 
-    bool Analysis::visit(ASTBinaryExpression & v)
+    bool Analysis::visit(ASTBinaryExpression *v)
     {
-        v.left_->accept(*this);
+        v->left_->accept(this);
         except(TP_Integer);
-        v.right_->accept(*this);
+        v->right_->accept(this);
         except(TP_Integer);
         type_ = TP_Integer;
         return false;
     }
-    bool Analysis::visit(ASTRelationalExpression & v)
+    bool Analysis::visit(ASTRelationalExpression *v)
     {
-        v.left_->accept(*this);
+        v->left_->accept(this);
         except(TP_Integer);
-        v.right_->accept(*this);
+        v->right_->accept(this);
         except(TP_Integer);
         type_ = TP_Integer;
         return false;
     }
 
-    bool Analysis::visit(ASTAndExpression & v)
+    bool Analysis::visit(ASTAndExpression *v)
     {
-        for (auto i : v.relations_)
+        for (auto &i : v->relations_)
         {
-            i->accept(*this);
+            i->accept(this);
             except(TP_Integer);
         }
         type_ = TP_Integer;
         return false;
     }
 
-    bool Analysis::visit(ASTOrExpression & v)
+    bool Analysis::visit(ASTOrExpression *v)
     {
-        for (auto i : v.relations_)
+        for (auto &i : v->relations_)
         {
-            i->accept(*this);
+            i->accept(this);
             except(TP_Integer);
         }
         type_ = TP_Integer;
         return false;
     }
 
-    bool Analysis::visit(ASTAssignExpression & v)
+    bool Analysis::visit(ASTAssignExpression *v)
     {
-        v.left_->accept(*this);
+        v->left_->accept(this);
+        if (type_ == TP_Constant)
+            throw std::runtime_error("cann't assign to constant!");
         except(TP_Identifier);
-        v.right_->accept(*this);
-        // type_ = v.right_.type_;
+        v->right_->accept(this);
+        // type_ = v->right_.type_;
         return false;
     }
 
-    bool Analysis::visit(ASTVarDeclStatement & v)
+    bool Analysis::visit(ASTVarDeclStatement *v)
     {
-        table_->insert(v.name_);
-        v.expr_->accept(*this);
+        v->expr_->accept(this);
         type_ = TP_Error;
         return false;
     }
 
-    bool Analysis::visit(ASTContinueStatement & v)
+    bool Analysis::visit(ASTContinueStatement *v)
     {
         if (breakLevel_ <= 0)
             throw std::runtime_error("continue need while");
@@ -140,7 +144,7 @@ namespace script
         return false;
     }
 
-    bool Analysis::visit(ASTBreakStatement & v)
+    bool Analysis::visit(ASTBreakStatement *v)
     {
         if (breakLevel_ <= 0)
             throw std::runtime_error("break need while");
@@ -148,20 +152,20 @@ namespace script
         return false;
     }
 
-    bool Analysis::visit(ASTReturnStatement & v)
+    bool Analysis::visit(ASTReturnStatement *v)
     {
-        if (v.expr_ != nullptr)
-            v.expr_->accept(*this);
+        if (v->expr_ != nullptr)
+            v->expr_->accept(this);
         type_ = TP_Identifier;
         return false;
     }
 
-    bool Analysis::visit(ASTWhileStatement & v)
+    bool Analysis::visit(ASTWhileStatement *v)
     {
-        v.condition_->accept(*this);
+        v->condition_->accept(this);
         except(TP_Integer);
         breakLevel_++;
-        v.statement_->accept(*this);
+        v->statement_->accept(this);
         breakLevel_--;
         /// 这里有个问题，就是
         /// while (conditon)
@@ -169,46 +173,60 @@ namespace script
         return false;
     }
 
-    bool Analysis::visit(ASTIfStatement & v)
+    bool Analysis::visit(ASTIfStatement *v)
     {
-        v.condition_->accept(*this);
+        v->condition_->accept(this);
         except(TP_Integer);
-        v.ifStatement_->accept(*this);
-        if (v.elseStatement_ != nullptr)
-            v.elseStatement_->accept(*this);
+        v->ifStatement_->accept(this);
+        if (v->elseStatement_ != nullptr)
+            v->elseStatement_->accept(this);
         return false;
     }
 
-    bool Analysis::visit(ASTBlock & v)
+    bool Analysis::visit(ASTBlock *v)
     {
-        SymbolTable *tables = table_;
-        table_ = v.table_;
-        for (auto i : v.statements_)
-            i->accept(*this);
-        table_ = tables;
+        for (auto &i : v->statements_)
+            i->accept(this);
         return false;
     }
 
-    bool Analysis::visit(ASTFunction & v)
+    bool Analysis::visit(ASTFunction *v)
     {
-        for (auto &i : v.params_)
-            v.block_->table_->insert(i);
-        v.accept(*this);
+        //v->prototype_->accept(this); 
+        Symbols *table = table_;
+        table_ = v->table_;
+        v->block_->accept(this);
         return false;
     }
 
-    bool Analysis::visit(ASTProgram & v)
+    bool Analysis::visit(ASTProgram *v)
     {
-        table_ = v.table_;
-        for (auto &i : v.functions_)
-            table_->insert(i->name_);
-        for (auto &i : v.functions_)
-            i->accept(*this);
+        table_ = v->table_;
+        //for (auto &i : v->function_)
+        //    table_->insert(i->name_);
+        for (auto &i : v->function_)
+            i->accept(this);
         return false;
     }
 
-    bool Analysis::visit(ASTPrototype & v)
+    bool Analysis::visit(ASTPrototype *v)
     {
+        return false;
+    }
+
+    bool Analysis::visit(ASTClosure * v)
+    {
+        return false;
+    }
+
+    bool Analysis::visit(ASTDefine * v)
+    {
+        return false;
+    }
+
+    bool Analysis::visit(ASTStatement * v)
+    {
+        v->tree_->accept(this);
         return false;
     }
 }

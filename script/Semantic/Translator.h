@@ -9,7 +9,7 @@
 
 namespace script
 {
-    class Translator : public Visitor
+    class Translator : public ASTVisitor
     {
     public:
         virtual ~Translator() {};

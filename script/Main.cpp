@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
     std::unique_ptr<script::ASTProgram> program;
     try {
         program = std::move(parser.parse());
-        program->accept(analysis);
+        program->accept(&analysis);
     }
     catch (std::runtime_error &e) {
         std::cout << e.what() << std::endl;
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
         dumpFilename += ".ast";
         std::fstream dumpASTFile(dumpFilename);
         script::DumpAST dumpAST(dumpASTFile);
-        program->accept(dumpAST);
+        program->accept(&dumpAST);
     }
     
 	return 0;

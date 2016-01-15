@@ -67,13 +67,13 @@ namespace script
         virtual bool visit(ASTClosure *v) = 0;
     };
 
-    template<typename T>
+    template<typename T, T val>
     class SymbolTable
     {
     public:
-        SymbolTable(SymbolTable<T> *parent) : parent_(parent) {}
+        SymbolTable(SymbolTable<T, val> *parent) : parent_(parent) {}
 
-        bool Insert(std::string &name, T t)
+        bool insert(std::string &name, T t)
         {
             if (table_.count(name) == 0)
             {
@@ -86,7 +86,7 @@ namespace script
         T &find(const std::string &name)
         {
             if (table_.count(name) == 0)
-                return false_;
+                return end();
             return table_[name];
         }
 
@@ -96,20 +96,24 @@ namespace script
             {
                 if (parent_ != nullptr)
                     return parent_->findInTree(name);
-                return false_;
+                return end();
             }
             return table_[name];
         }
 
-        const T &end() const { return false_; }
+        T &end() const 
+        {
+            static T t = val;
+            return t; 
+        }
 
     private:
-        SymbolTable<T> *parent_;
+        SymbolTable<T, val> *parent_;
         std::map<std::string, T> table_;
-        T false_;
     };
 
-    typedef SymbolTable<int> Symbols;
+    enum class SymbolType { ST_NONE, ST_Constant, ST_Variable, };
+    typedef SymbolTable<SymbolType, SymbolType::ST_NONE> Symbols;
 
     class ASTree
     {
@@ -479,15 +483,18 @@ namespace script
     class ASTFunction : public ASTree
     {
     public:
-        ASTFunction(std::unique_ptr<ASTPrototype> proto,
+        ASTFunction(Symbols *table,
+            std::unique_ptr<ASTPrototype> proto,
             std::unique_ptr<ASTBlock> block)
-            : prototype_(std::move(proto))
+            : table_(table)
+            , prototype_(std::move(proto))
             , block_(std::move(block))
         {}
         virtual ~ASTFunction() {}
 
         virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
 
+        Symbols *table_;
         std::unique_ptr<ASTPrototype> prototype_;
         std::unique_ptr<ASTBlock> block_;
     };
@@ -508,14 +515,17 @@ namespace script
     class ASTProgram : public ASTree
     {
     public:
-        ASTProgram(std::vector<std::unique_ptr<ASTDefine>> defines,
+        ASTProgram(Symbols *table,
+            std::vector<std::unique_ptr<ASTDefine>> defines,
             std::vector<std::unique_ptr<ASTFunction>> function)
-            : defines_(std::move(defines))
+            : table_(table)
+            , defines_(std::move(defines))
             , function_(std::move(function))
         {}
-        virtual ~ASTProgram() {  }
+        virtual ~ASTProgram() { delete table_; }
         virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
 
+        Symbols *table_;
         std::vector<std::unique_ptr<ASTDefine>> defines_;
         std::vector<std::unique_ptr<ASTFunction>> function_;
     };

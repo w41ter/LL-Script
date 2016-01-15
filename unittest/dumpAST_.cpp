@@ -10,6 +10,8 @@
 int main(int argc, char* argv[])
 {
     std::string name = "test.txt";
+    if (argc == 2)
+        name = argv[1];
     script::Lexer lexer;
     script::Parser parser(lexer);
     lexer.setProgram(name);
@@ -27,7 +29,7 @@ int main(int argc, char* argv[])
     std::fstream dumpASTFile(dumpFilename, std::ofstream::out);
     if (dumpASTFile)
     {
-        std::cout << "Open file :" << dumpFilename << std::endl;
+        std::cout << "Open file :" << dumpFilename << " to dump ast" << std::endl;
     }
     else
     {

@@ -1,0 +1,20 @@
+define main = function() {
+  let a = 1;
+  let lambda_1 = function() {
+    return a - 1;
+  };
+  let lambda_2 = function(b) {
+    return b + a;
+  };
+  let lambda_3 = lambda_2(1);
+  
+  let lambda_4 = function(a1) {
+    return function(b1) {
+      return a1 + b1;
+    };
+  };
+  
+  let lambda_5 = lambda_4(1);
+};
+
+define call = main();

@@ -115,6 +115,17 @@ namespace script
         }
         case TK_Identifier:
         {
+            Symbols *symbol = symbolTable_.back();
+            if (symbol->find(token_.value_) == symbol->end())
+            {
+                if (symbol->findInTree(token_.value_) == symbol->end())
+                {
+                    // error
+                    std::cout << token_.value_ << " are undefined!" << std::endl;
+                    throw std::runtime_error("identifier undefined!");
+                }
+                catch_.back()->insert(token_.value_);
+            }
             expr = make_unique<ASTIdentifier>(token_.value_);
             advance();
             break;
@@ -218,9 +229,10 @@ namespace script
         unique_ptr<ASTree> expr = std::move(parseTerm());
         while (token_.kind_ == TK_Mul || token_.kind_ == TK_Div)
         {
+            unsigned op = token_.kind_;
             advance();
             expr = make_unique<ASTBinaryExpression>(
-                token_.kind_,
+                op,
                 std::move(expr),
                 std::move(parseTerm())
                 );
@@ -237,9 +249,10 @@ namespace script
         unique_ptr<ASTree> expr = std::move(parseAdditiveExpr());
         while (token_.kind_ == TK_Plus || token_.kind_ == TK_Sub)
         {
+            unsigned op = token_.kind_;
             advance();
             expr = make_unique<ASTBinaryExpression>(
-                token_.kind_,
+                op,
                 std::move(expr),
                 std::move(parseAdditiveExpr())
                 );
@@ -256,9 +269,10 @@ namespace script
         unique_ptr<ASTree> expr = std::move(parseRelationalExpr());
         if (isRelational(token_.kind_))
         {
+            unsigned op = token_.kind_;
             advance();
             expr = make_unique<ASTRelationalExpression>(
-                token_.kind_, std::move(expr),
+                op, std::move(expr),
                 std::move(parseRelationalExpr())
                 );
         }
@@ -408,6 +422,13 @@ namespace script
         {
             advance();
             string name = exceptIdentifier();
+            Symbols *symbol = symbolTable_.back();
+            if (!symbol->insert(name, SymbolType::ST_Variable))
+            {
+                // error redefine
+                std::cout << name << " are redefined!" << std::endl;
+                throw std::runtime_error("identifier redefined!");
+            }
             match(TK_Assign);
             unique_ptr<ASTree> expr = std::move(parseAssignExpr());
             match(TK_Semicolon);
@@ -466,15 +487,17 @@ namespace script
         match(TK_RParen);
 
         // init symbol table
-        Symbols table(symbolTable_.back());
+        Symbols *table = new Symbols(symbolTable_.back());
         for (auto &i : params)
         {
-            if (!table.Insert(i, 0))
+            if (!table->insert(i, SymbolType::ST_Variable))
             {
                 // error redefined
+                std::cout << i << " are redefined!" << std::endl;
+                throw std::runtime_error("identifier redefined!");
             }
         }
-        symbolTable_.push_back(&table);
+        symbolTable_.push_back(table);
 
         // parse block
         set<string> catchTable;
@@ -496,21 +519,18 @@ namespace script
         }
 
         for (auto &i : params)
-        {
             argument.push_back(i);
-        }
         
         unique_ptr<ASTPrototype> proto =
             make_unique<ASTPrototype>(name, std::move(argument));
         functions_->push_back(
-            make_unique<ASTFunction>(std::move(proto), std::move(block)));
+            make_unique<ASTFunction>(
+                table, std::move(proto), std::move(block)));
 
         // Create closure
         argument.clear();
         for (auto &i : catchTable)
-        {
             argument.push_back(i);
-        }
         return make_unique<ASTClosure>(name, argument);
     }
 
@@ -522,6 +542,13 @@ namespace script
     {
         match(TK_Define);
         string name = exceptIdentifier();
+        Symbols *symbol = symbolTable_.back();
+        if (!symbol->insert(name, SymbolType::ST_Constant))
+        {
+            // error redefined
+            std::cout << name << " are redefined!" << std::endl;
+            throw std::runtime_error("identifier redefined!");
+        }
         match(TK_Assign);
         unique_ptr<ASTree> tree = std::move(parseExpr());
         match(TK_Semicolon);
@@ -534,13 +561,13 @@ namespace script
     //
     unique_ptr<ASTProgram> Parser::parse()
     {
+        Symbols *symbol = new Symbols(nullptr);
         vector<unique_ptr<ASTDefine>> defines;
         vector<unique_ptr<ASTFunction>> functions;
         this->functions_ = &functions;
 
-        Symbols symbol(nullptr);
         set<string> catchTable;
-        symbolTable_.push_back(&symbol);
+        symbolTable_.push_back(symbol);
         catch_.push_back(&catchTable);
 
         advance();
@@ -550,7 +577,8 @@ namespace script
         }
 
         this->functions_ = nullptr;
-        return make_unique<ASTProgram>(std::move(defines), std::move(functions));
+        return make_unique<ASTProgram>(
+            symbol, std::move(defines), std::move(functions));
     }
 
     void Parser::advance()
