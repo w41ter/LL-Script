@@ -18,7 +18,7 @@ namespace script
     {
         return (tok == TK_Less || tok == TK_LessThan ||
             tok == TK_Great || tok == TK_GreatThan ||
-            tok == TK_NotEqualThan || tok == TK_EqualThan);
+            tok == TK_NotEqual || tok == TK_EqualThan);
     }
 
     std::string Parser::getTempIDName(const char *name)
@@ -422,6 +422,12 @@ namespace script
         {
             advance();
             string name = exceptIdentifier();
+
+            match(TK_Assign);
+            unique_ptr<ASTree> expr = std::move(parseAssignExpr());
+            match(TK_Semicolon);
+
+            // insert symbol to symbol table only after it done.
             Symbols *symbol = symbolTable_.back();
             if (!symbol->insert(name, SymbolType::ST_Variable))
             {
@@ -429,9 +435,7 @@ namespace script
                 std::cout << name << " are redefined!" << std::endl;
                 throw std::runtime_error("identifier redefined!");
             }
-            match(TK_Assign);
-            unique_ptr<ASTree> expr = std::move(parseAssignExpr());
-            match(TK_Semicolon);
+
             return make_unique<ASTVarDeclStatement>(name, std::move(expr));
         }
         default:
@@ -490,7 +494,8 @@ namespace script
         Symbols *table = new Symbols(symbolTable_.back());
         for (auto &i : params)
         {
-            if (!table->insert(i, SymbolType::ST_Variable))
+            // all params is constant.
+            if (!table->insert(i, SymbolType::ST_Constant))
             {
                 // error redefined
                 std::cout << i << " are redefined!" << std::endl;
@@ -542,6 +547,12 @@ namespace script
     {
         match(TK_Define);
         string name = exceptIdentifier();
+        
+        match(TK_Assign);
+        unique_ptr<ASTree> tree = std::move(parseExpr());
+        match(TK_Semicolon);
+
+        // like let, symbol be insert into after it done.
         Symbols *symbol = symbolTable_.back();
         if (!symbol->insert(name, SymbolType::ST_Constant))
         {
@@ -549,9 +560,7 @@ namespace script
             std::cout << name << " are redefined!" << std::endl;
             throw std::runtime_error("identifier redefined!");
         }
-        match(TK_Assign);
-        unique_ptr<ASTree> tree = std::move(parseExpr());
-        match(TK_Semicolon);
+
         return make_unique<ASTDefine>(name, std::move(tree));
     }
 

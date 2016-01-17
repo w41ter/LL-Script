@@ -280,7 +280,7 @@ namespace script
         case TK_Great: str = ">"; break;
         case TK_GreatThan: str = ">="; break;
         case TK_EqualThan: str = "=="; break;
-        case TK_NotEqualThan: str = "!="; break;
+        case TK_NotEqual: str = "!="; break;
         case TK_Plus: str = "+"; break;
         case TK_Sub: str = "-"; break;
         case TK_Mul: str = "*"; break;

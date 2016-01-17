@@ -39,9 +39,8 @@ namespace script
         TK_LessThan,
         TK_Less,
         TK_Great,
-        TK_NotThan,
+        TK_NotEqual,
         TK_EqualThan,
-        TK_NotEqualThan,
         TK_And, 
         TK_Or,
 

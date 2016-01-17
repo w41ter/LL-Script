@@ -1,11 +1,14 @@
 define main = function() {
   let a = 1;
+  
   let lambda_1 = function() {
     return a - 1;
   };
+  
   let lambda_2 = function(b) {
     return b + a;
   };
+  
   let lambda_3 = lambda_2(1);
   
   let lambda_4 = function(a1) {
@@ -15,6 +18,15 @@ define main = function() {
   };
   
   let lambda_5 = lambda_4(1);
+  
+  let lambda_6 = function(c, d) {
+    return function(e) {
+      return c + d + e + 1;
+    };
+  }();
+  
+  a = ["test", 1];
+  a[1] = "test";
 };
 
 define call = main();
