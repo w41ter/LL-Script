@@ -9,6 +9,9 @@
 #include "Semantic\Analysis.h"
 #include "Semantic\dumpAST.h"
 #include "Semantic\Translator.h"
+#include "IR\QuadGenerator.h"
+#include "IR\Quad.h"
+#include "IR\dumpQuad.h"
 
 int main(int argc, char* argv[])
 {
@@ -34,10 +37,22 @@ int main(int argc, char* argv[])
     {
         std::string dumpFilename(driver.filename);
         dumpFilename += ".ast";
-        std::fstream dumpASTFile(dumpFilename);
+        std::fstream dumpASTFile(dumpFilename, std::ofstream::out);
         script::DumpAST dumpAST(dumpASTFile);
         program->accept(&dumpAST);
     }
     
+    script::Translator translator;
+    program->accept(&translator);
+    script::QuadGenerator &gen = translator.codeGenerator();
+    std::list<script::Quad*> codes = std::move(gen.getCode());
+    if (driver.dumpIR_)
+    {
+        std::string dumpFilename(driver.filename);
+        dumpFilename += ".ir";
+        std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
+        script::DumpQuad dumpQuad(dumpIRFile);
+        dumpQuad.dump(codes);
+    }
 	return 0;
 }

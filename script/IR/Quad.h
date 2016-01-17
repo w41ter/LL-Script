@@ -7,146 +7,118 @@
 
 namespace script
 {
+    
+    class Value;
+    class Identifier;
+    class Temp;
+    class Array;
+    class ArrayIndex;
+
     class If;
-    class Var;
-    class Float;
-    class Integer;
-    class Character;
-    class String;
     class Call;
     class Goto;
-    class Temp;
     class Copy;
+    class Load;
+    class Store;
     class Label;
     class Param;
     class Return;
-    class Array;
+    class Invoke;
     class IfFalse;
     class Function;
-    class RelopAssign;
-    class ArrayAssign;
+    class Operation;
     class AssignArray;
-    class Identifier;
-    class SingleAssign;
-    class BinaryAssign;
-
+    class ArrayAssign;
+    //
+    // Visitor
+    //
     class QuadVisitor
     {
     public:
         virtual ~QuadVisitor() = 0 {};
-        virtual bool visit(If &v) = 0;
-        virtual bool visit(Float &v) = 0;
-        virtual bool visit(Integer &v) = 0;
-        virtual bool visit(Character &v) = 0;
-        virtual bool visit(String &v) = 0;
-        virtual bool visit(Call &v) = 0;
-        virtual bool visit(Goto &v) = 0;
-        virtual bool visit(Temp &v) = 0;
-        virtual bool visit(Copy &v) = 0;
-        virtual bool visit(Label &v) = 0;
-        virtual bool visit(Array &v) = 0;
-        virtual bool visit(Param &v) = 0;
-        virtual bool visit(Return &v) = 0;
-        virtual bool visit(IfFalse &v) = 0;
-        virtual bool visit(Function &v) = 0;
-        virtual bool visit(RelopAssign &v) = 0;
-        virtual bool visit(AssignArray &v) = 0;
-        virtual bool visit(ArrayAssign &v) = 0;
-        virtual bool visit(BinaryAssign &v) = 0;
-        virtual bool visit(Identifier &v) = 0;
-        virtual bool visit(SingleAssign &v) = 0;
+        virtual bool visit(Constant *v) = 0;
+        virtual bool visit(Temp *v) = 0;
+        virtual bool visit(Identifier *v) = 0;
+        virtual bool visit(Array *v) = 0;
+        virtual bool visit(ArrayIndex *v) = 0;
+
+        virtual bool visit(If *v) = 0;
+        virtual bool visit(Call *v) = 0;
+        virtual bool visit(Goto *v) = 0;
+        virtual bool visit(Copy *v) = 0;
+        virtual bool visit(Load *v) = 0;
+        virtual bool visit(Store *v) = 0;
+        virtual bool visit(Label *v) = 0;
+        virtual bool visit(Param *v) = 0;
+        virtual bool visit(Invoke *v) = 0;
+        virtual bool visit(Return *v) = 0;
+        virtual bool visit(IfFalse *v) = 0;
+        virtual bool visit(Function *v) = 0;
+        virtual bool visit(Operation *v) = 0;
+        virtual bool visit(AssignArray *v) = 0;
+        virtual bool visit(ArrayAssign *v) = 0;
     };
 
-    class Quad
+    //
+    // Value include character integer float string
+    // id or temp
+    //
+    class Value
     {
     public:
-        virtual ~Quad() = 0 {}
-        virtual bool accept(QuadVisitor &v) = 0;
+        virtual ~Value() {}
+        virtual bool accept(QuadVisitor *v) = 0;
+
+        virtual bool isVariable() const { return false; }
     };
 
-    class Var : public Quad
+    class Constant : public Value
     {
     public:
-        virtual ~Var() {}
-        virtual bool accept(QuadVisitor &v) = 0;
-    };
+        enum {
+            T_Character,
+            T_Integer,
+            T_Float,
+            T_String,
+        };
+        Constant(int num) : type_(T_Integer), num_(num) {}
+        Constant(char c) : type_(T_Character), c_(c) {}
+        Constant(float fnum) : type_(T_Float), fnum_(fnum) {}
+        Constant(std::string str) : type_(T_String), str_(std::move(str)) {}
 
-    class Float : public Var
-    {
-    public:
-        Float(float f) : f_(f) {}
-        virtual ~Float() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        float f_;
-    };
+        virtual ~Constant() = default;
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-    class Integer : public Var
-    {
-    public:
-        Integer(int i) : i_(i) {}
-        virtual ~Integer() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        int i_;
-    };
-
-    class Character : public Var
-    {
-    public:
-        Character(char c) : c_(c) {}
-        virtual ~Character() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        unsigned type_;
+        int num_;
         char c_;
+        float fnum_;
+        std::string str_;
     };
 
-    class String : public Var
-    {
-    public:
-        String(std::string &str) : str_(str) {}
-        virtual ~String() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        std::string &str_;
-    };
-
-    class Identifier : public Var
+    class Identifier : public Value
     {
     public:
         Identifier(std::string &name) : name_(name) {}
         virtual ~Identifier() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        virtual bool isVariable() const override { return true; }
         std::string name_;
     };
 
-    class Goto : public Quad
+    class Temp : public Value
     {
     public:
-        Goto(Label *label) : label_(label) {}
-        virtual ~Goto() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        Label *label_;
-    };
-
-    class Array : public Var
-    {
-    public:
-        Array(int total) : total_(total) {}
-        virtual ~Array() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        int total_;
-    };
-
-    class Temp : public Var
-    {
-    public: 
-        Temp() 
-        { 
+        Temp()
+        {
             std::stringstream str("temp@_");
             str << getIndex();
             str >> name_;
         }
         virtual ~Temp() = default;
 
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+
         static int getIndex()
         {
             static int index = 0;
@@ -156,6 +128,57 @@ namespace script
         std::string name_;
     };
 
+    class Array : public Value
+    {
+    public:
+        Array(int total) : total_(total) {}
+        virtual ~Array() = default;
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        int total_;
+    };
+
+    class ArrayIndex : public Value
+    {
+    public:
+        ArrayIndex(Value *value, Value *index)
+            : value_(value), index_(index)
+        {}
+
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        virtual bool isVariable() const override { return true; }
+
+        Value *value_;
+        Value *index_;
+    };
+
+    // 
+    // Stms goto call param if if_false label invoke
+    // 
+    class Quad
+    {
+    public:
+        virtual ~Quad() = 0 {}
+        virtual bool accept(QuadVisitor *v) = 0;
+
+        template<typename T, typename ...Args>
+        static T *Create(Args ...args);
+
+        template<typename T, typename ...Args>
+        static T *CreateValue(Args ...args);
+    };
+
+    //
+    // goto specl label
+    // 
+    class Goto : public Quad
+    {
+    public:
+        Goto(Label *label) : label_(label) {}
+        virtual ~Goto() = default;
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        Label *label_;
+    };
+    
     class Label : public Quad
     {
     public:
@@ -167,7 +190,7 @@ namespace script
         }
         virtual ~Label() = default;
 
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
         static int getIndex()
         {
@@ -178,134 +201,109 @@ namespace script
         std::string name_;
     };
 
-    class BinaryAssign : public Quad
+    // 
+    // define add sub mul div not g gt l lt e ne
+    class Operation : public Quad
     {
-    public:
-        enum OP {
-            ADD,
-            SUB,
-            MUL,
-            DIV
-        };
-        BinaryAssign(OP op, Var *left, Var *right, Var *des)
-            : op_(op), left_(left), right_(right), result_(des)
+    public: 
+        Operation(unsigned op, Value *left, Value *right, Value *result)
+            : op_(op), left_(left), right_(right), result_(result)
         {}
+        virtual ~Operation() {}
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        virtual ~BinaryAssign() = default;
-
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-
-        OP op_;
-        Var *left_;
-        Var *right_;
-        Var *result_;
-    };
-
-    class SingleAssign : public Quad
-    {
-    public:
-        enum OP { NOT, NAGTIVE};
-
-        SingleAssign(OP op, Var *arg, Var *res)
-            : op_(op), arg_(arg), result_(res)
-        {}
-
-        virtual ~SingleAssign() = default;
-
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-
-        Var *arg_;
-        Var *result_;
-        OP op_;
+        unsigned op_;
+        Value *left_;
+        Value *right_;
+        Value *result_;
     };
 
     class Copy : public Quad 
     {
     public:
-        Copy(Var *arg, Var *res) : arg_(arg), result_(res) {}
+        Copy(Value *sour, Value *dest) : sour_(sour), dest_(dest) {}
         virtual ~Copy() {}
 
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        Var *arg_;
-        Var *result_;
+        Value *sour_;
+        Value *dest_;
     };
 
     class ArrayAssign : public Quad
     {
     public:
-        ArrayAssign(Var *arg, Var *index, Var *result)
+        ArrayAssign(Value *arg, Value *index, Value *result)
             : arg_(arg), index_(index), result_(result)
         {}
 
         virtual ~ArrayAssign() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        Var *arg_;
-        Var *index_;
-        Var *result_;
+        Value *arg_;
+        Value *index_;
+        Value *result_;
     };
 
     class AssignArray : public Quad
     {
     public:
-        AssignArray(Var *arg, Var *index, Var *result)
+        AssignArray(Value *arg, Value *index, Value *result)
             : arg_(arg), index_(index), result_(result)
         {}
 
         virtual ~AssignArray() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        Var *arg_;
-        Var *index_;
-        Var *result_;
+        Value *arg_;
+        Value *index_;
+        Value *result_;
+    };
+
+    class Load : public Quad
+    {
+    public:
+        Load(Identifier *id, Value *result)
+            : id_(id), result_(result)
+        {}
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        Identifier *id_;
+        Value *result_;
+    };
+
+    class Store : public Quad
+    {
+    public:
+        Store(Identifier *id, Value *result)
+            : id_(id), result_(result)
+        {}
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        Identifier *id_;
+        Value *result_;
     };
 
     class If : public Quad
     {
     public:
-        If(Var *condition, Label *label) 
+        If(Value *condition, Label *label) 
             : condition_(condition)
             , label_(label)
         {}
         virtual ~If() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        Var *condition_;
+        Value *condition_;
         Label *label_;
     };
 
     class IfFalse : public If
     {
     public:
-        IfFalse(Var *condition, Label *label)
+        IfFalse(Value *condition, Label *label)
             : If(condition, label)
         {}
         virtual ~IfFalse() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-    };
-
-    class RelopAssign : public Quad
-    {
-    public:
-        enum OP {
-            G,
-            GT,
-            L,
-            LT,
-            NE,
-            E
-        };
-        RelopAssign(OP op, Var *left, Var *right, Var *result)
-            : op_(op), left_(left), right_(right), result_(result)
-        {}
-        virtual ~RelopAssign() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-
-        OP op_;
-        Var *left_;
-        Var *right_;
-        Var *result_;
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
     };
 
     class Function : public Quad
@@ -315,7 +313,7 @@ namespace script
             : name_(name), begin_(begin), end_(end)
         {}
         virtual ~Function() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
         std::string name_;
         Label *begin_;
@@ -325,71 +323,48 @@ namespace script
     class Param : public Quad
     {
     public:
-        Param(Var *v) : var_(v) {}
+        Param(Value *v) : Value_(v) {}
         virtual ~Param() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        Var *var_;
+        Value *Value_;
     };
 
     class Call : public Quad
     {
     public:
-        Call(Var *name, Var *result, int num)
-            : name_(name), result_(result), num_(num)
+        Call(Label *label, Value *result, int num)
+            : position_(label), result_(result), num_(num)
         {}
         virtual ~Call() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        Var *name_;
-        Var *result_;
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+
+        Label *position_;
+        Value *result_;
+        int num_;
+    };
+
+    class Invoke : public Quad
+    {
+    public:
+        Invoke(Value *name, Value *result, int num)
+            : name_(name), result_(result), num_(num)
+        {}
+        virtual ~Invoke() = default;
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        Value *name_;
+        Value *result_;
         int num_;
     };
 
     class Return : public Quad
     {
     public:
-        Return(Var *arg) : arg_(arg) {}
+        Return(Value *arg) : arg_(arg) {}
         virtual ~Return() = default;
-        virtual bool accept(QuadVisitor &v) override { return v.visit(*this); }
-        Var *arg_;
+        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+        Value *arg_;
     };
-
-    class QuadManager
-    {
-        QuadManager() = default;
-        ~QuadManager()
-        {
-            destroy();
-        }
-
-        std::vector<Quad*> manager_;
-    public:
-        static QuadManager &instance()
-        {
-            static QuadManager manager;
-            return manager;
-        }
-
-        void push_back(Quad *quad) { manager_.push_back(quad); }
-
-        void destroy()
-        {
-            for (auto &i : manager_)
-            {
-                delete i;
-                i = nullptr;
-            }
-        }
-    };
-
-    template<typename T, typename ...Args>
-    T *MallocQuad(Args ...args)
-    {
-        auto &ins = QuadManager::instance();
-        auto *buffer = new T(args);
-        ins.push_back(buffer);
-        return buffer;
-    }
 }
 
 #endif // !__QUAD_H__

@@ -2,20 +2,18 @@
 #define __TRANSLATOR_H__
 
 #include <stack>
-#include <vector>
-#include <memory>
+#include <list>
+#include <map>
 
 #include "AST.h"
-
-#include "../IR/IR.h"
+#include "../IR/Quad.h"
+#include "../IR/QuadGenerator.h"
 
 namespace script
 {
     class Translator : public ASTVisitor
     {
     public:
-        Translator() : module_(std::make_unique<IR>()) {}
-
         virtual ~Translator() {};
         virtual bool visit(ASTExpressionList *v) override;
         virtual bool visit(ASTIdentifier *v) override;
@@ -39,11 +37,21 @@ namespace script
         virtual bool visit(ASTBlock *v) override;
         virtual bool visit(ASTFunction *v) override;
         virtual bool visit(ASTProgram *v) override;
+        virtual bool visit(ASTClosure *v) override;
+        virtual bool visit(ASTStatement *v) override;
+        virtual bool visit(ASTPrototype *v) override;
+        virtual bool visit(ASTDefine *v) override;
+
+        QuadGenerator &codeGenerator() { return gen_; }
 
     private:
-        std::unique_ptr<IR> module_;
+        Value *result_;
+        std::stack<Label*> breakLabels_;
+        std::stack<Label*> continueLabels_;
 
-        Quad *result_;
+        std::map<std::string, Label*> function_;
+        std::map<std::string, Identifier*> *symbols_;
+        QuadGenerator gen_;
     };
 }
 
