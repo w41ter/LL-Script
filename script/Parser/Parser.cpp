@@ -518,6 +518,7 @@ namespace script
         for (auto &i : catchTable)
         {
             argument.push_back(i);
+            table->insert(i, SymbolType::ST_Constant);
             // insert catch table into parent
             if (parent->find(i) == parent->end())
                 catch_.back()->insert(i);

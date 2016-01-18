@@ -9,22 +9,22 @@ namespace script
 {
     void DumpQuad::dump(QuadModule &module)
     {
-        std::cout << "begin dump functions" << endl;
+        // std::cout << "begin dump functions" << endl;
         for (auto &i : module.functions_)
             dumpFunction(i.second);
-        std::cout << "begin dump all define" << endl;
+        // std::cout << "begin dump all define" << endl;
         dumpCode(&module);
-        std::cout << "all dump to file" << endl;
+        // std::cout << "all dump to file" << endl;
     }
 
     bool DumpQuad::visit(Constant * v)
     {
         switch (v->type_)
         {
-        case Constant::T_Character: file_ << v->c_; break;
+        case Constant::T_Character: file_ << '\'' << v->c_ << '\''; break;
         case Constant::T_Float: file_ << v->fnum_; break;
         case Constant::T_Integer: file_ << v->num_; break;
-        case Constant::T_String: file_ << v->str_; break;
+        case Constant::T_String: file_ << '"' << v->str_ << '"'; break;
         }
         file_ << ' ';
         return false;
@@ -51,7 +51,9 @@ namespace script
     bool DumpQuad::visit(ArrayIndex * v)
     {
         v->value_->accept(this);
-        file_ << "[" << v->index_ << "] ";
+        file_ << "[ ";
+        v->index_->accept(this);
+        file_ << "] ";
         return false;
     }
 
@@ -65,10 +67,13 @@ namespace script
 
     bool DumpQuad::visit(Call * v)
     {
+        // std::cout << "dump call" << std::endl;
         file_ << '\t';
         v->result_->accept(this);
         file_ << " = call ";
+        // std::cout << "\tdump call position before:" << v->position_ << std::endl;
         v->position_->accept(this);
+        // std::cout << "\tdump call position end" << std::endl;
         file_ << v->num_;
         return false;
     }
@@ -122,7 +127,7 @@ namespace script
     {
         file_ << '\t';
         v->result_->accept(this);
-        file_ << " = invoke ";
+        file_ << "= invoke ";
         v->name_->accept(this);
         file_ << v->num_;
         return false;
@@ -157,6 +162,7 @@ namespace script
     {
         for (auto &i : code->codes_)
         {
+            //file_ << " dump new line\t";
             i->accept(this);
             file_ << endl;
         }

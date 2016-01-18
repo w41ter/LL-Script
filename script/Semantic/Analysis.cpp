@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "Analysis.h"
 
 namespace script
@@ -52,6 +54,7 @@ namespace script
 
     bool Analysis::visit(ASTCall *v)
     {
+        //std::cout << "\t\tanalysis call..." << std::endl;
         v->function_->accept(this);
         except(TP_Identifier);
         v->arguments_->accept(this);
@@ -120,6 +123,7 @@ namespace script
 
     bool Analysis::visit(ASTAssignExpression *v)
     {
+        //std::cout << "\t\tanalysis assignment..." << std::endl;
         v->left_->accept(this);
         if (type_ == TP_Constant)
             throw std::runtime_error("cann't assign to constant!");
@@ -131,6 +135,7 @@ namespace script
 
     bool Analysis::visit(ASTVarDeclStatement *v)
     {
+        //std::cout << "\t\tanalysis let... " << v->name_ << std::endl;
         v->expr_->accept(this);
         type_ = TP_Error;
         return false;
@@ -193,19 +198,26 @@ namespace script
     bool Analysis::visit(ASTFunction *v)
     {
         //v->prototype_->accept(this); 
+        //std::cout << "\tbegin analysis function: " 
+        //    << v->prototype_->name_ << std::endl;
         Symbols *table = table_;
         table_ = v->table_;
         v->block_->accept(this);
+        table_ = table;
         return false;
     }
 
     bool Analysis::visit(ASTProgram *v)
     {
+        //std::cout << "begin analysis:" << std::endl;
         table_ = v->table_;
         //for (auto &i : v->function_)
         //    table_->insert(i->name_);
         for (auto &i : v->function_)
             i->accept(this);
+        for (auto &i : v->defines_)
+            i->accept(this);
+        //std::cout << "end analysis" << std::endl;
         return false;
     }
 
@@ -216,11 +228,14 @@ namespace script
 
     bool Analysis::visit(ASTClosure * v)
     {
+        //std::cout << "\t\tanalysis closure..." << v->name_ << std::endl;
+        type_ = TP_Identifier;
         return false;
     }
 
     bool Analysis::visit(ASTDefine * v)
     {
+        v->expr_->accept(this);
         return false;
     }
 

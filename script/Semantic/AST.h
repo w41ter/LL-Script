@@ -73,7 +73,7 @@ namespace script
     public:
         SymbolTable(SymbolTable<T, val> *parent) : parent_(parent) {}
 
-        bool insert(std::string &name, T t)
+        bool insert(const std::string &name, T t)
         {
             if (table_.count(name) == 0)
             {
@@ -490,7 +490,7 @@ namespace script
             , prototype_(std::move(proto))
             , block_(std::move(block))
         {}
-        virtual ~ASTFunction() {}
+        virtual ~ASTFunction() { delete table_; }
 
         virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
 

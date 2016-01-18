@@ -13,6 +13,27 @@ namespace script
     //
     class QuadGenerator
     {
+        class QuadManager
+        {
+        public:
+            QuadManager() = default;
+            ~QuadManager() { destroy(); }
+
+            std::list<Quad*> manager_;
+            std::list<Value*> values_;
+
+            void push_back(Quad *quad) { manager_.push_back(quad); }
+            void insert_value(Value *value) { values_.push_back(value); }
+
+            void destroy()
+            {
+                for (auto &i : manager_)
+                    delete i, i = nullptr;
+                for (auto &i : values_)
+                    delete i, i = nullptr;
+            }
+        };
+
     public:
         QuadGenerator(std::list<Quad*> &codes) : codes_(codes) {}
 
@@ -30,10 +51,29 @@ namespace script
         void insertGoto(Label *label);
         void insertCopy(Value *source, Value *dest);
 
+        template<typename T, typename ...Args>
+        T *Create(Args ...args)
+        {
+            auto *buffer = new T(args...);
+            manager_.push_back(buffer);
+            return buffer;
+        }
+
+        template<typename T, typename ...Args>
+        T *CreateValue(Args ...args)
+        {
+            auto *buffer = new T(args...);
+            manager_.insert_value(buffer);
+            return buffer;
+        }
+
     private:
         std::list<Quad*> &codes_;
+        QuadManager manager_;
     };
 
+    // all code save in here
+    // 
     class QuadCode
     {
         friend class DumpQuad;

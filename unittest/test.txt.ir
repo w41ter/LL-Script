@@ -43,8 +43,14 @@
 	load a temp@_14 
 	load a temp@_15 
 	temp@_16 = new [2] 
-	store temp@_16 [0xb6a550] good 
-	store temp@_16 [0xb6a850] 123 
-	store b new [2] 
+	store temp@_16 [ 0 ] "good" 
+	store temp@_16 [ 1 ] 123 
+	store b temp@_16 
 @label_1: 
 @label_9: 
+	temp@_17  = call @label_0: 0
+	store main temp@_17 
+	load main temp@_19 
+	temp@_18  = invoke temp@_19 0
+	store a temp@_18 
+@label_10: 
