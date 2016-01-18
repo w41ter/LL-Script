@@ -1,3 +1,4 @@
+#include <iostream>
 #include <list>
 #include "../Parser/lexer.h"
 #include "dumpQuad.h"
@@ -6,10 +7,14 @@ using std::endl;
 
 namespace script
 {
-    void DumpQuad::dump(std::list<Quad*>& codes)
+    void DumpQuad::dump(QuadModule &module)
     {
-        for (auto i : codes)
-            i->accept(this);
+        std::cout << "begin dump functions" << endl;
+        for (auto &i : module.functions_)
+            dumpFunction(i.second);
+        std::cout << "begin dump all define" << endl;
+        dumpCode(&module);
+        std::cout << "all dump to file" << endl;
     }
 
     bool DumpQuad::visit(Constant * v)
@@ -55,7 +60,6 @@ namespace script
         file_ << '\t' << "if ";
         v->condition_->accept(this);
         v->label_->accept(this);
-        file_ << endl;
         return false;
     }
 
@@ -65,7 +69,7 @@ namespace script
         v->result_->accept(this);
         file_ << " = call ";
         v->position_->accept(this);
-        file_ << v->num_ << endl;
+        file_ << v->num_;
         return false;
     }
 
@@ -73,7 +77,6 @@ namespace script
     {
         file_ << '\t' << "goto ";
         v->label_->accept(this);
-        file_ << endl;
         return false;
     }
 
@@ -83,7 +86,6 @@ namespace script
         v->dest_->accept(this);
         file_ << "= ";
         v->sour_->accept(this);
-        file_ << endl;
         return false;
     }
 
@@ -92,7 +94,6 @@ namespace script
         file_ << "\tload ";
         v->id_->accept(this);
         v->result_->accept(this);
-        file_ << endl;
         return false;
     }
 
@@ -101,13 +102,12 @@ namespace script
         file_ << "\tstore ";
         v->id_->accept(this);
         v->result_->accept(this);
-        file_ << endl;
         return false;
     }
 
     bool DumpQuad::visit(Label * v)
     {
-        file_ << v->name_ << ':' << endl;
+        file_ << v->name_ << ": ";
         return false;
     }
 
@@ -115,7 +115,6 @@ namespace script
     {
         file_ << "\tparam ";
         v->Value_->accept(this);
-        file_ << endl;
         return false;
     }
 
@@ -125,7 +124,7 @@ namespace script
         v->result_->accept(this);
         file_ << " = invoke ";
         v->name_->accept(this);
-        file_ << v->num_ << endl;
+        file_ << v->num_;
         return false;
     }
 
@@ -133,7 +132,6 @@ namespace script
     {
         file_ << "\treturn ";
         v->arg_->accept(this);
-        file_ << endl;
         return false;
     }
 
@@ -142,18 +140,26 @@ namespace script
         file_ << '\t' << "if_false ";
         v->condition_->accept(this);
         v->label_->accept(this);
-        file_ << endl;
         return false;
     }
 
-    bool DumpQuad::visit(Function * v)
+    void DumpQuad::dumpFunction(QuadFunction * func)
     {
-        file_ << '\t' << "funtion " << v->name_ << "from ";
-        v->begin_->accept(this);
+        file_ << '\t' << "funtion " << func->name_ << " from ";
+        func->begin_->accept(this);
         file_ << "to ";
-        v->end_->accept(this);
+        func->end_->accept(this);
         file_ << endl;
-        return false;
+        dumpCode(func);
+    }
+
+    void DumpQuad::dumpCode(QuadCode * code)
+    {
+        for (auto &i : code->codes_)
+        {
+            i->accept(this);
+            file_ << endl;
+        }
     }
 
     bool DumpQuad::visit(Operation * v)
@@ -179,7 +185,7 @@ namespace script
         case TK_EqualThan: file_ << "== "; break;
         case TK_NotEqual: file_ << "!= "; break;
         }
-        file_ << endl;
+        v->right_->accept(this);
         return false;
     }
 

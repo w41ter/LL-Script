@@ -13,6 +13,7 @@ namespace script
     class Temp;
     class Array;
     class ArrayIndex;
+    class Constant;
 
     class If;
     class Call;
@@ -25,7 +26,7 @@ namespace script
     class Return;
     class Invoke;
     class IfFalse;
-    class Function;
+    //class Function;
     class Operation;
     class AssignArray;
     class ArrayAssign;
@@ -35,7 +36,7 @@ namespace script
     class QuadVisitor
     {
     public:
-        virtual ~QuadVisitor() = 0 {};
+        virtual ~QuadVisitor() {}
         virtual bool visit(Constant *v) = 0;
         virtual bool visit(Temp *v) = 0;
         virtual bool visit(Identifier *v) = 0;
@@ -53,7 +54,7 @@ namespace script
         virtual bool visit(Invoke *v) = 0;
         virtual bool visit(Return *v) = 0;
         virtual bool visit(IfFalse *v) = 0;
-        virtual bool visit(Function *v) = 0;
+        //virtual bool visit(Function *v) = 0;
         virtual bool visit(Operation *v) = 0;
         virtual bool visit(AssignArray *v) = 0;
         virtual bool visit(ArrayAssign *v) = 0;
@@ -111,9 +112,10 @@ namespace script
     public:
         Temp()
         {
-            std::stringstream str("temp@_");
-            str << getIndex();
-            str >> name_;
+            std::stringstream str;
+            str << "temp@_" << getIndex();
+            //str >> name_;
+            name_ = str.str();
         }
         virtual ~Temp() = default;
 
@@ -156,15 +158,11 @@ namespace script
     // 
     class Quad
     {
+
+
     public:
-        virtual ~Quad() = 0 {}
+        virtual ~Quad() {}
         virtual bool accept(QuadVisitor *v) = 0;
-
-        template<typename T, typename ...Args>
-        static T *Create(Args ...args);
-
-        template<typename T, typename ...Args>
-        static T *CreateValue(Args ...args);
     };
 
     //
@@ -184,9 +182,10 @@ namespace script
     public:
         Label()
         {
-            std::stringstream str("@label_");
-            str << getIndex();
-            str >> name_;
+            std::stringstream str;
+            str << "@label_" << getIndex();
+            //str >> name_;
+            name_ = str.str();
         }
         virtual ~Label() = default;
 
@@ -263,22 +262,22 @@ namespace script
     class Load : public Quad
     {
     public:
-        Load(Identifier *id, Value *result)
+        Load(Value *id, Value *result)
             : id_(id), result_(result)
         {}
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
-        Identifier *id_;
+        Value *id_;         // Identifier
         Value *result_;
     };
 
     class Store : public Quad
     {
     public:
-        Store(Identifier *id, Value *result)
+        Store(Value *id, Value *result)
             : id_(id), result_(result)
         {}
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
-        Identifier *id_;
+        Value *id_;         // Identifier
         Value *result_;
     };
 
@@ -306,19 +305,19 @@ namespace script
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
     };
 
-    class Function : public Quad
-    {
-    public:
-        Function(std::string &name, Label *begin, Label *end)
-            : name_(name), begin_(begin), end_(end)
-        {}
-        virtual ~Function() = default;
-        virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
+    //class Function : public Quad
+    //{
+    //public:
+    //    Function(std::string &name, Label *begin, Label *end)
+    //        : name_(name), begin_(begin), end_(end)
+    //    {}
+    //    virtual ~Function() = default;
+    //    virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        std::string name_;
-        Label *begin_;
-        Label *end_;
-    };
+    //    std::string name_;
+    //    Label *begin_;
+    //    Label *end_;
+    //};
 
     class Param : public Quad
     {
@@ -365,6 +364,51 @@ namespace script
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
         Value *arg_;
     };
+
+    class QuadManager
+    {
+        QuadManager() = default;
+        ~QuadManager() { destroy(); }
+
+        std::list<Quad*> manager_;
+        std::list<Value*> values_;
+    public:
+        static QuadManager &instance()
+        {
+            static QuadManager manager;
+            return manager;
+        }
+
+        void push_back(Quad *quad) { manager_.push_back(quad); }
+        void insert_value(Value *value) { values_.push_back(value); }
+
+        void destroy()
+        {
+            for (auto &i : manager_)
+                delete i, i = nullptr;
+            for (auto &i : values_)
+                delete i, i = nullptr;
+        }
+    };
+
+    template<typename T, typename ...Args>
+    T *Create(Args ...args)
+    {
+        auto &ins = QuadManager::instance();
+        auto *buffer = new T(args...);
+        ins.push_back(buffer);
+        return buffer;
+    }
+
+    template<typename T, typename ...Args>
+    T *CreateValue(Args ...args)
+    {
+        auto &ins = QuadManager::instance();
+        auto *buffer = new T(args...);
+        ins.insert_value(buffer);
+        return buffer;
+    }
+
 }
 
 #endif // !__QUAD_H__

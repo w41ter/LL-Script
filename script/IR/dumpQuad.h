@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include "Quad.h"
+#include "QuadGenerator.h"
 
 namespace script
 {
@@ -12,6 +13,7 @@ namespace script
         DumpQuad(std::fstream &file) : file_(file) {}
 
         virtual ~DumpQuad() = default;
+
         virtual bool visit(Constant *v) override;
         virtual bool visit(Temp *v) override;
         virtual bool visit(Identifier *v) override;
@@ -29,12 +31,16 @@ namespace script
         virtual bool visit(Invoke *v) override;
         virtual bool visit(Return *v) override;
         virtual bool visit(IfFalse *v) override;
-        virtual bool visit(Function *v) override;
         virtual bool visit(Operation *v) override;
         virtual bool visit(AssignArray *v) override;
         virtual bool visit(ArrayAssign *v) override;
 
-        void dump(std::list<Quad*> &codes);
+        void dump(QuadModule &module);
+
+    private:
+        void dumpFunction(QuadFunction *func);
+        void dumpCode(QuadCode *code);
+
     private:
         std::fstream &file_;
     };

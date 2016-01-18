@@ -18,7 +18,7 @@ namespace script
         else if (end == SymbolType::ST_Constant)
             type_ = TP_Constant;
         else
-            throw std::runtime_error("undefined identifier" + v->name_);
+            throw std::runtime_error("undefined identifier " + v->name_);
         return false;
     }
 

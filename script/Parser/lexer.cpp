@@ -191,7 +191,7 @@ namespace script
         case '!': 
         {
             if (lookChar() == '=')
-                return Token(TK_NotEqualThan, coord_);
+                return Token(TK_NotEqual, coord_);
             unget();
             return Token(TK_Not, coord_);
         }

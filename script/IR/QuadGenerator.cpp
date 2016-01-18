@@ -4,17 +4,22 @@ namespace script
 {
     void QuadGenerator::insertIfFalse(Value * condition, Label * label)
     {
-        codes_.push_back(Quad::Create<IfFalse>(condition, label));
+        codes_.push_back(Create<IfFalse>(condition, label));
     }
 
     void QuadGenerator::insertStore(Value * id, Value * result)
     {
-        codes_.push_back(Quad::Create<Store>(id, result));
+        codes_.push_back(Create<Store>(id, result));
+    }
+
+    void QuadGenerator::insertLoad(Value * id, Value * result)
+    {
+        codes_.push_back(Create<Load>(id, result));
     }
 
     void QuadGenerator::insertReturn(Value * value)
     {
-        codes_.push_back(Quad::Create<Return>(value));
+        codes_.push_back(Create<Return>(value));
     }
 
     void QuadGenerator::insertLabel(Label * label)
@@ -24,47 +29,51 @@ namespace script
 
     void QuadGenerator::insertGoto(Label * label)
     {
-        codes_.push_back(Quad::Create<Label>(label));
+        codes_.push_back(Create<Goto>(label));
     }
 
     void QuadGenerator::insertCopy(Value * source, Value * dest)
     {
-        codes_.push_back(Quad::Create<Copy>(source, dest));
-    }
-
-    void QuadGenerator::insertFunction(std::string name, Label * begin, Label * end)
-    {
-        Function *func = Quad::Create<Function>(name, begin, end);
-        codes_.push_back(func);
+        codes_.push_back(Create<Copy>(source, dest));
     }
 
     void QuadGenerator::insertCall(Label * begin, Value * result, int num)
     {
-        codes_.push_back(Quad::Create<Call>(begin, result, num));
+        codes_.push_back(Create<Call>(begin, result, num));
     }
 
     void QuadGenerator::insertInvoke(Value * function, Value * result, int num)
     {
-        codes_.push_back(Quad::Create<Call>(function, result, num));
+        codes_.push_back(Create<Invoke>(function, result, num));
     }
 
     void QuadGenerator::insertParam(Value * value)
     {
-        codes_.push_back(Quad::Create<Param>(value));
+        codes_.push_back(Create<Param>(value));
     }
 
     void QuadGenerator::insertSingle(unsigned op, Value * source, Value * result)
     {
-        codes_.push_back(Quad::Create<Operation>(op, nullptr, source, result));
+        codes_.push_back(Create<Operation>(op, nullptr, source, result));
     }
 
     void QuadGenerator::insertOperation(unsigned op, Value * left, Value * right, Value * result)
     {
-        codes_.push_back(Quad::Create<Operation>(op, left, right, result));
+        codes_.push_back(Create<Operation>(op, left, right, result));
     }
 
     void QuadGenerator::insertIf(Value * condition, Label * label)
     {
-        codes_.push_back(Quad::Create<If>(condition, label));
+        codes_.push_back(Create<If>(condition, label));
+    }
+
+    QuadFunction * QuadModule::createFunction(std::string name, Label * begin, Label * end)
+    {
+        return functions_[name] = new QuadFunction(name, begin, end);
+    }
+
+    QuadFunction * QuadModule::getFunction(std::string & name)
+    {
+        return functions_[name];
     }
 }

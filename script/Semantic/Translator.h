@@ -14,6 +14,12 @@ namespace script
     class Translator : public ASTVisitor
     {
     public:
+        Translator(QuadModule &module) 
+            : module_(module) 
+        { 
+            gen_ = module_.getGenerator(); 
+        }
+
         virtual ~Translator() {};
         virtual bool visit(ASTExpressionList *v) override;
         virtual bool visit(ASTIdentifier *v) override;
@@ -42,7 +48,8 @@ namespace script
         virtual bool visit(ASTPrototype *v) override;
         virtual bool visit(ASTDefine *v) override;
 
-        QuadGenerator &codeGenerator() { return gen_; }
+    private:
+        Value *loadValue(Value *value);
 
     private:
         Value *result_;
@@ -51,7 +58,9 @@ namespace script
 
         std::map<std::string, Label*> function_;
         std::map<std::string, Identifier*> *symbols_;
-        QuadGenerator gen_;
+        QuadGenerator *gen_;
+
+        QuadModule &module_;
     };
 }
 

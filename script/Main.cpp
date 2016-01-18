@@ -42,17 +42,19 @@ int main(int argc, char* argv[])
         program->accept(&dumpAST);
     }
     
-    script::Translator translator;
+    // translate AST to IR (quad).
+    script::QuadModule module;
+    script::Translator translator(module);
     program->accept(&translator);
-    script::QuadGenerator &gen = translator.codeGenerator();
-    std::list<script::Quad*> codes = std::move(gen.getCode());
+
     if (driver.dumpIR_)
     {
         std::string dumpFilename(driver.filename);
         dumpFilename += ".ir";
         std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
         script::DumpQuad dumpQuad(dumpIRFile);
-        dumpQuad.dump(codes);
+        dumpQuad.dump(module);
     }
+
 	return 0;
 }
