@@ -271,7 +271,7 @@ namespace script
         Label *begin = gen_->Create<Label>();
         Label *end = gen_->Create<Label>();
 
-        function_[v->prototype_->name_] = begin;
+        //function_[v->prototype_->name_] = begin;
         function->set(begin, end);
 
         gen_->insertLabel(begin);
@@ -318,7 +318,8 @@ namespace script
             gen_->insertParam(gen_->CreateValue<Identifier>(v->name_)); //(*symbols_)[i]);
 
         auto *result = gen_->CreateValue<Temp>();
-        gen_->insertCall(function_[v->name_], result, v->params_.size());
+        //gen_->insertCall(function_[v->name_], result, v->params_.size());
+        gen_->insertCall(v->name_, result, v->params_.size());
         result_ = result;
         return false;
     }

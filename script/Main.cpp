@@ -12,6 +12,7 @@
 #include "IR\QuadGenerator.h"
 #include "IR\Quad.h"
 #include "IR\dumpQuad.h"
+#include "IR\dumpCFG.h"
 
 int main(int argc, char* argv[])
 {
@@ -21,16 +22,17 @@ int main(int argc, char* argv[])
 
     script::Lexer lexer;
     script::Parser parser(lexer);
-    lexer.setProgram(std::string(driver.filename));
     
     script::Analysis analysis;
     std::unique_ptr<script::ASTProgram> program;
     try {
+        lexer.setProgram(std::string(driver.filename));
         program = std::move(parser.parse());
         program->accept(&analysis);
     }
     catch (std::runtime_error &e) {
         std::cout << e.what() << std::endl;
+        return 0;
     }
 
     // Dump ast to file
@@ -48,13 +50,22 @@ int main(int argc, char* argv[])
     script::Translator translator(module);
     translator.translate(program.get());
 
-    if (driver.dumpIR_)
+    if (driver.dumpQuad_)
     {
         std::string dumpFilename(driver.filename);
-        dumpFilename += ".ir";
+        dumpFilename += ".quad";
         std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
         script::DumpQuad dumpQuad(dumpIRFile);
         dumpQuad.dump(module);
+    }
+
+    if (driver.dumpCFG_)
+    {
+        std::string dumpFilename(driver.filename);
+        dumpFilename += ".cfg";
+        std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
+        script::DumpCFG dumpCFG(dumpIRFile);
+        dumpCFG.dump(module);
     }
 
 	return 0;

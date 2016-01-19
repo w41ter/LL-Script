@@ -51,9 +51,9 @@ namespace script
         end_->next_ = nullptr;
     }
 
-    void QuadContext::insertCall(Label * begin, Value * result, int num)
+    void QuadContext::insertCall(std::string name, Value * result, int num)
     {
-        end_->next_ = Create<Call>(begin, result, num);
+        end_->next_ = Create<Call>(std::move(name), result, num);
         end_ = end_->next_;
         end_->next_ = nullptr;
     }

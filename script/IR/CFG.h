@@ -16,6 +16,7 @@ namespace script
     // 一个基本块
     class BasicBlock
     {
+        friend class DumpCFG;
     public:
         BasicBlock(int id) : ID_(id), head_(nullptr), end_(nullptr) {}
         void addPrecursor(BasicBlock *block);
@@ -23,6 +24,7 @@ namespace script
         size_t numOfPrecursors() const { return precursors_.size(); }
         size_t numOfSuccessors() const { return successors_.size(); }
         void set(Quad *head, Quad *end) { head_ = head; end_ = end; }
+        unsigned getID() const { return ID_; }
 
         void unique();
     private:
@@ -35,6 +37,7 @@ namespace script
 
     class CFG
     {
+        friend class DumpCFG;
     public:
         CFG();
         ~CFG();

@@ -44,7 +44,8 @@ namespace script
     {
         std::cout << "Usage : [-op] filename" << std::endl;
         std::cout << "\t -dumpAST" << std::endl;
-        std::cout << "\t -dumpIR" << std::endl;
+        std::cout << "\t -dumpCFG" << std::endl;
+        std::cout << "\t -dumpQuad" << std::endl;
         std::cout << "\t -dumpOpcode" << std::endl;
         std::cout << "\t -o" << std::endl;
     }
@@ -55,15 +56,19 @@ namespace script
         {
             dumpAST_ = true;
         }
-        else if (strcmp("-dumpIR", argv[count]) == 0)
+        else if (strcmp("-dumpCFG", argv[count]) == 0)
         {
-            dumpIR_ = true;
+            dumpCFG_ = true;
+        }
+        else if (strcmp("-dumpQuad", argv[count]) == 0)
+        {
+            dumpQuad_ = true;
         }
         else if (strcmp("-dumpOpcode", argv[count]) == 0)
         {
             dumpOpcode_ = true;
         }
-        else if (strcat("-o", argv[count]) == 0)
+        else if (strcmp("-o", argv[count]) == 0)
         {
             optimized_ = true;
         }

@@ -21,7 +21,8 @@ namespace script
 
     public:
         bool dumpAST_ = false;
-        bool dumpIR_ = false;
+        bool dumpCFG_ = false;
+        bool dumpQuad_ = false;
         bool dumpOpcode_ = false;
         bool optimized_ = false;
 

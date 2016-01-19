@@ -332,13 +332,14 @@ namespace script
     class Call : public Quad
     {
     public:
-        Call(Label *label, Value *result, int num)
-            : position_(label), result_(result), num_(num)
+        Call(std::string name, Value *result, int num)
+            : name_(std::move(name)), result_(result), num_(num)
         {}
         virtual ~Call() = default;
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
-        Label *position_;
+        std::string name_;
+        //Label *position_;
         Value *result_;
         int num_;
     };

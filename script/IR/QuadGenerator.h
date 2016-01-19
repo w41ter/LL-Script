@@ -39,7 +39,7 @@ namespace script
         void insertCopy(Value *source, Value *dest);
         void insertIf(Value *condition, Label *label);
         void insertIfFalse(Value *condition, Label *label);
-        void insertCall(Label *begin, Value *result, int num);
+        void insertCall(std::string name, Value *result, int num);
         void insertInvoke(Value *function, Value *result, int num);
         void insertSingle(unsigned op, Value *source, Value *result);
         void insertOperation(unsigned op, Value *left, Value *right, Value *result);

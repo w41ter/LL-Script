@@ -58,7 +58,7 @@ namespace script
         std::stack<Label*> breakLabels_;
         std::stack<Label*> continueLabels_;
 
-        std::map<std::string, Label*> function_;
+        //std::map<std::string, Label*> function_;
         std::map<std::string, Identifier*> *symbols_;
         QuadContext *gen_;
 

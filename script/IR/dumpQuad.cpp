@@ -39,7 +39,7 @@ namespace script
 
     bool DumpQuad::visit(Identifier * v)
     {
-        file_ << v->name_ << ' ';
+        file_ << "$" << v->name_ << ' ';
         return false;
     }
 
@@ -73,7 +73,8 @@ namespace script
         v->result_->accept(this);
         file_ << " = call ";
         // std::cout << "\tdump call position before:" << v->position_ << std::endl;
-        v->position_->accept(this);
+        //v->position_->accept(this);
+        file_ << "$" << v->name_ << ' ';
         // std::cout << "\tdump call position end" << std::endl;
         file_ << v->num_;
         return false;
@@ -151,7 +152,7 @@ namespace script
 
     void DumpQuad::dumpFunction(IRFunction * func)
     {
-        file_ << "funtion " << func->name_ << " from ";
+        file_ << "funtion $" << func->name_ << " from ";
         func->begin_->accept(this);
         file_ << "to ";
         func->end_->accept(this);

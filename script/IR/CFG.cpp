@@ -131,6 +131,17 @@ namespace {
 
     void CFG::removeDeadBlock(CFG * cfg)
     {
+        BasicBlock *first = cfg->blocks_.front();
+        cfg->blocks_.pop_front();
+        cfg->blocks_.remove_if([](BasicBlock *bb) -> bool {
+            if (bb->numOfPrecursors() == 0)
+            {
+                delete bb;
+                return true;
+            }
+            return false;
+        });
+        cfg->blocks_.push_front(first);
     }
 
     BasicBlock * CFG::createBlock()
@@ -219,6 +230,8 @@ namespace {
             end->accept(&breach);
         }
 
+        removeDeadBlock(cfg.get());
+
         // now add succ for end block
         cfg->start_ = nodes[leader.front()];
         if (cfg->blocks_.size() > 1)
@@ -231,8 +244,8 @@ namespace {
                 if (block == cfg->end_) continue;
                 if (block->numOfPrecursors() > 0 && block->numOfSuccessors() == 0)
                 {
-                    block->addPrecursor(cfg->end_);
-                    cfg->end_->addSuccessor(block);
+                    block->addSuccessor(cfg->end_);
+                    cfg->end_->addPrecursor(block);
                 }
             }
         }

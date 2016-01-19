@@ -21,6 +21,7 @@ namespace script
             cfg_ = std::move(CFG::buildCFG(&context_));
         }
 
+        CFG *getCFG() { return cfg_.get(); }
     protected:
         std::unique_ptr<CFG> cfg_;
         QuadContext context_;
@@ -50,6 +51,7 @@ namespace script
     class IRModule : public IRCode
     {
         friend class DumpQuad;
+        friend class DumpCFG;
     public:
         ~IRModule() { destory(); }
 
