@@ -2,12 +2,13 @@
 #include <list>
 #include "../Parser/lexer.h"
 #include "dumpQuad.h"
+#include "IRGenerator.h"
 
 using std::endl;
 
 namespace script
 {
-    void DumpQuad::dump(QuadModule &module)
+    void DumpQuad::dump(IRModule &module)
     {
         // std::cout << "begin dump functions" << endl;
         for (auto &i : module.functions_)
@@ -148,9 +149,9 @@ namespace script
         return false;
     }
 
-    void DumpQuad::dumpFunction(QuadFunction * func)
+    void DumpQuad::dumpFunction(IRFunction * func)
     {
-        file_ << '\t' << "funtion " << func->name_ << " from ";
+        file_ << "funtion " << func->name_ << " from ";
         func->begin_->accept(this);
         file_ << "to ";
         func->end_->accept(this);
@@ -158,14 +159,16 @@ namespace script
         dumpCode(func);
     }
 
-    void DumpQuad::dumpCode(QuadCode * code)
+    void DumpQuad::dumpCode(IRCode * code)
     {
-        for (auto &i : code->codes_)
+        Quad *c = code->context_.begin();
+        while (c != nullptr)
         {
-            //file_ << " dump new line\t";
-            i->accept(this);
+            c->accept(this);
             file_ << endl;
+            c = c->next_;
         }
+        file_ << endl;
     }
 
     bool DumpQuad::visit(Operation * v)
@@ -183,13 +186,12 @@ namespace script
         case TK_Mul:  file_ << "* "; break;
         case TK_Div:  file_ << "/ "; break;
         case TK_Not:  file_ << "! "; break;
-
         case TK_Less: file_ << "< "; break;
-        case TK_LessThan: file_ << "<= "; break;
         case TK_Great: file_ << "> "; break;
+        case TK_LessThan: file_ << "<= "; break;
+        case TK_NotEqual: file_ << "!= "; break;
         case TK_GreatThan: file_ << ">= "; break;
         case TK_EqualThan: file_ << "== "; break;
-        case TK_NotEqual: file_ << "!= "; break;
         }
         v->right_->accept(this);
         return false;

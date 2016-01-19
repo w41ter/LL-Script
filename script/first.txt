@@ -1,5 +1,0 @@
-let temp = "Please in you name";
-print(temp);
-temp = input();
-temp = "Welcome " + temp;
-print(temp);

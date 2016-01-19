@@ -35,11 +35,11 @@ namespace script
         virtual bool visit(AssignArray *v) override;
         virtual bool visit(ArrayAssign *v) override;
 
-        void dump(QuadModule &module);
+        void dump(IRModule &module);
 
     private:
-        void dumpFunction(QuadFunction *func);
-        void dumpCode(QuadCode *code);
+        void dumpFunction(IRFunction *func);
+        void dumpCode(IRCode *code);
 
     private:
         std::fstream &file_;

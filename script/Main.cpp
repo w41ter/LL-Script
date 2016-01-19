@@ -16,7 +16,8 @@
 int main(int argc, char* argv[])
 {
     script::Driver &driver = script::Driver::instance();
-    driver.ParseArguments(argc, argv);
+    if (!driver.parseArguments(argc, argv))
+        return 0;
 
     script::Lexer lexer;
     script::Parser parser(lexer);
@@ -43,9 +44,9 @@ int main(int argc, char* argv[])
     }
     
     // translate AST to IR (quad).
-    script::QuadModule module;
+    script::IRModule module;
     script::Translator translator(module);
-    program->accept(&translator);
+    translator.translate(program.get());
 
     if (driver.dumpIR_)
     {

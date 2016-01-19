@@ -2,78 +2,95 @@
 
 namespace script
 {
-    void QuadGenerator::insertIfFalse(Value * condition, Label * label)
+    void QuadContext::insertIfFalse(Value * condition, Label * label)
     {
-        codes_.push_back(Create<IfFalse>(condition, label));
+        end_->next_ = Create<IfFalse>(condition, label);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertStore(Value * id, Value * result)
+    void QuadContext::insertStore(Value * id, Value * result)
     {
-        codes_.push_back(Create<Store>(id, result));
+        end_->next_ = Create<Store>(id, result);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertLoad(Value * id, Value * result)
+    void QuadContext::insertLoad(Value * id, Value * result)
     {
-        codes_.push_back(Create<Load>(id, result));
+        end_->next_ = Create<Load>(id, result);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertReturn(Value * value)
+    void QuadContext::insertReturn(Value * value)
     {
-        codes_.push_back(Create<Return>(value));
+        end_->next_ = Create<Return>(value);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertLabel(Label * label)
+    void QuadContext::insertLabel(Label * label)
     {
-        codes_.push_back(label);
+        end_->next_ = label;
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertGoto(Label * label)
+    void QuadContext::insertGoto(Label * label)
     {
-        codes_.push_back(Create<Goto>(label));
+        end_->next_ = Create<Goto>(label);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertCopy(Value * source, Value * dest)
+    void QuadContext::insertCopy(Value * source, Value * dest)
     {
-        codes_.push_back(Create<Copy>(source, dest));
+        end_->next_ = Create<Copy>(source, dest);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertCall(Label * begin, Value * result, int num)
+    void QuadContext::insertCall(Label * begin, Value * result, int num)
     {
-        codes_.push_back(Create<Call>(begin, result, num));
+        end_->next_ = Create<Call>(begin, result, num);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertInvoke(Value * function, Value * result, int num)
+    void QuadContext::insertInvoke(Value * function, Value * result, int num)
     {
-        codes_.push_back(Create<Invoke>(function, result, num));
+        end_->next_ = Create<Invoke>(function, result, num);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertParam(Value * value)
+    void QuadContext::insertParam(Value * value)
     {
-        codes_.push_back(Create<Param>(value));
+        end_->next_ = Create<Param>(value);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertSingle(unsigned op, Value * source, Value * result)
+    void QuadContext::insertSingle(unsigned op, Value * source, Value * result)
     {
-        codes_.push_back(Create<Operation>(op, nullptr, source, result));
+        end_->next_ = Create<Operation>(op, nullptr, source, result);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertOperation(unsigned op, Value * left, Value * right, Value * result)
+    void QuadContext::insertOperation(unsigned op, Value * left, Value * right, Value * result)
     {
-        codes_.push_back(Create<Operation>(op, left, right, result));
+        end_->next_ = Create<Operation>(op, left, right, result);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    void QuadGenerator::insertIf(Value * condition, Label * label)
+    void QuadContext::insertIf(Value * condition, Label * label)
     {
-        codes_.push_back(Create<If>(condition, label));
+        end_->next_ = Create<If>(condition, label);
+        end_ = end_->next_;
+        end_->next_ = nullptr;
     }
 
-    QuadFunction * QuadModule::createFunction(std::string name, Label * begin, Label * end)
-    {
-        return functions_[name] = new QuadFunction(name, begin, end);
-    }
-
-    QuadFunction * QuadModule::getFunction(std::string & name)
-    {
-        return functions_[name];
-    }
 }

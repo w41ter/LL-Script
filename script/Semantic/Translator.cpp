@@ -159,7 +159,7 @@ namespace script
     bool Translator::visit(ASTAssignExpression *v)
     {
         v->left_->accept(this);
-        Value *value = loadValue(result_);
+        Value *value = result_;
         v->right_->accept(this);
 
         // 
@@ -168,7 +168,7 @@ namespace script
         if (value->isVariable())
             gen_->insertStore(value, result_);
         else
-            gen_->insertCopy(value, result_);
+            gen_->insertCopy(loadValue(result_), value);
         // var_ = var_
         return false;
     }
@@ -259,29 +259,34 @@ namespace script
 
     bool Translator::visit(ASTFunction *v)
     {
-        Label *begin = gen_->Create<Label>();
-        Label *end = gen_->Create<Label>();
-        
         std::map<std::string, Identifier*> *origin = symbols_;
         symbols_ = new std::map<std::string, Identifier*>();
 
-        QuadFunction *function = 
-            module_.createFunction(v->prototype_->name_, begin, end);
-
-        function_[v->prototype_->name_] = begin;
+        IRFunction *function = 
+            module_.createFunction(v->prototype_->name_);
 
         // set generator
-        auto *gen = gen_; gen_ = function->getGenerator();
+        auto *gen = gen_; gen_ = function->getContext();
+
+        Label *begin = gen_->Create<Label>();
+        Label *end = gen_->Create<Label>();
+
+        function_[v->prototype_->name_] = begin;
+        function->set(begin, end);
 
         gen_->insertLabel(begin);
         v->prototype_->accept(this);
         v->block_->accept(this);
+        // add return 
+        gen_->insertReturn(gen_->CreateValue<Constant>(1));
         gen_->insertLabel(end);
 
         // reset generaor
         gen_ = gen;
 
         delete symbols_;
+        symbols_ = origin;
+
         result_ = nullptr;
         return false;
     }
@@ -294,10 +299,15 @@ namespace script
         Label *begin = gen_->Create<Label>();
         Label *end = gen_->Create<Label>();
 
+        symbols_ = new std::map<std::string, Identifier*>();
+
         gen_->insertLabel(begin);
         for (auto &i : v->defines_)
             i->accept(this);
         gen_->insertLabel(end);
+
+        delete symbols_;
+        symbols_ = nullptr;
 
         return false;
     }
@@ -335,6 +345,14 @@ namespace script
         gen_->insertStore(name, loadValue(result_));
         result_ = nullptr;
         return false;
+    }
+
+    void Translator::translate(ASTProgram * program)
+    {
+        program->accept(this);
+
+        // translate to CFG
+        module_.translateToCFG();
     }
 
     Value * Translator::loadValue(Value * value)

@@ -158,11 +158,11 @@ namespace script
     // 
     class Quad
     {
-
-
     public:
         virtual ~Quad() {}
         virtual bool accept(QuadVisitor *v) = 0;
+
+        Quad *next_ = nullptr;
     };
 
     //

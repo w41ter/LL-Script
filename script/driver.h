@@ -5,7 +5,7 @@ namespace script
 {
     class Driver
     {
-        Driver() {}
+        Driver() : filename(nullptr) {}
     public:
         static Driver &instance()
         {
@@ -13,7 +13,11 @@ namespace script
             return inst;
         }
 
-        void ParseArguments(int argc, char *argv[]);
+        bool parseArguments(int argc, char *argv[]);
+
+    private:
+        void usage();
+        int command(int count, char *argv[]);
 
     public:
         bool dumpAST_ = false;

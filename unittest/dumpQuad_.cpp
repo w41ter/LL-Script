@@ -8,7 +8,7 @@
 #include "..\script\Semantic\Analysis.h"
 #include "..\script\Semantic\dumpAST.h"
 #include "..\script\Semantic\Translator.h"
-#include "..\script\IR\QuadGenerator.h"
+#include "..\script\IR\IRGenerator.h"
 #include "..\script\IR\Quad.h"
 #include "..\script\IR\dumpQuad.h"
 
@@ -35,9 +35,9 @@ int main(int argc, char* argv[])
 
     std::cout << " Begin translater AST to IR..." << std::endl;
     // translate AST to IR (quad).
-    script::QuadModule module;
+    script::IRModule module;
     script::Translator translator(module);
-    program->accept(&translator);
+    traslator.translate(program);
 
     std::cout << " Begin dump IR..." << std::endl;
     std::string dumpFilename(name);

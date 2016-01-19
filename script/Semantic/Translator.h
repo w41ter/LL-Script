@@ -7,17 +7,17 @@
 
 #include "AST.h"
 #include "../IR/Quad.h"
-#include "../IR/QuadGenerator.h"
+#include "../IR/IRGenerator.h"
 
 namespace script
 {
     class Translator : public ASTVisitor
     {
     public:
-        Translator(QuadModule &module) 
+        Translator(IRModule &module) 
             : module_(module) 
         { 
-            gen_ = module_.getGenerator(); 
+            gen_ = module_.getContext(); 
         }
 
         virtual ~Translator() {};
@@ -48,6 +48,8 @@ namespace script
         virtual bool visit(ASTPrototype *v) override;
         virtual bool visit(ASTDefine *v) override;
 
+        void translate(ASTProgram *program);
+
     private:
         Value *loadValue(Value *value);
 
@@ -58,9 +60,9 @@ namespace script
 
         std::map<std::string, Label*> function_;
         std::map<std::string, Identifier*> *symbols_;
-        QuadGenerator *gen_;
+        QuadContext *gen_;
 
-        QuadModule &module_;
+        IRModule &module_;
     };
 }
 
