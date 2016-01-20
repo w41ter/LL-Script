@@ -54,6 +54,22 @@ namespace script
             return readString();
         if (ch == '\'')
             return readChar();
+        if (ch == '#')
+        {
+            ch = lookChar();
+            while (ch)
+            {
+                if (ch == '\n')
+                {
+                    coord_.lineNum_++;
+                    coord_.linePos_ = 0;
+                    break;
+                }
+                ch = lookChar();
+            }
+            if (!ch) return Token();
+            return readToken();
+        }
         return readSign(ch);
     }
 	

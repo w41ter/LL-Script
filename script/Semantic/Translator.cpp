@@ -220,6 +220,7 @@ namespace script
         breakLabels_.push(begin);
         continueLabels_.push(end);
         v->statement_->accept(this);
+        gen_->insertGoto(begin);    // when loop end goto condition
         breakLabels_.pop();
         continueLabels_.pop();
 

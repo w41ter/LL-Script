@@ -64,6 +64,9 @@ namespace script
         const Quad *end() const { return end_; }
 
     private:
+        void push(Quad *quad);
+
+    private:
         // link
         Label begin_;
         Quad *end_;

@@ -50,6 +50,8 @@ namespace {
 
     void DumpCFG::dump(IRModule & module)
     {
+        if (!module.isCFGForm())
+            return;
         DumpQuad::dump(module);
     }
 
@@ -80,7 +82,12 @@ namespace {
     void DumpCFG::dumpBasicBlock(BasicBlock * block)
     {
         file_ << "begin "; dumpName(block->getID()); file_ << endl;
-        file_ << "\tconnect:" << endl;
+        file_ << "\tprecursors:" << endl;
+        for (auto i : block->precursors_)
+        {
+            file_ << "\t\t"; dumpName(i->getID()); file_ << endl;
+        }
+        file_ << "\tsuccessors:" << endl;
         for (auto i : block->successors_)
         {
             file_ << "\t\t"; dumpName(i->getID()); file_ << endl;

@@ -162,6 +162,7 @@ namespace script
         virtual ~Quad() {}
         virtual bool accept(QuadVisitor *v) = 0;
 
+        Quad *prev_ = nullptr;
         Quad *next_ = nullptr;
     };
 

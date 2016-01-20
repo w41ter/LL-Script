@@ -218,6 +218,11 @@ namespace {
             while (end->next_ != nullptr && nodes.count(end->next_) == 0)
                 end = end->next_;
 
+            // add to fix the blow FIXME
+            // find first not label instr.
+            while (LabelTarget::instance().getTarget(end) != end)
+                end = end->prev_;
+
             BasicBlock *from = nodes[begin];
             from->set(begin, end);
             
@@ -227,6 +232,8 @@ namespace {
                 from->addSuccessor(to);
                 to->addPrecursor(from);
             };
+            // FIXME: if the end pointer is label, there will be error
+            // the simple solve is back to the instr which first not lable.
             end->accept(&breach);
         }
 

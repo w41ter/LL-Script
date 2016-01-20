@@ -15,13 +15,9 @@ namespace script
         friend class DumpQuad;
     public:
         QuadContext *getContext() { return &context_; }
-
-        virtual void translateToCFG()
-        {
-            cfg_ = std::move(CFG::buildCFG(&context_));
-        }
-
         CFG *getCFG() { return cfg_.get(); }
+        bool isCFGForm() const { return cfg_.get() != nullptr; }
+        virtual void translateToCFG() { cfg_ = std::move(CFG::buildCFG(&context_));}
     protected:
         std::unique_ptr<CFG> cfg_;
         QuadContext context_;
