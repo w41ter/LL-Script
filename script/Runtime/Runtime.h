@@ -22,21 +22,21 @@ namespace script
         TAG_SPEC_SHIFT = 4,
     };
     
-    bool IsNil(Pointer p);
-    bool IsReal(Pointer p);
-    bool IsChar(Pointer p);
-    bool IsSpecal(Pointer p);
-    bool IsFixnum(Pointer p);
-    bool IsTagging(Pointer p);
+    inline bool IsNil(Pointer p);
+    inline bool IsReal(Pointer p);
+    inline bool IsChar(Pointer p);
+    inline bool IsSpecal(Pointer p);
+    inline bool IsFixnum(Pointer p);
+    inline bool IsTagging(Pointer p);
 
-    int GetFixnum(Pointer p);
-    char GetChar(Pointer p);
-    float GetReal(Pointer p);
+    inline int GetFixnum(Pointer p);
+    inline char GetChar(Pointer p);
+    inline float GetReal(Pointer p);
 
-    Pointer SetChar(char c);
-    Pointer MakeFixnum(int value);
-    Pointer MakeReal(float value);
-    Pointer Nil();
+    inline Pointer SetChar(char c);
+    inline Pointer MakeFixnum(int value);
+    inline Pointer MakeReal(float value);
+    inline Pointer Nil();
 
     // 8bits
     enum Type {
@@ -65,7 +65,7 @@ namespace script
     // make pair from alloced memory.
     Pointer MakePair(Pointer self, Pointer car, Pointer cdr);
 
-    bool IsPair(Pointer p);
+    inline bool IsPair(Pointer p);
 
     Pointer *Car(Pointer self);
     Pointer *Cdr(Pointer self);

@@ -39,7 +39,7 @@ namespace script
         else    // function call
         {
             localStack_.push(local_);
-            local_ = new Pointer[];
+            local_ = new Pointer[123];
             Pointer *params = ClosureParams(closure);
             for (size_t i = 0; i < has; ++i)
                 local_[i] = params[i];
