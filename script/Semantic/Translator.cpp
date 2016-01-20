@@ -165,10 +165,11 @@ namespace script
         // 
         // generate store if left is variable
         // 
-        if (value->isVariable())
-            gen_->insertStore(value, result_);
-        else
+        unsigned type = value->kind();
+        if (type != Value::V_Identifier && type != Value::V_ArrayIndex)
             gen_->insertCopy(loadValue(result_), value);
+        else
+            gen_->insertStore(value, loadValue(result_));
         // var_ = var_
         return false;
     }
@@ -201,7 +202,7 @@ namespace script
         if (v->expr_ != nullptr)
             v->expr_->accept(this);
         else
-            result_ = gen_->CreateValue<Temp>();
+            result_ = gen_->CreateValue<Constant>(0);   // every temp need be init.
         gen_->insertReturn(loadValue(result_));
         result_ = nullptr;
         return false;
@@ -279,7 +280,8 @@ namespace script
         v->prototype_->accept(this);
         v->block_->accept(this);
         // add return 
-        gen_->insertReturn(gen_->CreateValue<Constant>(1));
+        Value *value = gen_->CreateValue<Constant>(0);
+        gen_->insertReturn(loadValue(value));
         gen_->insertLabel(end);
 
         // reset generaor
@@ -343,7 +345,7 @@ namespace script
     {
         v->expr_->accept(this);
         Identifier *name = gen_->CreateValue<Identifier>(v->name_);
-        (*symbols_)[v->name_] = name;
+        //(*symbols_)[v->name_] = name;
         gen_->insertStore(name, loadValue(result_));
         result_ = nullptr;
         return false;
@@ -359,11 +361,18 @@ namespace script
 
     Value * Translator::loadValue(Value * value)
     {
-        if (value->isVariable())
+        unsigned type = value->kind();
+        if (type == Value::V_ArrayIndex || type == Value::V_Identifier)
         {
             Value *temp = gen_->CreateValue<Temp>();
             gen_->insertLoad(value, temp);
-            value = temp;
+            return temp;
+        }
+        if (type == Value::V_Constant)
+        {
+            Value *temp = gen_->CreateValue<Temp>();
+            gen_->insertCopy(value, temp);
+            return temp;
         }
         return value;
     }

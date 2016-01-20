@@ -39,3 +39,6 @@ simple but powerful script, and I am rewriting it.
 2016/1/15：
 修改 grammar 以支持 lambda
 添加 pretty print 功能，打印抽象语法树
+
+2016/1/20：
+将 AST 转换成 CFG，完成部分死代码删除

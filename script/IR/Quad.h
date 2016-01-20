@@ -67,10 +67,20 @@ namespace script
     class Value
     {
     public:
+        enum {
+            V_None,
+            V_Constant,
+            V_Identifier,
+            V_Temp,
+            V_Array,
+            V_ArrayIndex,
+        };
+
         virtual ~Value() {}
         virtual bool accept(QuadVisitor *v) = 0;
 
-        virtual bool isVariable() const { return false; }
+        virtual unsigned kind() const { return V_None; }
+        virtual bool isTemp() const { return false; }
     };
 
     class Constant : public Value
@@ -88,6 +98,7 @@ namespace script
         Constant(std::string str) : type_(T_String), str_(std::move(str)) {}
 
         virtual ~Constant() = default;
+        virtual unsigned kind() const override { return V_Constant; }
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
         unsigned type_;
@@ -102,8 +113,8 @@ namespace script
     public:
         Identifier(std::string &name) : name_(name) {}
         virtual ~Identifier() = default;
+        virtual unsigned kind() const override { return V_Identifier; }
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
-        virtual bool isVariable() const override { return true; }
         std::string name_;
     };
 
@@ -119,6 +130,8 @@ namespace script
         }
         virtual ~Temp() = default;
 
+        virtual bool isTemp() const override { return true; }
+        virtual unsigned kind() const override { return V_Temp; }
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
 
         static int getIndex()
@@ -135,6 +148,7 @@ namespace script
     public:
         Array(int total) : total_(total) {}
         virtual ~Array() = default;
+        virtual unsigned kind() const override { return V_Array; }
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
         int total_;
     };
@@ -146,8 +160,8 @@ namespace script
             : value_(value), index_(index)
         {}
 
+        virtual unsigned kind() const override { return V_ArrayIndex; }
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
-        virtual bool isVariable() const override { return true; }
 
         Value *value_;
         Value *index_;
