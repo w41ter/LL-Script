@@ -1,6 +1,12 @@
 #ifndef __OPCODE_H__
 #define __OPCODE_H__
 
+#include <string>
+#include <map>
+#include <list>
+
+#include "Runtime.h"
+
 namespace script
 {
     enum Opcode {
@@ -24,6 +30,7 @@ namespace script
         OK_NotEqual,    // temp = temp != temp
 
         // move
+        OK_MoveS,       // temp = string index
         OK_MoveC,       // temp = constant
         OK_Move,        // temp = temp
 
@@ -47,8 +54,40 @@ namespace script
 
     class OpcodeContext
     {
+    public:
+        OpcodeContext() : opcodes_(nullptr) {}
 
+        void insertSingleOP(unsigned op);
+        void insertBinaryOP(unsigned op);
+
+        void push();
+        void push(std::string str);
+        void push(int value);
+        void push(float value);
+
+
+
+        void insertMove();
+        void insertMove(std::string str);
+        void insertMove(int value);
+        void insertMove(float value);
+
+        void insertLoad(int index);
+        void insertLoadA(int index);
+        Pointer *getOpcodes();
+        size_t opcodeLength();
+
+        int insertString(std::string &str);
+
+    private:
+        Pointer *opcodes_;
+
+        std::list<Pointer> codeList_;
+
+        int stringNum_ = 0;
+        std::map<std::string, int> stringPool_;
     };
 }
+
 #endif // !__OPCODE_H__
 

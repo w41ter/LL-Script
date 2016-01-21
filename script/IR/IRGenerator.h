@@ -13,6 +13,7 @@ namespace script
     class IRCode
     {
         friend class DumpQuad;
+        friend class CodeGenerator;
     public:
         QuadContext *getContext() { return &context_; }
         CFG *getCFG() { return cfg_.get(); }
@@ -26,6 +27,7 @@ namespace script
     class IRFunction : public IRCode
     {
         friend class DumpQuad;
+        friend class CodeGenerator;
     public:
         IRFunction(std::string name)
             : name_(std::move(name)), begin_(nullptr), end_(nullptr)
@@ -48,6 +50,7 @@ namespace script
     {
         friend class DumpQuad;
         friend class DumpCFG;
+        friend class CodeGenerator;
     public:
         ~IRModule() { destory(); }
 

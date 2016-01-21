@@ -17,6 +17,7 @@ namespace script
     class BasicBlock
     {
         friend class DumpCFG;
+        friend class CodeGenerator;
     public:
         BasicBlock(int id) : ID_(id), head_(nullptr), end_(nullptr) {}
         void addPrecursor(BasicBlock *block);
@@ -24,6 +25,8 @@ namespace script
         size_t numOfPrecursors() const { return precursors_.size(); }
         size_t numOfSuccessors() const { return successors_.size(); }
         void set(Quad *head, Quad *end) { head_ = head; end_ = end; }
+        Quad *begin() { return head_; }
+        Quad *end() { return end_; }
         unsigned getID() const { return ID_; }
 
         void unique();
@@ -38,6 +41,7 @@ namespace script
     class CFG
     {
         friend class DumpCFG;
+        friend class CodeGenerator;
     public:
         CFG();
         ~CFG();
