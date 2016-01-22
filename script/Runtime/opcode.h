@@ -9,6 +9,27 @@
 
 namespace script
 {
+    enum Register {
+        RG_Begin = 0,
+        RG_A = 0,
+        RG_B = 1,
+        RG_C = 2,
+        RG_D = 3,
+        RG_E = 4,
+        RG_F = 5,
+        RG_H = 6,
+        RG_I = 7,
+        RG_J = 8,
+        RG_K = 9,
+        RG_L = 10,
+        RG_M = 11,
+        RG_N = 12,
+        RG_O = 13, 
+        RG_P = 14,
+        RG_Q = 15,
+        RG_End = 16
+    };
+
     enum Opcode {
         OK_Goto = 0,    // goto lable@_addr
 

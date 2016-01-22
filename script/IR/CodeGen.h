@@ -8,7 +8,9 @@
 
 namespace script
 {
-    class CodeGenerator
+    class RegisterAllocator;
+
+    class CodeGenerator : private QuadVisitor
     {
     public:
         CodeGenerator(OpcodeContext &context);
@@ -21,11 +23,35 @@ namespace script
 
         int genIRCode(IRCode &code);
         int genBasicBlock(BasicBlock *block);
+
+        virtual bool visit(Constant *v) override;
+        virtual bool visit(Temp *v) override;
+        virtual bool visit(Identifier *v) override;
+        virtual bool visit(Array *v) override;
+        virtual bool visit(ArrayIndex *v) override;
+
+        virtual bool visit(If *v) override;
+        virtual bool visit(Call *v) override;
+        virtual bool visit(Goto *v) override;
+        virtual bool visit(Copy *v) override;
+        virtual bool visit(Load *v) override;
+        virtual bool visit(Store *v) override;
+        virtual bool visit(Label *v) override;
+        virtual bool visit(Param *v) override;
+        virtual bool visit(Invoke *v) override;
+        virtual bool visit(Return *v) override;
+        virtual bool visit(IfFalse *v) override;
+        virtual bool visit(Operation *v) override;
+        virtual bool visit(AssignArray *v) override;
+        virtual bool visit(ArrayAssign *v) override;
+
     private:
         OpcodeContext &context_;
 
+        RegisterAllocator *allocator_ = nullptr;
         std::map<std::string, int> functions_;
         std::map<Quad*, int> labels_;
+        std::map<Quad*, BasicBlock*> blocks_;
     };
 }
 

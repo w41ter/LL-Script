@@ -74,6 +74,50 @@ namespace script
         std::list<Quad*> codes_;
         std::list<Value*> values_;
     };
+
+    class LabelTarget : private QuadVisitor
+    {
+        LabelTarget() = default;
+    public:
+        static LabelTarget &instance()
+        {
+            static LabelTarget tar;
+            return tar;
+        }
+
+        virtual ~LabelTarget() {}
+
+        Quad *getTarget(Quad *quad)
+        {
+            quad->accept(this);
+            return target_;
+        }
+
+    private:
+        virtual bool visit(Constant *v) { return false; };
+        virtual bool visit(Temp *v) { return false; };
+        virtual bool visit(Identifier *v) { return false; };
+        virtual bool visit(Array *v) { return false; };
+        virtual bool visit(ArrayIndex *v) { return false; };
+
+        virtual bool visit(If *v) { target_ = v; return true; };
+        virtual bool visit(Call *v) { target_ = v; return false; };
+        virtual bool visit(Goto *v) { target_ = v; return true; };
+        virtual bool visit(Copy *v) { target_ = v; return false; };
+        virtual bool visit(Load *v) { target_ = v; return false; };
+        virtual bool visit(Store *v) { target_ = v; return false; };
+        virtual bool visit(Label *v) { if (v->next_ != nullptr) v->next_->accept(this); else target_ = nullptr; return true; };
+        virtual bool visit(Param *v) { target_ = v; return false; };
+        virtual bool visit(Invoke *v) { target_ = v; return false; };
+        virtual bool visit(Return *v) { target_ = v; return true; }; // 
+        virtual bool visit(IfFalse *v) { target_ = v; return true; };
+        virtual bool visit(Operation *v) { target_ = v; return false; };
+        virtual bool visit(AssignArray *v) { target_ = v; return false; };
+        virtual bool visit(ArrayAssign *v) { target_ = v; return false; };
+
+    private:
+        Quad *target_;
+    };
 }
 
 #endif // !__QUAD_GENERATOR_H__
