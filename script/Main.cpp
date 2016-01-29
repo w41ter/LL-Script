@@ -13,6 +13,7 @@
 #include "IR\Quad.h"
 #include "IR\dumpQuad.h"
 #include "IR\dumpCFG.h"
+#include "IR\CodeGen.h"
 
 int main(int argc, char* argv[])
 {
@@ -67,6 +68,10 @@ int main(int argc, char* argv[])
         script::DumpCFG dumpCFG(dumpIRFile);
         dumpCFG.dump(module);
     }
+
+    script::OpcodeContext opcode;
+    script::CodeGenerator codegen(opcode);
+    codegen.gen(module);
 
 	return 0;
 }

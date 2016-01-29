@@ -1,9 +1,11 @@
 #ifndef __OPCODE_H__
 #define __OPCODE_H__
 
+#include <functional>
 #include <string>
 #include <map>
 #include <list>
+#include <vector>
 
 #include "Runtime.h"
 
@@ -27,7 +29,7 @@ namespace script
         RG_O = 13, 
         RG_P = 14,
         RG_Q = 15,
-        RG_End = 16
+        RG_Total = 16
     };
 
     enum Opcode {
@@ -52,7 +54,8 @@ namespace script
 
         // move
         OK_MoveS,       // temp = string index
-        OK_MoveC,       // temp = constant
+        OK_MoveI,       // temp = constant
+        OK_MoveF,
         OK_Move,        // temp = temp
 
         // memory
@@ -71,42 +74,77 @@ namespace script
         OK_Invoke,      // temp = invoke temp in num params
 
         OK_Return,      // return temp
+
+        OK_PushR,       // push temp
+        OK_PopR,        // pop temp
+
+        OK_Halt,        // stop
     };
+
+    class Quad;
+
 
     class OpcodeContext
     {
+        using GetLabelTarget = std::function<int(Quad*)>;
+        using GetFunctionTarget = std::function<int(std::string)>;
+
+        typedef int8_t Byte;
+
     public:
         OpcodeContext() : opcodes_(nullptr) {}
 
-        void insertSingleOP(unsigned op);
-        void insertBinaryOP(unsigned op);
+        void bindGetLabelTarget(GetLabelTarget func);
+        void bindGetFunctionTarget(GetFunctionTarget func);
 
-        void push();
-        void push(std::string str);
-        void push(int value);
-        void push(float value);
+        void insertHalt();
+        void insertParam(Register reg);
+        void insertIf(Register reg, Quad *label);
+        void insertIfFalse(Register reg, Quad *label);
+        void insertCall(std::string &name, int num, Register reg);
+        void insertGoto(Quad *label);
+        void insertLoadA(Register regID, Register regIndex, Register regResult);
+        void insertStoreA(Register regID, Register regIndex, Register regResult);
+        void insertLoad(int index, Register reg);
+        void insertStore(int index, Register reg);
+        void insertInvoke(Register regID, int num, Register regResult);
+        void insertReturn(Register reg);
+        void insertSingleOP(unsigned op, Register from, Register result);
+        void insertBinaryOP(unsigned op, Register regLeft, Register regRight, Register result);
+        void insertPushR(Register reg);
+        void insertPopR(Register reg);
+        void insertMove(Register dest, Register from);
+        void insertMoveI(Register dest, int from);
+        void insertMoveF(Register dest, float from);
+        void insertMoveS(Register dest, int from);
+        int getNextPos();
 
-
-
-        void insertMove();
-        void insertMove(std::string str);
-        void insertMove(int value);
-        void insertMove(float value);
-
-        void insertLoad(int index);
-        void insertLoadA(int index);
-        Pointer *getOpcodes();
+        Byte *getOpcodes();
         size_t opcodeLength();
 
         int insertString(std::string &str);
 
     private:
-        Pointer *opcodes_;
+        void makeOpcode(Byte opcode);
+        void makeOpcode(Byte opcode, Register reg);
+        void makeOpcode(Byte opcode, Register reg, Byte b);
+        void makeOpcode(Byte opcode, Byte one, Byte two, Byte three);
+        
+        void pushInteger(int i);
+        void setInteger(int index, int i);
 
-        std::list<Pointer> codeList_;
+        GetLabelTarget getLabelTarget_;
+        GetFunctionTarget getFunctionTarget_;
+
+    private:
+        Byte *opcodes_;
+        std::vector<Byte> codeList_;
 
         int stringNum_ = 0;
         std::map<std::string, int> stringPool_;
+
+        std::list<std::pair<std::string, int>> functionBack_;
+        std::list<std::pair<Quad*, int>> labelBack_;
     };
 }
 

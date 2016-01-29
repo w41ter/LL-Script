@@ -26,14 +26,14 @@ namespace script
     {
     }
 
-    Register RegisterAllocator::allocate(Temp * temp)
+    Register RegisterAllocator::allocate(Value * temp)
     {
         removeDeadRegister(define_[temp]);
 
         // for each register if no use insert push 
         Value **reg = register_, **_max = reg;
         int index = 0;
-        while (reg != register_ + RG_End - RG_Begin)
+        while (reg != register_ + RG_Total - RG_Begin)
         {
             if (*reg == nullptr)
                 break;
@@ -55,13 +55,17 @@ namespace script
         return Register(reg - register_);
     }
 
-    Register RegisterAllocator::getReg(Temp * temp)
+    Register RegisterAllocator::getReg(Value * temp)
     {
         // if current temp not in any register, allocate new register and pop it.
         auto reg = reg_[temp];
         if (*(register_ + reg) != temp) // 当前变量被push到栈上去了
         {
-            return allocate(temp);
+            // FIXME: it just garanteed that there always has enough reg
+            // for allocate.
+            Register r = allocate(temp);
+            context_.insertParam(r);
+            return r;
         }
         return reg;
     }

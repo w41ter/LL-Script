@@ -13,8 +13,9 @@ namespace script
         RegisterAllocator(OpcodeContext &context, BasicBlock *block);
         virtual ~RegisterAllocator();
 
-        Register allocate(Temp *temp);
-        Register getReg(Temp *temp);
+        Register allocate(Value *temp);
+        Register getReg(Value *temp);
+
     private:
         virtual bool visit(Constant *v);
         virtual bool visit(Temp *v);
@@ -39,13 +40,14 @@ namespace script
 
         void updateUse(Value *val);
         void removeDeadRegister(int index);
+
     private:
         int index_;
         OpcodeContext &context_;
         std::map<Value*, int> define_;
         std::map<Value*, int> use_;
         std::map<Value*, Register> reg_;
-        Value *register_[RG_End - RG_Begin];
+        Value *register_[RG_Total - RG_Begin];
     };
 }
 

@@ -1,6 +1,7 @@
 #ifndef __CODE_GEN_H__
 #define __CODE_GEN_H__
 
+#include <set>
 #include <map>
 
 #include "IRGenerator.h"
@@ -45,6 +46,8 @@ namespace script
         virtual bool visit(AssignArray *v) override;
         virtual bool visit(ArrayAssign *v) override;
 
+        BasicBlock *targetBasicBlock(Quad *label);
+        
     private:
         OpcodeContext &context_;
 
@@ -52,6 +55,7 @@ namespace script
         std::map<std::string, int> functions_;
         std::map<Quad*, int> labels_;
         std::map<Quad*, BasicBlock*> blocks_;
+        std::set<BasicBlock*> hasVisit_;
     };
 }
 
