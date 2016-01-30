@@ -5,7 +5,7 @@
 
 namespace script
 {
-    OpcodeContext::Byte * OpcodeContext::getOpcodes()
+    Byte * OpcodeContext::getOpcodes()
     {
         if (opcodes_ == nullptr)
         {
@@ -163,7 +163,7 @@ namespace script
 
     void OpcodeContext::insertInvoke(Register regID, int num, Register regResult)
     {
-        makeOpcode(OK_Invoke, regID, num, regResult);
+        makeOpcode(OK_Invoke, regResult, num, regID);
     }
 
     void OpcodeContext::insertReturn(Register reg)
@@ -176,7 +176,7 @@ namespace script
         switch (op)
         {
         case TK_Sub:
-            makeOpcode(OK_Sub, from, result);
+            makeOpcode(OK_Negtive, from, result);
             break;
         case TK_Not:
             makeOpcode(OK_Not, from, result);

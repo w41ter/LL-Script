@@ -14,6 +14,8 @@
 #include "IR\dumpQuad.h"
 #include "IR\dumpCFG.h"
 #include "IR\CodeGen.h"
+#include "Runtime\opcode.h"
+#include "Runtime\dumpOpcode.h"
 
 int main(int argc, char* argv[])
 {
@@ -72,6 +74,17 @@ int main(int argc, char* argv[])
     script::OpcodeContext opcode;
     script::CodeGenerator codegen(opcode);
     codegen.gen(module);
+    
+    driver.dumpOpcode_ = true;
+
+    if (driver.dumpOpcode_)
+    {
+        std::string dumpFilename(driver.filename);
+        dumpFilename += ".byte";
+        std::fstream dumpOpcodeFile(dumpFilename, std::ofstream::out);
+        script::DumpOpcode dumpByte(dumpOpcodeFile);
+        dumpByte.dump(opcode.getOpcodes(), opcode.opcodeLength());
+    }
 
 	return 0;
 }

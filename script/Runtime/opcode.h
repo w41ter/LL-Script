@@ -83,13 +83,13 @@ namespace script
 
     class Quad;
 
+    typedef int8_t Byte;
 
     class OpcodeContext
     {
         using GetLabelTarget = std::function<int(Quad*)>;
         using GetFunctionTarget = std::function<int(std::string)>;
 
-        typedef int8_t Byte;
 
     public:
         OpcodeContext() : opcodes_(nullptr) {}
