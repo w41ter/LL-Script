@@ -20,6 +20,7 @@ namespace script
             int offset = genIRCode(*i.second);
             functions_.insert(std::pair<std::string, int>(i.first, offset));
         }
+
         genIRCode(module);
         context_.insertHalt();
     }
@@ -39,6 +40,9 @@ namespace script
     // 
     int CodeGenerator::genIRCode(IRCode & code)
     {
+        String2Int frames;
+        slotStack_ = &frames;
+
         blocks_.clear();
         for (auto &i : code.cfg_->blocks_)
             blocks_.insert(std::pair<Quad*, BasicBlock*>(i->begin(), i));
@@ -177,7 +181,8 @@ namespace script
             id->accept(this);
             v->result_->accept(this);
             Register result = allocator_->allocate(v->result_);
-            context_.insertLoad(context_.insertString(id->name_), result);
+            context_.insertLoad(newLocalSlot(id->name_), result);
+            // context_.insertLoad(context_.insertString(id->name_), result);
         }
         return false;
     }
@@ -192,16 +197,16 @@ namespace script
             v->result_->accept(this);
             Register regID = allocator_->getReg(ai->index_),
                 regIndex = allocator_->getReg(ai->value_),
-                result = allocator_->allocate(v->result_);
-            context_.insertStoreA(regID, regIndex, result);
+                regFrom = allocator_->getReg(v->result_);
+            context_.insertStoreA(regID, regIndex, regFrom);
         }
         else
         {
             Identifier *id = (Identifier*)v->id_;
             id->accept(this);
             v->result_->accept(this);
-            Register result = allocator_->allocate(v->result_);
-            context_.insertStore(context_.insertString(id->name_), result);
+            Register result = allocator_->getReg(v->result_);
+            context_.insertStore(newLocalSlot(id->name_), result);
         }
         return false;
     }
@@ -281,6 +286,22 @@ namespace script
     BasicBlock * CodeGenerator::targetBasicBlock(Quad * label)
     {
         return blocks_[LabelTarget::instance().getTarget(label)];
+    }
+
+    int CodeGenerator::newLocalSlot(std::string & name)
+    {
+        auto res = slotStack_->find(name);
+        int result = 0;
+        if (slotStack_->end() == res)
+        {
+            auto i = slotStack_->insert(std::pair<std::string, int>(name, slotStack_->size()));
+            result = i.first->second;
+        }
+        else 
+        {
+            result = res->second;
+        }
+        return result;
     }
 
 }

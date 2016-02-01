@@ -157,6 +157,12 @@ namespace script
         file_ << "to ";
         func->end_->accept(this);
         file_ << endl;
+        file_ << "\tparams: ";
+        for (auto &i : func->params_)
+        {
+            file_ << '$' << i << ' ';
+        }
+        file_ << endl;
         dumpCode(func);
     }
 

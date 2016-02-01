@@ -40,10 +40,17 @@ namespace script
 
         std::string &getName() { return name_; }
 
+        void setParams(std::vector<std::string> params)
+        {
+            params_ = std::move(params);
+        }
+
+        std::vector<std::string> &getParams() { return params_; }
     private:
         std::string name_;
         Label *begin_;
         Label *end_;
+        std::vector<std::string> params_;
     };
 
     class IRModule : public IRCode

@@ -61,6 +61,12 @@ namespace {
         file_ << "function $" << func->getName() << " from "
             << func->getName() << "_bb_" << cfg->start_->getID() << " to "
             << func->getName() << "_bb_" << cfg->end_->getID() << ":\n";
+        file_ << "\tparams: ";
+        for (auto &i : func->getParams())
+        {
+            file_ << '$' << i << ' ';
+        }
+        file_ << endl;
         module_ = func->getName();
         dumpCode(func);
         module_ = "anonymous";

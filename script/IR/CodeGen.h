@@ -13,6 +13,7 @@ namespace script
 
     class CodeGenerator : private QuadVisitor
     {
+        using String2Int = std::map<std::string, int>;
     public:
         CodeGenerator(OpcodeContext &context);
 
@@ -48,11 +49,13 @@ namespace script
 
         BasicBlock *targetBasicBlock(Quad *label);
         
+        int newLocalSlot(std::string &name);
     private:
         OpcodeContext &context_;
 
         RegisterAllocator *allocator_ = nullptr;
-        std::map<std::string, int> functions_;
+        String2Int *slotStack_;
+        String2Int functions_;
         std::map<Quad*, int> labels_;
         std::map<Quad*, BasicBlock*> blocks_;
         std::set<BasicBlock*> hasVisit_;

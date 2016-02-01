@@ -38,6 +38,9 @@ namespace script
         void dumpPopR(size_t &ip);
 
         void dumpRegister(unsigned reg);
+
+        int getInteger(size_t &ip);
+        float getFloat(size_t &ip);
     private:
         std::fstream &file_;
 

@@ -130,10 +130,9 @@ namespace script
     {
         dumpRegister(opcode_[ip++]);
         file_ << "= call "; 
-        file_ << opcode_[ip++] << ' ';
-        file_ << *((int*)(opcode_ + ip));
-        ip += 4;
-        file_ << endl;
+        auto i = opcode_[ip];
+        file_ << (int)opcode_[ip++] << ' ';
+        file_ << getInteger(ip) << endl;
     }
 
     void DumpOpcode::dumpInvoke(size_t & ip)
@@ -156,18 +155,14 @@ namespace script
     {
         file_ << "if ";
         dumpRegister(opcode_[ip++]);
-        file_ << *((int*)(opcode_ + ip));
-        ip += 4;
-        file_ << endl;
+        file_ << getInteger(ip) << endl;
     }
 
     void DumpOpcode::dumpIfFalse(size_t & ip)
     {
         file_ << "if_false ";
         dumpRegister(opcode_[ip++]);
-        file_ << *((int*)(opcode_ + ip));
-        ip += 4;
-        file_ << endl;
+        file_ << getInteger(ip) << endl;
     }
 
     void DumpOpcode::dumpReturn(size_t & ip)
@@ -181,9 +176,7 @@ namespace script
     {
         file_ << "load ";
         dumpRegister(opcode_[ip++]);
-        file_ << *((int*)(opcode_ + ip));
-        ip += 4;
-        file_ << endl;
+        file_ << getInteger(ip) << endl;
     }
 
     void DumpOpcode::dumpLoadA(size_t & ip)
@@ -199,9 +192,7 @@ namespace script
     {
         file_ << "store ";
         dumpRegister(opcode_[ip++]);
-        file_ << *((int*)(opcode_ + ip));
-        ip += 4;
-        file_ << endl;
+        file_ << getInteger(ip) << endl;
     }
 
     void DumpOpcode::dumpStoreA(size_t & ip)
@@ -224,19 +215,13 @@ namespace script
     void DumpOpcode::dumpMoveF(size_t & ip)
     {
         dumpRegister(opcode_[ip++]);
-        file_ << "= ";
-        file_ << *((float*)(opcode_ + ip));
-        ip += 4;
-        file_ << endl;
+        file_ << "= " << getFloat(ip) << endl;
     }
 
     void DumpOpcode::dumpMoveI(size_t & ip)
     {
         dumpRegister(opcode_[ip++]);
-        file_ << "= ";
-        file_ << *((int*)(opcode_ + ip));
-        ip += 4;
-        file_ << endl;
+        file_ << "= " << getInteger(ip) << endl;
     }
 
     void DumpOpcode::dumpMoveS(size_t & ip)
@@ -294,6 +279,21 @@ namespace script
         case RG_P: file_ << "reg_15 "; break;
         case RG_Q: file_ << "reg_16 "; break;
         }
+    }
+
+    int DumpOpcode::getInteger(size_t & ip)
+    {
+        int result = 0;
+        for (int i = 0; i < 4; ++i)
+        {
+            result <<= 8; result |= opcode_[ip++];
+        }
+        return result;
+    }
+
+    float DumpOpcode::getFloat(size_t & ip)
+    {
+        return (float)getInteger(ip);
     }
 }
 

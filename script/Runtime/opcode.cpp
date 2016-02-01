@@ -76,8 +76,8 @@ namespace script
     {
         for (int i = 3; i >= 0; --i)
         {
-            int v = num << (3 - i) * 8;
-            v >>= i * 8;
+            int offset = i * 8;
+            int v = (num >> offset) & 0xff;
             codeList_.push_back(v);
         }
     }
@@ -87,7 +87,7 @@ namespace script
         for (int i = 3; i >= 0; --i)
         {
             codeList_[index + i] = num & 0xff;
-            num >> 8;
+            num >>= 8;
         }
     }
 
@@ -127,7 +127,7 @@ namespace script
 
     void OpcodeContext::insertCall(std::string & name, int num, Register reg)
     {
-        makeOpcode(OK_Call, reg, num);
+        makeOpcode(OK_Call, reg, (Byte)num);
         functionBack_.push_back(std::pair<std::string, int>(name, getNextPos()));
         pushInteger(0);
     }
@@ -220,7 +220,7 @@ namespace script
             opcode = OK_Equal;
             break;
         }
-        makeOpcode(opcode, regLeft, regRight, result);
+        makeOpcode(opcode, result, regLeft, regRight);
     }
 
     void OpcodeContext::insertPushR(Register reg)

@@ -59,7 +59,7 @@ namespace script
         std::stack<Label*> continueLabels_;
 
         //std::map<std::string, Label*> function_;
-        std::map<std::string, Identifier*> *symbols_;
+        //std::map<std::string, Identifier*> *symbols_;
         QuadContext *gen_;
 
         IRModule &module_;

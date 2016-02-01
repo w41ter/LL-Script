@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
     if (driver.dumpOpcode_)
     {
         std::string dumpFilename(driver.filename);
-        dumpFilename += ".byte";
+        dumpFilename += ".txt";
         std::fstream dumpOpcodeFile(dumpFilename, std::ofstream::out);
         script::DumpOpcode dumpByte(dumpOpcodeFile);
         dumpByte.dump(opcode.getOpcodes(), opcode.opcodeLength());

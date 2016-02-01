@@ -261,11 +261,13 @@ namespace script
 
     bool Translator::visit(ASTFunction *v)
     {
-        std::map<std::string, Identifier*> *origin = symbols_;
-        symbols_ = new std::map<std::string, Identifier*>();
+        //std::map<std::string, Identifier*> *origin = symbols_;
+        //symbols_ = new std::map<std::string, Identifier*>();
 
         IRFunction *function = 
             module_.createFunction(v->prototype_->name_);
+
+        function->setParams(v->prototype_->args_);
 
         // set generator
         auto *gen = gen_; gen_ = function->getContext();
@@ -287,8 +289,8 @@ namespace script
         // reset generaor
         gen_ = gen;
 
-        delete symbols_;
-        symbols_ = origin;
+        //delete symbols_;
+        //symbols_ = origin;
 
         result_ = nullptr;
         return false;
@@ -302,15 +304,15 @@ namespace script
         Label *begin = gen_->Create<Label>();
         Label *end = gen_->Create<Label>();
 
-        symbols_ = new std::map<std::string, Identifier*>();
+        //symbols_ = new std::map<std::string, Identifier*>();
 
         gen_->insertLabel(begin);
         for (auto &i : v->defines_)
             i->accept(this);
         gen_->insertLabel(end);
 
-        delete symbols_;
-        symbols_ = nullptr;
+        //delete symbols_;
+        //symbols_ = nullptr;
 
         return false;
     }
@@ -336,8 +338,8 @@ namespace script
 
     bool Translator::visit(ASTPrototype * v)
     {
-        for (auto &i : v->args_)
-            (*symbols_)[i] = gen_->CreateValue<Identifier>(i);
+        //for (auto &i : v->args_)
+        //    (*symbols_)[i] = gen_->CreateValue<Identifier>(i);
         return false;
     }
 
