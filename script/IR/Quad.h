@@ -347,8 +347,8 @@ namespace script
     class Call : public Quad
     {
     public:
-        Call(std::string name, Value *result, int num)
-            : name_(std::move(name)), result_(result), num_(num)
+        Call(std::string name, Value *result, int num, int total)
+            : name_(std::move(name)), result_(result), num_(num), total_(total)
         {}
         virtual ~Call() = default;
         virtual bool accept(QuadVisitor *v) override { return v->visit(this); }
@@ -357,6 +357,7 @@ namespace script
         //Label *position_;
         Value *result_;
         int num_;
+        int total_;
     };
 
     class Invoke : public Quad

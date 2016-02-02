@@ -17,12 +17,23 @@ namespace script
     {
         for (auto &i : module.functions_)
         {
+            String2Int frames;
+            slotStack_ = &frames;
+            // before gen, set every params a offset.
+            for (auto &j : i.second->params_)
+            {
+                newLocalSlot(j);
+            }
             int offset = genIRCode(*i.second);
             functions_.insert(std::pair<std::string, int>(i.first, offset));
         }
 
+        int offset = context_.getNextPos();
+        String2Int frames;
+        slotStack_ = &frames;
         genIRCode(module);
         context_.insertHalt();
+        context_.insertEntry(offset, frames.size());
     }
 
     int CodeGenerator::backLabel(Quad * label)
@@ -40,9 +51,6 @@ namespace script
     // 
     int CodeGenerator::genIRCode(IRCode & code)
     {
-        String2Int frames;
-        slotStack_ = &frames;
-
         blocks_.clear();
         for (auto &i : code.cfg_->blocks_)
             blocks_.insert(std::pair<Quad*, BasicBlock*>(i->begin(), i));
@@ -117,7 +125,7 @@ namespace script
     {
         v->result_->accept(this);
         Register reg = allocator_->allocate(v->result_);
-        context_.insertCall(v->name_, v->num_, reg);
+        context_.insertCall(v->name_, v->num_, v->total_, reg);
         return false;
     }
 

@@ -534,10 +534,11 @@ namespace script
                 table, std::move(proto), std::move(block)));
 
         // Create closure
+        int closureArgsSize = argument.size();
         argument.clear();
         for (auto &i : catchTable)
             argument.push_back(i);
-        return make_unique<ASTClosure>(name, argument);
+        return make_unique<ASTClosure>(name, closureArgsSize, argument);
     }
 
     //

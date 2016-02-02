@@ -83,7 +83,9 @@ int main(int argc, char* argv[])
         dumpFilename += ".txt";
         std::fstream dumpOpcodeFile(dumpFilename, std::ofstream::out);
         script::DumpOpcode dumpByte(dumpOpcodeFile);
-        dumpByte.dump(opcode.getOpcodes(), opcode.opcodeLength());
+        int length = 0;
+        script::Byte *opcodes = opcode.getOpcodes(length);
+        dumpByte.dump(opcodes, length);
     }
 
 	return 0;

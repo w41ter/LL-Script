@@ -5,7 +5,7 @@
 
 namespace script
 {
-    Byte * OpcodeContext::getOpcodes()
+    Byte * OpcodeContext::getOpcodes(int &length)
     {
         if (opcodes_ == nullptr)
         {
@@ -22,10 +22,38 @@ namespace script
             }
             labelBack_.clear();
 
-            opcodes_ = new Byte[codeList_.size()];
-            int length = 0;
+            // cal string pool size : opcode length + string nums + string offset + string length
+            length = 8 + codeList_.size() + 4 * stringNum_ + 4;
+            for (auto &i : stringPool_)
+            {
+                length += i.first.size();
+            }
+
+            opcodes_ = new Byte[length + 1];
+
+            int l = 8;
             for (auto i : codeList_)
-                opcodes_[length++] = i;
+                opcodes_[l++] = i;
+
+            int32_t *temp = (int32_t*)opcodes_;
+            *temp++ = entryOffset_;
+            int32_t t = codeList_.size() - 8;
+            *temp = codeList_.size();
+
+            // add string information
+            int32_t *offset = (int32_t*)&opcodes_[l], *point = offset + (stringNum_ + 1);
+
+            *offset++ = stringNum_;
+            for (auto &i : stringPool_)
+            {
+                *offset++ = i.first.size(); 
+                char *base = (char*)point;
+                for (auto c : i.first)
+                {
+                    *base++ = c;
+                }
+                point = (int32_t*)base;
+            }
         }
         return opcodes_;
     }
@@ -72,7 +100,7 @@ namespace script
         codeList_.push_back(three);
     }
 
-    void OpcodeContext::pushInteger(int num)
+    void OpcodeContext::pushInteger(int32_t num)
     {
         for (int i = 3; i >= 0; --i)
         {
@@ -82,7 +110,7 @@ namespace script
         }
     }
 
-    void OpcodeContext::setInteger(int index, int num)
+    void OpcodeContext::setInteger(int index, int32_t num)
     {
         for (int i = 3; i >= 0; --i)
         {
@@ -106,6 +134,14 @@ namespace script
         makeOpcode(OK_Halt);
     }
 
+    void OpcodeContext::insertEntry(int offset, int32_t num)
+    {
+        entryOffset_ = getNextPos();
+        makeOpcode(OK_Entry);
+        pushInteger(offset);
+        pushInteger(num);
+    }
+
     void OpcodeContext::insertParam(Register reg)
     {
         makeOpcode(OK_Param, reg);
@@ -125,9 +161,9 @@ namespace script
         pushInteger(0);
     }
 
-    void OpcodeContext::insertCall(std::string & name, int num, Register reg)
+    void OpcodeContext::insertCall(std::string & name, int num, int total, Register reg)
     {
-        makeOpcode(OK_Call, reg, (Byte)num);
+        makeOpcode(OK_Call, reg, (Byte)num, (Byte)total);
         functionBack_.push_back(std::pair<std::string, int>(name, getNextPos()));
         pushInteger(0);
     }

@@ -1,4 +1,5 @@
 #include "dumpOpcode.h"
+#include <iomanip>
 
 using std::endl;
 
@@ -11,11 +12,21 @@ namespace script
 
     void DumpOpcode::dump(Byte * opcode, size_t length)
     {
-        opcode_ = opcode; length_ = length;
+        int32_t *temp = (int32_t*)opcode, offsetOfEntry = *temp++;
+        opcode_ = opcode; 
+        opcodeLength_ = *temp; 
+        length_ = length;
 
-        size_t ip = 0;
+        //file_.fill('0');
+        file_.setf(std::ios::showbase);
+        file_.setf(std::ios_base::hex, std::ios_base::basefield);
+        file_ << "offset of entry : " << offsetOfEntry << endl;
+        file_ << "length of opcode : " << opcodeLength_ << endl;
+        file_ << "begin of opcode : " << endl;
+        size_t ip = 8;
         while (true)
         {
+            file_ << std::setw(8) << ip - 8 << ":\t";
             switch (opcode[ip++])
             {
             case OK_Add:
@@ -88,9 +99,15 @@ namespace script
             case OK_PopR:
                 dumpPopR(ip);
                 break;
+            case OK_Entry:
+                dumpEntry(ip);
+                break;
             }
-            if (ip > length) break;
+            if (ip >= opcodeLength_ + 8) break;
         }
+
+        file_ << "end of opcode " << endl;
+        dumpStringPool();
     }
 
     void DumpOpcode::dumpBinary(size_t & ip)
@@ -129,9 +146,9 @@ namespace script
     void DumpOpcode::dumpCall(size_t & ip)
     {
         dumpRegister(opcode_[ip++]);
-        file_ << "= call "; 
-        auto i = opcode_[ip];
-        file_ << (int)opcode_[ip++] << ' ';
+        file_ << "= call <params>:"; 
+        file_ << (int)opcode_[ip++] << " <total>:";
+        file_ << (int)opcode_[ip++] << " <offset>:";
         file_ << getInteger(ip) << endl;
     }
 
@@ -228,7 +245,7 @@ namespace script
     {
         dumpRegister(opcode_[ip++]);
         file_ << "= ";
-        file_ << "<string> ";
+        file_ << "<string offset>:" << getInteger(ip);
         file_ << endl;
     }
 
@@ -257,6 +274,11 @@ namespace script
         dumpRegister(opcode_[ip++]);
         file_ << endl;
     }
+
+    void DumpOpcode::dumpEntry(size_t & ip)
+    {
+        file_ << "entry " << getInteger(ip) << " " << getInteger(ip) << endl;
+    }
     
     void DumpOpcode::dumpRegister(unsigned reg)
     {
@@ -281,9 +303,31 @@ namespace script
         }
     }
 
-    int DumpOpcode::getInteger(size_t & ip)
+    void DumpOpcode::dumpStringPool()
     {
-        int result = 0;
+
+        int32_t *base = (int32_t*)&opcode_[opcodeLength_ + 8];
+        int32_t total = *base;
+
+        file_ << "\n\nstring pool size : " << total << endl;
+
+        int32_t *offset = base + 1, *begin = offset + total, count = 0;
+        for (int i = 0; i < total; ++i)
+        {
+            file_ << std::setw(8) << count << ":\t";
+            int length = *(offset + i);
+            for (int j = 0; j < length; ++j)
+            {
+                file_ << *((char*)begin + count + j);
+            }
+            count += length;
+            file_ << endl;
+        }
+    }
+
+    int32_t DumpOpcode::getInteger(size_t & ip)
+    {
+        int32_t result = 0;
         for (int i = 0; i < 4; ++i)
         {
             result <<= 8; result |= opcode_[ip++];

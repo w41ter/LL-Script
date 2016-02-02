@@ -37,9 +37,9 @@ namespace script
         push(Create<Copy>(source, dest));
     }
 
-    void QuadContext::insertCall(std::string name, Value * result, int num)
+    void QuadContext::insertCall(std::string name, Value * result, int num, int total)
     {
-        push(Create<Call>(std::move(name), result, num));
+        push(Create<Call>(std::move(name), result, num, total));
     }
 
     void QuadContext::insertInvoke(Value * function, Value * result, int num)

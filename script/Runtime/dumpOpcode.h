@@ -36,16 +36,19 @@ namespace script
         void dumpParam(size_t &ip);
         void dumpPushR(size_t &ip);
         void dumpPopR(size_t &ip);
+        void dumpEntry(size_t &ip);
 
         void dumpRegister(unsigned reg);
+        void dumpStringPool();
 
-        int getInteger(size_t &ip);
+        int32_t getInteger(size_t &ip);
         float getFloat(size_t &ip);
     private:
         std::fstream &file_;
 
         Byte *opcode_;
         size_t length_;
+        size_t opcodeLength_;
     };
 }
 

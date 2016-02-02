@@ -78,6 +78,7 @@ namespace script
         OK_PushR,       // push temp
         OK_PopR,        // pop temp
 
+        OK_Entry,        // entry of programs.  entry offset num
         OK_Halt,        // stop
     };
 
@@ -85,6 +86,21 @@ namespace script
 
     typedef int8_t Byte;
 
+    //
+    // +------------------+
+    // | entry offset     |
+    // +------------------+
+    // | opcode length    |
+    // +------------------+
+    // | opcodes          |
+    // +------------------+
+    // | string nums      |
+    // +------------------+
+    // | string offsets   |
+    // +------------------+
+    // | string pool      |
+    // +------------------+
+    // 
     class OpcodeContext
     {
         using GetLabelTarget = std::function<int(Quad*)>;
@@ -92,16 +108,17 @@ namespace script
 
 
     public:
-        OpcodeContext() : opcodes_(nullptr) {}
+        OpcodeContext() : opcodes_(nullptr) { }
 
         void bindGetLabelTarget(GetLabelTarget func);
         void bindGetFunctionTarget(GetFunctionTarget func);
 
         void insertHalt();
+        void insertEntry(int offset, int32_t num);
         void insertParam(Register reg);
         void insertIf(Register reg, Quad *label);
         void insertIfFalse(Register reg, Quad *label);
-        void insertCall(std::string &name, int num, Register reg);
+        void insertCall(std::string &name, int num, int total, Register reg);
         void insertGoto(Quad *label);
         void insertLoadA(Register regID, Register regIndex, Register regResult);
         void insertStoreA(Register regID, Register regIndex, Register regResult);
@@ -119,7 +136,7 @@ namespace script
         void insertMoveS(Register dest, int from);
         int getNextPos();
 
-        Byte *getOpcodes();
+        Byte *getOpcodes(int &length);
         size_t opcodeLength();
 
         int insertString(std::string &str);
@@ -130,8 +147,8 @@ namespace script
         void makeOpcode(Byte opcode, Register reg, Byte b);
         void makeOpcode(Byte opcode, Byte one, Byte two, Byte three);
         
-        void pushInteger(int i);
-        void setInteger(int index, int i);
+        void pushInteger(int32_t i);
+        void setInteger(int index, int32_t i);
 
         GetLabelTarget getLabelTarget_;
         GetFunctionTarget getFunctionTarget_;
@@ -145,6 +162,9 @@ namespace script
 
         std::list<std::pair<std::string, int>> functionBack_;
         std::list<std::pair<Quad*, int>> labelBack_;
+
+        int opcodeLength_;
+        int entryOffset_;
     };
 }
 

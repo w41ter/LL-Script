@@ -125,15 +125,17 @@ namespace script
     class ASTClosure : public ASTree
     {
     public:
-        ASTClosure(std::string name, 
+        ASTClosure(std::string name, int total,
             std::vector<std::string> params)
-            : name_(std::move(name))
+            : total_(total)
+            , name_(std::move(name))
             , params_(std::move(params))
         {}
 
         virtual ~ASTClosure() = default;
         virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
 
+        int total_;
         std::string name_;
         std::vector<std::string> params_;
     };

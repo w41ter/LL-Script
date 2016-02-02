@@ -76,7 +76,7 @@ namespace script
         //v->position_->accept(this);
         file_ << "$" << v->name_ << ' ';
         // std::cout << "\tdump call position end" << std::endl;
-        file_ << v->num_;
+        file_ << "(params)" << v->num_ << " (total)" << v->total_;
         return false;
     }
 
@@ -131,7 +131,7 @@ namespace script
         v->result_->accept(this);
         file_ << "= invoke ";
         v->name_->accept(this);
-        file_ << v->num_;
+        file_ << "(params)" << v->num_;
         return false;
     }
 
