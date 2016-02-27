@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <stack>
+#include <queue>
 
 #include "opcode.h"
 #include "Runtime.h"
@@ -12,6 +13,25 @@
 
 namespace script
 {
+    struct Frame 
+    {
+        Frame(size_t slot, Frame *parent = nullptr) : localSlot_{ new Pointer[slot] }, previous_(parent) {}
+        ~Frame() { delete []localSlot_; }
+
+        struct 
+        {
+            Pointer regA_, regB_, regC_, regD_, regE_, 
+                regF_, regH_, regI_, regJ_, regK_, 
+                regL_, regM_, regN_, regO_, regP_, regQ_;
+        } register_;
+
+        Pointer *localSlot_;
+        unsigned result_;
+        std::stack<Pointer> registerStack_;
+        Frame *previous_;
+        size_t ip_;
+    };
+
     class VirtualMachine
     {
     public:
@@ -50,22 +70,31 @@ namespace script
 
         void processGlobals();
         void variableReference(Pointer *);
+
+        Pointer add(Pointer lhs, Pointer rhs);
+        Pointer sub(Pointer lhs, Pointer rhs);
+        Pointer mul(Pointer lhs, Pointer rhs);
+        Pointer div(Pointer lhs, Pointer rhs);
+        Pointer g(Pointer lhs, Pointer rhs);
+        Pointer gt(Pointer lhs, Pointer rhs);
+        Pointer l(Pointer lhs, Pointer rhs);
+        Pointer lt(Pointer lhs, Pointer rhs);
+        Pointer et(Pointer lhs, Pointer rhs);
+        Pointer ne(Pointer lhs, Pointer rhs);
+        Pointer not(Pointer lhs);
+        Pointer negative(Pointer lhs);
     private:
         Byte *opcodes_ = nullptr;
         size_t length_;
         size_t opcodeLength_;
-        int offset_;
-        int frame_;
-        std::vector<std::string> stringPool_;
-        std::stack<Pointer> *currentStack_;
-        Pointer *localSlot;
-        Pointer result_;
-        GarbageCollector gc;
-        struct {
-            Pointer regA_, regB_, regC_, regD_, regE_, regF_, regH_, regI_, regJ_,
-                regK_, regL_, regM_, regN_, regO_, regP_, regQ_;
-        };
 
+        GarbageCollector gc_;
+
+        Frame *globalFrame_ = nullptr;
+        Frame *currentFrame_ = nullptr;
+        
+        std::queue<Pointer> paramStack_;
+        std::vector<std::string> stringPool_;
     };
 }
 

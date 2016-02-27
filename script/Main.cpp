@@ -89,7 +89,15 @@ int main(int argc, char* argv[])
         dumpByte.dump(opcodes, length);
     }
 
-    //script::VM vm;
+    script::VirtualMachine vm;
+    try {
+        script::VirtualMachine vm;
+        vm.excute(opcodes, length);
+    }
+    catch (std::runtime_error &e) {
+        std::cout << e.what() << std::endl;
+        return 0;
+    }
 
 	return 0;
 }

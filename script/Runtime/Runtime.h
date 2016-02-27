@@ -95,6 +95,8 @@ namespace script
         Pointer params[];
     } Closure;
 
+#define CLOSURE_SIZE(length) (sizeof(Closure) + (length))
+
     Pointer MakeClosure(Pointer self, size_t position, size_t length, size_t need);
     Pointer *ClosureParams(Pointer self);
     size_t ClosureNeed(Pointer self);

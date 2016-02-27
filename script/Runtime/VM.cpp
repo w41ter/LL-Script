@@ -3,16 +3,17 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <cassert>
 
 using std::vector;
 using std::string;
 
 namespace script
 {
-    VirtualMachine::VirtualMachine() : gc(1024 * 1024)
+    VirtualMachine::VirtualMachine() : gc_(1024 * 1024)
     {
-        gc.bindGlobals(std::bind(&VirtualMachine::processGlobals, this));
-        gc.bindReference(std::bind(&VirtualMachine::variableReference, this, std::placeholders::_1));
+        gc_.bindGlobals(std::bind(&VirtualMachine::processGlobals, this));
+        gc_.bindReference(std::bind(&VirtualMachine::variableReference, this, std::placeholders::_1));
     }
 
     void VirtualMachine::excute(Byte * opcode, size_t length)
@@ -112,25 +113,95 @@ namespace script
 
     void VirtualMachine::excuteBinary(size_t & ip, unsigned op)
     {
+        unsigned result = opcodes_[ip++];
+        Pointer left = getRegister(opcodes_[ip++]), right = getRegister(opcodes_[ip++]);
+        std::function<Pointer(Pointer, Pointer)> callable;
+        switch (op)
+        {
+        case OK_Add: callable = std::bind(&VirtualMachine::add, this, 
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_Sub: callable = std::bind(&VirtualMachine::sub, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_Div: callable = std::bind(&VirtualMachine::div, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_Mul: callable = std::bind(&VirtualMachine::mul, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_Great: callable = std::bind(&VirtualMachine::g, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_GreatThan: callable = std::bind(&VirtualMachine::gt, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_Less: callable = std::bind(&VirtualMachine::l, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_LessThan: callable = std::bind(&VirtualMachine::lt, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_NotEqual: callable = std::bind(&VirtualMachine::ne, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_Equal: callable = std::bind(&VirtualMachine::et, this,
+            std::placeholders::_1, std::placeholders::_2); break;
+        }
+        setRegister(result, callable(left, right));
     }
 
     void VirtualMachine::excuteSingle(size_t & ip, unsigned op)
     {
+        unsigned result = opcodes_[ip++];
+        switch (op)
+        {
+        case OK_Not: setRegister(result, not(getRegister(opcodes_[ip++]))); break;
+        case OK_Negtive: setRegister(result, negative(getRegister(opcodes_[ip++]))); break;
+        }
     }
 
     void VirtualMachine::excuteCall(size_t & ip)
     {
+        unsigned result = opcodes_[ip++];
+        int params = opcodes_[ip++], total = opcodes_[ip++], offset = getInteger(ip);
+        Pointer value = gc_.allocate(CLOSURE_SIZE(total));
+        MakeClosure(value, offset, params, total);
+        setRegister(result, value);
     }
 
     void VirtualMachine::excuteInvoke(size_t & ip)
     {
+        unsigned result = opcodes_[ip++];
+        int num = (int)opcodes_[ip++];
+        Pointer value = getRegister(opcodes_[ip++]);
+        assert(IsClosure(value));
+
+        size_t need = ClosureNeed(value), length = ClosureLength(value);
+        if (length + num == need)
+        {   
+            // call
+            Frame *temp = new Frame(need, currentFrame_);
+            temp->ip_ = ip;
+            ip = ClosurePosition(value);
+            Pointer *params = ClosureParams(value);
+            for (int i = 0; i < length; ++i)
+            {
+                temp->localSlot_[i] = params[i];
+            }
+            for (int i = 0; i < num; ++i)
+            {
+                temp->localSlot_[length + i] = paramStack_.front();
+                paramStack_.pop();
+            }
+            temp->result_ = result;
+            currentFrame_ = temp;
+        }
+        else
+        {
+            // new 
+            Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
+            MakeClosure(newValue, ClosurePosition(value), length + num, need);
+            setRegister(result, newValue);
+        }
     }
 
     void VirtualMachine::excuteGoto(size_t & ip)
     {
         int offset = getInteger(ip);
         // FIXME:
-        ip -= offset;
+        ip = offset;
     }
 
     void VirtualMachine::excuteIf(size_t & ip)
@@ -140,7 +211,7 @@ namespace script
         if (IsFixnum(value) && GetFixnum(value) != 0)
         {
             // FIXME: 判断这里是否需要
-            ip -= offset;
+            ip = offset;
         }
     }
 
@@ -151,19 +222,23 @@ namespace script
         if (IsFixnum(value) && GetFixnum(value) == 0)
         {
             // FIXME: 判断这里是否需要
-            ip -= offset;
+            ip = offset;
         }
     }
 
     void VirtualMachine::excuteReturn(size_t & ip)
     {
-        result_ = getRegister(opcodes_[ip++]);
+        Pointer value = getRegister(opcodes_[ip++]);
+        Frame *temp = currentFrame_;
+        currentFrame_ = currentFrame_->previous_;
+        setRegister(temp->result_, value);
+        ip = temp->ip_;
     }
 
     void VirtualMachine::excuteLoad(size_t &ip)
     {
         unsigned reg = opcodes_[ip++];
-        setRegister(reg, localSlot[getInteger(ip)]);
+        setRegister(reg, currentFrame_->localSlot_[getInteger(ip)]);
     }
 
     void VirtualMachine::excuteLoadA(size_t &ip)
@@ -173,12 +248,13 @@ namespace script
 
     void VirtualMachine::excuteParam(size_t & ip)
     {
+        paramStack_.push(getRegister(opcodes_[ip++]));
     }
 
     void VirtualMachine::excuteStore(size_t & ip)
     {
         unsigned reg = opcodes_[ip++];
-        localSlot[getInteger(ip)] = getRegister(reg);
+        currentFrame_->localSlot_[getInteger(ip)] = getRegister(reg);
     }
 
     void VirtualMachine::excuteStoreA(size_t &ip)
@@ -212,48 +288,50 @@ namespace script
     {
         unsigned reg = opcodes_[ip++];
         string &origin = stringPool_[getInteger(ip)];
-        Pointer str = gc.allocate(STRING_SIZE(origin.size()));
+        Pointer str = gc_.allocate(STRING_SIZE(origin.size()));
         MakeString(str, origin.c_str(), origin.size());
         setRegister(reg, str);
     }
 
     void VirtualMachine::excutePushR(size_t &ip)
     {
-        setRegister(opcodes_[ip++], currentStack_->top());
-        currentStack_->pop();
+        setRegister(opcodes_[ip++], currentFrame_->registerStack_.top());
+        currentFrame_->registerStack_.pop();
     }
 
     void VirtualMachine::excutePopR(size_t & ip)
     {
-        currentStack_->push(getRegister(opcodes_[ip++]));
+        currentFrame_->registerStack_.push(getRegister(opcodes_[ip++]));
     }
 
     void VirtualMachine::excuteEntry(size_t &ip)
     {
-        offset_ = getInteger(ip);
-        frame_ = getInteger(ip);
+        int offset = getInteger(ip);
+        currentFrame_ = globalFrame_ = new Frame(getInteger(ip));
+        //FIXME
+        ip = offset;
     }
 
     void VirtualMachine::setRegister(unsigned reg, Pointer value)
     {
         switch (reg)
         {
-        case RG_A: regA_ = value; break;
-        case RG_B: regB_ = value; break;
-        case RG_C: regC_ = value; break;
-        case RG_D: regD_ = value; break;
-        case RG_E: regE_ = value; break;
-        case RG_F: regF_ = value; break;
-        case RG_H: regH_ = value; break;
-        case RG_I: regI_ = value; break;
-        case RG_J: regJ_ = value; break;
-        case RG_K: regK_ = value; break;
-        case RG_L: regL_ = value; break;
-        case RG_M: regM_ = value; break;
-        case RG_N: regN_ = value; break;
-        case RG_O: regO_ = value; break;
-        case RG_P: regP_ = value; break;
-        case RG_Q: regQ_ = value; break;
+        case RG_A: currentFrame_->register_.regA_ = value; break;
+        case RG_B: currentFrame_->register_.regB_ = value; break;
+        case RG_C: currentFrame_->register_.regC_ = value; break;
+        case RG_D: currentFrame_->register_.regD_ = value; break;
+        case RG_E: currentFrame_->register_.regE_ = value; break;
+        case RG_F: currentFrame_->register_.regF_ = value; break;
+        case RG_H: currentFrame_->register_.regH_ = value; break;
+        case RG_I: currentFrame_->register_.regI_ = value; break;
+        case RG_J: currentFrame_->register_.regJ_ = value; break;
+        case RG_K: currentFrame_->register_.regK_ = value; break;
+        case RG_L: currentFrame_->register_.regL_ = value; break;
+        case RG_M: currentFrame_->register_.regM_ = value; break;
+        case RG_N: currentFrame_->register_.regN_ = value; break;
+        case RG_O: currentFrame_->register_.regO_ = value; break;
+        case RG_P: currentFrame_->register_.regP_ = value; break;
+        case RG_Q: currentFrame_->register_.regQ_ = value; break;
         }
     }
 
@@ -262,22 +340,22 @@ namespace script
         Pointer value;
         switch (reg)
         {
-        case RG_A: value = regA_; break;
-        case RG_B: value = regB_; break;
-        case RG_C: value = regC_; break;
-        case RG_D: value = regD_; break;
-        case RG_E: value = regE_; break;
-        case RG_F: value = regF_; break;
-        case RG_H: value = regH_; break;
-        case RG_I: value = regI_; break;
-        case RG_J: value = regJ_; break;
-        case RG_K: value = regK_; break;
-        case RG_L: value = regL_; break;
-        case RG_M: value = regM_; break;
-        case RG_N: value = regN_; break;
-        case RG_O: value = regO_; break;
-        case RG_P: value = regP_; break;
-        case RG_Q: value = regQ_; break;
+        case RG_A: value = currentFrame_->register_.regA_; break;
+        case RG_B: value = currentFrame_->register_.regB_; break;
+        case RG_C: value = currentFrame_->register_.regC_; break;
+        case RG_D: value = currentFrame_->register_.regD_; break;
+        case RG_E: value = currentFrame_->register_.regE_; break;
+        case RG_F: value = currentFrame_->register_.regF_; break;
+        case RG_H: value = currentFrame_->register_.regH_; break;
+        case RG_I: value = currentFrame_->register_.regI_; break;
+        case RG_J: value = currentFrame_->register_.regJ_; break;
+        case RG_K: value = currentFrame_->register_.regK_; break;
+        case RG_L: value = currentFrame_->register_.regL_; break;
+        case RG_M: value = currentFrame_->register_.regM_; break;
+        case RG_N: value = currentFrame_->register_.regN_; break;
+        case RG_O: value = currentFrame_->register_.regO_; break;
+        case RG_P: value = currentFrame_->register_.regP_; break;
+        case RG_Q: value = currentFrame_->register_.regQ_; break;
         }
         return value;
     }
@@ -288,6 +366,66 @@ namespace script
 
     void VirtualMachine::variableReference(Pointer *pointer)
     {
+    }
+
+    Pointer VirtualMachine::add(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::sub(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::mul(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::div(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::g(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::gt(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::l(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::lt(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::et(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::ne(Pointer lhs, Pointer rhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::not(Pointer lhs)
+    {
+        return Pointer();
+    }
+
+    Pointer VirtualMachine::negative(Pointer lhs)
+    {
+        return Pointer();
     }
 
     void VirtualMachine::loadStringPool()

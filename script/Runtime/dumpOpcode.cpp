@@ -156,8 +156,9 @@ namespace script
     void DumpOpcode::dumpInvoke(size_t & ip)
     {
         dumpRegister(opcode_[ip++]);
-        file_ << "= invoke ";
-        dumpRegister(opcode_[ip++]);
+        file_ << "= invoke <params>:";
+        file_ << (int)opcode_[ip++] << " <offset>:";
+        //dumpRegister(opcode_[ip++]);
         dumpRegister(opcode_[ip++]);
         file_ << endl;
     }
