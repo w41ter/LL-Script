@@ -20,13 +20,13 @@ namespace script
         char* end_;
     };
 
-    class GC
+    class GarbageCollector
     {
         using GloablVariable = void();
         using VariableReference = void(Pointer *);
     public:
-        GC(size_t size);
-        ~GC();
+        GarbageCollector(size_t size);
+        ~GarbageCollector();
 
         Pointer allocate(size_t size);
 

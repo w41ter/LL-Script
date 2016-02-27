@@ -22,21 +22,21 @@ namespace script
         TAG_SPEC_SHIFT = 4,
     };
     
-    inline bool IsNil(Pointer p);
-    inline bool IsReal(Pointer p);
-    inline bool IsChar(Pointer p);
-    inline bool IsSpecal(Pointer p);
-    inline bool IsFixnum(Pointer p);
-    inline bool IsTagging(Pointer p);
+    bool IsNil(Pointer p);
+    bool IsReal(Pointer p);
+    bool IsChar(Pointer p);
+    bool IsSpecal(Pointer p);
+    bool IsFixnum(Pointer p);
+    bool IsTagging(Pointer p);
 
-    inline int GetFixnum(Pointer p);
-    inline char GetChar(Pointer p);
-    inline float GetReal(Pointer p);
+    int GetFixnum(Pointer p);
+    char GetChar(Pointer p);
+    float GetReal(Pointer p);
 
-    inline Pointer SetChar(char c);
-    inline Pointer MakeFixnum(int value);
-    inline Pointer MakeReal(float value);
-    inline Pointer Nil();
+    Pointer SetChar(char c);
+    Pointer MakeFixnum(int value);
+    Pointer MakeReal(float value);
+    Pointer Nil();
 
     // 8bits
     enum Type {
@@ -65,7 +65,7 @@ namespace script
     // make pair from alloced memory.
     Pointer MakePair(Pointer self, Pointer car, Pointer cdr);
 
-    inline bool IsPair(Pointer p);
+    bool IsPair(Pointer p);
 
     Pointer *Car(Pointer self);
     Pointer *Cdr(Pointer self);
@@ -76,6 +76,8 @@ namespace script
         size_t length_;
         char str_[];
     } String;
+
+#define STRING_SIZE(length) (sizeof(String) + (length))
 
     /* make string from exist str and memory. */
     Pointer MakeString(Pointer self, const char *from, size_t length);
@@ -101,6 +103,7 @@ namespace script
     bool IsClosure(Pointer p);
 
     size_t SizeOfObject(Pointer p);
+
 }
 
 #endif // !__RUNTIME_H__

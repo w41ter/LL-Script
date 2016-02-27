@@ -16,6 +16,7 @@
 #include "IR\CodeGen.h"
 #include "Runtime\opcode.h"
 #include "Runtime\dumpOpcode.h"
+#include "Runtime\VM.h"
 
 int main(int argc, char* argv[])
 {
@@ -74,19 +75,21 @@ int main(int argc, char* argv[])
     script::OpcodeContext opcode;
     script::CodeGenerator codegen(opcode);
     codegen.gen(module);
-    
-    driver.dumpOpcode_ = true;
 
+    int length = 0;
+    script::Byte *opcodes = opcode.getOpcodes(length);
+
+    driver.dumpOpcode_ = true;
     if (driver.dumpOpcode_)
     {
         std::string dumpFilename(driver.filename);
         dumpFilename += ".txt";
         std::fstream dumpOpcodeFile(dumpFilename, std::ofstream::out);
         script::DumpOpcode dumpByte(dumpOpcodeFile);
-        int length = 0;
-        script::Byte *opcodes = opcode.getOpcodes(length);
         dumpByte.dump(opcodes, length);
     }
+
+    //script::VM vm;
 
 	return 0;
 }

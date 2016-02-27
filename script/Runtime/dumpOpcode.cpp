@@ -23,6 +23,7 @@ namespace script
         file_ << "offset of entry : " << offsetOfEntry << endl;
         file_ << "length of opcode : " << opcodeLength_ << endl;
         file_ << "begin of opcode : " << endl;
+
         size_t ip = 8;
         while (true)
         {
@@ -277,7 +278,7 @@ namespace script
 
     void DumpOpcode::dumpEntry(size_t & ip)
     {
-        file_ << "entry " << getInteger(ip) << " " << getInteger(ip) << endl;
+        file_ << "entry offset:" << getInteger(ip) << " frame:" << getInteger(ip) << endl;
     }
     
     void DumpOpcode::dumpRegister(unsigned reg)

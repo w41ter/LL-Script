@@ -4,67 +4,67 @@
 
 namespace script
 {
-    inline bool IsNil(Pointer p)
+    bool IsNil(Pointer p)
     {
         return (p & TAG_SPEC_MASK) == TAG_NIL;
     }
 
-    inline bool IsReal(Pointer p)
+    bool IsReal(Pointer p)
     {
         return (p & TAG_MASK) == TAG_REAL;
     }
 
-    inline bool IsChar(Pointer p)
+    bool IsChar(Pointer p)
     {
         return (p & TAG_SPEC_MASK) == TAG_CHAR;
     }
 
-    inline bool IsSpecal(Pointer p)
+    bool IsSpecal(Pointer p)
     {
         return (p & TAG_MASK) == TAG_SPEC;
     }
 
-    inline bool IsFixnum(Pointer p)
+    bool IsFixnum(Pointer p)
     {
         return (p & TAG_MASK) == TAG_FIXNUM;
     }
 
-    inline bool IsTagging(Pointer p)
+    bool IsTagging(Pointer p)
     {
         return (p & TAG_MASK);
     }
 
-    inline int GetFixnum(Pointer p)
+    int GetFixnum(Pointer p)
     {
         return (p >> TAG_SHIFT);
     }
 
-    inline char GetChar(Pointer p)
+    char GetChar(Pointer p)
     {
         return (p >> TAG_SPEC_MASK);
     }
 
-    inline float GetReal(Pointer p)
+    float GetReal(Pointer p)
     {
         return (p >> TAG_SHIFT);
     }
     
-    inline Pointer SetChar(char c)
+    Pointer SetChar(char c)
     {
         return (c << TAG_SPEC_SHIFT) | TAG_CHAR;
     }
 
-    inline Pointer MakeFixnum(int value)
+    Pointer MakeFixnum(int value)
     {
         return ((value << TAG_SHIFT) | TAG_FIXNUM);
     }
 
-    inline Pointer MakeReal(float value)
+    Pointer MakeReal(float value)
     {
         return ((((int)value) << TAG_SHIFT) | TAG_REAL);
     }
 
-    inline Pointer Nil()
+    Pointer Nil()
     {
         return TAG_NIL;
     }
@@ -78,17 +78,17 @@ namespace script
         return self;
     }
 
-    inline bool IsPair(Pointer p)
+    bool IsPair(Pointer p)
     {
         return (!IsTagging(p) || ((Pair *)p)->obType_ == (Pointer)TYPE_PAIR);
     }
 
-    inline Pointer *Car(Pointer self)
+    Pointer *Car(Pointer self)
     {
         return &((Pair *)self)->car;
     }
 
-    inline Pointer *Cdr(Pointer self)
+    Pointer *Cdr(Pointer self)
     {
         return &((Pair *)self)->cdr;
     }
@@ -102,12 +102,12 @@ namespace script
         return self;
     }
 
-    inline bool IsString(Pointer p)
+    bool IsString(Pointer p)
     {
         return (!IsTagging(p) || ((String *)p)->obType_ == (Pointer)TYPE_STRING);
     }
 
-    inline const char *GetString(Pointer p)
+    const char *GetString(Pointer p)
     {
         return ((String *)p)->str_;
     }
@@ -160,4 +160,5 @@ namespace script
         }
         return 0;
     }
+
 }

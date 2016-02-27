@@ -46,7 +46,7 @@ namespace script
     }
 
 
-    GC::GC(size_t size)
+    GarbageCollector::GarbageCollector(size_t size)
     {
         this->size_ = size;
         this->space_size_ = Ceil(size) >> 2;
@@ -54,13 +54,13 @@ namespace script
         this->to_space_ = new Semispace(space_size_);
     }
 
-    GC::~GC()
+    GarbageCollector::~GarbageCollector()
     {
         delete from_space_;
         delete to_space_;
     }
 
-    void GC::swapSpace()
+    void GarbageCollector::swapSpace()
     {
         Semispace* temp = from_space_;
         from_space_ = to_space_;
@@ -72,7 +72,7 @@ namespace script
     }
 
     // offset / 4 is the index of obj's forward.
-    bool GC::isForwarded(Pointer obj)
+    bool GarbageCollector::isForwarded(Pointer obj)
     {
         size_t offset = obj - (Pointer)from_space_->bottom_;
         int *forward = (int*)this->forward_;
@@ -80,7 +80,7 @@ namespace script
     }
 
     // set the obj's forward to new addr.
-    void GC::forwardTo(Pointer obj, Pointer new_addr)
+    void GarbageCollector::forwardTo(Pointer obj, Pointer new_addr)
     {
         size_t offset = obj - (Pointer)from_space_->bottom_;
         int *forward = (int*)this->forward_;
@@ -88,7 +88,7 @@ namespace script
     }
 
     // get the new addr of obj.
-    Pointer GC::forwardee(Pointer obj)
+    Pointer GarbageCollector::forwardee(Pointer obj)
     {
         size_t offset = obj - (Pointer)from_space_->bottom_;
         int *forward = (int*)this->forward_;
@@ -96,14 +96,14 @@ namespace script
     }
 
     // copy object to to_space.
-    Pointer GC::swap(Pointer obj, size_t size)
+    Pointer GarbageCollector::swap(Pointer obj, size_t size)
     {
         Pointer dest = to_space_->allocateMemory(size);
         memcpy((void*)dest, (void*)obj, size);
         return dest;
     }
 
-    void GC::processReference(Pointer *slot)
+    void GarbageCollector::processReference(Pointer *slot)
     {
         size_t size = SizeOfObject(*slot);
         if (size <= 0)
@@ -127,7 +127,7 @@ namespace script
         }
     }
 
-    void GC::garbageCollect()
+    void GarbageCollector::garbageCollect()
     {
         forward_ = new Pointer[Ceil(space_size_)];
         memset((void*)forward_, 0, Ceil(space_size_));
@@ -154,7 +154,7 @@ namespace script
         forward_ = nullptr;
     }
 
-    Pointer GC::allocate(size_t size)
+    Pointer GarbageCollector::allocate(size_t size)
     {
         assert(variableReference_ && globalVariable_);
 
@@ -172,12 +172,12 @@ namespace script
         return address;
     }
 
-    void GC::bindReference(std::function<VariableReference> call)
+    void GarbageCollector::bindReference(std::function<VariableReference> call)
     {
         variableReference_ = std::move(call);
     }
 
-    void GC::bindGlobals(std::function<GloablVariable> call)
+    void GarbageCollector::bindGlobals(std::function<GloablVariable> call)
     {
         globalVariable_ = std::move(call);
     }
