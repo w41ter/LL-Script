@@ -3,6 +3,9 @@
 #include <memory>
 #include <fstream>
 
+#include <conio.h>
+#include <windows.h>
+
 #include "driver.h"
 #include "Parser\lexer.h"
 #include "Parser\Parser.h"
@@ -89,10 +92,12 @@ int main(int argc, char* argv[])
         dumpByte.dump(opcodes, length);
     }
 
-    script::VirtualMachine vm;
     try {
         script::VirtualMachine vm;
+        auto beginTime = GetTickCount();
         vm.excute(opcodes, length);
+        auto endTime = GetTickCount();
+        std::cout << "×Ü¹²ºÄÊ±: " << double(endTime - beginTime) << " ms" << std::endl;
     }
     catch (std::runtime_error &e) {
         std::cout << e.what() << std::endl;

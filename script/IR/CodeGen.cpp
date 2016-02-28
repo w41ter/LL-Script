@@ -11,6 +11,7 @@ namespace script
     {
         context_.bindGetLabelTarget(std::bind(&CodeGenerator::backLabel, this, std::placeholders::_1));
         context_.bindGetFunctionTarget(std::bind(&CodeGenerator::backFunction, this, std::placeholders::_1));
+        context_.bindGetFunctionSlotTarget(std::bind(&CodeGenerator::backSlot, this, std::placeholders::_1));
     }
 
     void CodeGenerator::gen(IRModule & module)
@@ -24,8 +25,11 @@ namespace script
             {
                 newLocalSlot(j);
             }
-            int offset = genIRCode(*i.second);
+            int offset = context_.getNextPos();
+            context_.insertNewSlot(i.first);
+            genIRCode(*i.second);
             functions_.insert(std::pair<std::string, int>(i.first, offset));
+            functionSlot_.insert(std::pair<std::string, int>(i.first, frames.size()));
         }
 
         int offset = context_.getNextPos();
@@ -38,12 +42,17 @@ namespace script
 
     int CodeGenerator::backLabel(Quad * label)
     {
-        return labels_[label];
+        return labels_[LabelTarget::instance().getTarget(label)];
     }
 
     int CodeGenerator::backFunction(std::string & str)
     {
         return functions_[str];
+    }
+
+    int CodeGenerator::backSlot(std::string & name)
+    {
+        return functionSlot_[name];
     }
 
     // 
@@ -81,6 +90,25 @@ namespace script
         }
         allocator_ = nullptr;
         return index;
+    }
+
+    void CodeGenerator::genConstant(Register reg, Constant * c)
+    {
+        switch (c->type_)
+        {
+        case Constant::T_Character:
+            context_.insertMoveI(reg, c->c_);
+            break;
+        case Constant::T_Integer:
+            context_.insertMoveI(reg, c->num_);
+            break;
+        case Constant::T_Float:
+            context_.insertMoveF(reg, c->fnum_);
+            break;
+        case Constant::T_String:
+            context_.insertMoveS(reg, context_.insertString(c->str_));
+            break;
+        }
     }
 
     bool CodeGenerator::visit(Constant * v)
@@ -144,23 +172,13 @@ namespace script
         Register reg = allocator_->allocate(v->dest_);
         if (v->sour_->kind() == Value::V_Constant)
         {
-            Constant *c = (Constant*)v->sour_;
-            switch (c->type_)
-            {
-            case Constant::T_Character:
-                context_.insertMoveI(reg, c->c_);
-                break;
-            case Constant::T_Integer:
-                context_.insertMoveI(reg, c->num_);
-                break;
-            case Constant::T_Float:
-                context_.insertMoveF(reg, c->fnum_);
-                break;
-            case Constant::T_String:
-                context_.insertMoveS(reg, context_.insertString(c->str_));
-                break;
-            }
+            genConstant(reg, (Constant*)v->sour_);
         } 
+        else if (v->sour_->kind() == Value::V_Array)
+        {
+            Array *array = (Array*)v->sour_;
+            context_.insertNewArray(reg, array->total_);
+        }
         else
         {
             Register regS = allocator_->getReg(v->sour_);
@@ -178,9 +196,18 @@ namespace script
             ai->index_->accept(this);
             ai->value_->accept(this);
             v->result_->accept(this);
-            Register regID = allocator_->getReg(ai->index_),
-                regIndex = allocator_->getReg(ai->value_),
+            Register regID = allocator_->getReg(ai->value_), regIndex, 
                 result = allocator_->allocate(v->result_);
+
+            if (ai->index_->kind() == Value::V_Constant)
+            {
+                regIndex = allocator_->allocate(ai->index_);
+                genConstant(regIndex, (Constant*)ai->index_);
+            }
+            else
+            {
+                regIndex = allocator_->getReg(ai->index_);
+            }
             context_.insertLoadA(regID, regIndex, result);
         }
         else
@@ -203,9 +230,19 @@ namespace script
             ai->index_->accept(this);
             ai->value_->accept(this);
             v->result_->accept(this);
-            Register regID = allocator_->getReg(ai->index_),
-                regIndex = allocator_->getReg(ai->value_),
+            Register regID = allocator_->getReg(ai->value_), regIndex,
                 regFrom = allocator_->getReg(v->result_);
+
+            if (ai->index_->kind() == Value::V_Constant)
+            {
+                regIndex = allocator_->allocate(ai->index_);
+                genConstant(regIndex, (Constant*)ai->index_);
+            }
+            else
+            {
+                regIndex = allocator_->getReg(ai->index_);
+            }
+
             context_.insertStoreA(regID, regIndex, regFrom);
         }
         else

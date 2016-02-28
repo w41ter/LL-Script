@@ -64,7 +64,7 @@ namespace script
             // FIXME: it just garanteed that there always has enough reg
             // for allocate.
             Register r = allocate(temp);
-            context_.insertParam(r);
+            context_.insertPopR(r);
             return r;
         }
         return reg;
@@ -93,7 +93,7 @@ namespace script
     bool RegisterAllocator::visit(ArrayIndex * v)
     {
         updateUse(v->value_);
-        updateUse(v->value_);
+        updateUse(v->index_);
         return false;
     }
 

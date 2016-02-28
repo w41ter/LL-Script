@@ -78,6 +78,9 @@ namespace script
         OK_PushR,       // push temp
         OK_PopR,        // pop temp
 
+        OK_NewArray,    // reg = array [total]
+
+        OK_NewSlot,     // slot , size of slot
         OK_Entry,        // entry of programs.  entry offset num
         OK_Halt,        // stop
     };
@@ -105,16 +108,19 @@ namespace script
     {
         using GetLabelTarget = std::function<int(Quad*)>;
         using GetFunctionTarget = std::function<int(std::string)>;
-
+        using GetFunctionSlotTarget = std::function<int(std::string)>;
 
     public:
         OpcodeContext() : opcodes_(nullptr) { }
 
         void bindGetLabelTarget(GetLabelTarget func);
         void bindGetFunctionTarget(GetFunctionTarget func);
+        void bindGetFunctionSlotTarget(GetFunctionSlotTarget func);
 
+        void insertNewArray(Register reg, int32_t total);
+        void insertNewSlot(const std::string &name);
         void insertHalt();
-        void insertEntry(int offset, int32_t num);
+        void insertEntry(int32_t offset, int32_t num);
         void insertParam(Register reg);
         void insertIf(Register reg, Quad *label);
         void insertIfFalse(Register reg, Quad *label);
@@ -152,6 +158,7 @@ namespace script
 
         GetLabelTarget getLabelTarget_;
         GetFunctionTarget getFunctionTarget_;
+        GetFunctionSlotTarget getFunctionSlotTarget_;
 
     private:
         Byte *opcodes_;
@@ -162,6 +169,7 @@ namespace script
 
         std::list<std::pair<std::string, int>> functionBack_;
         std::list<std::pair<Quad*, int>> labelBack_;
+        std::list<std::pair<std::string, int>> slotBack_;
 
         int opcodeLength_;
         int entryOffset_;

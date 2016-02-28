@@ -527,6 +527,8 @@ namespace script
         for (auto &i : params)
             argument.push_back(i);
         
+        int closureArgsSize = argument.size();
+
         unique_ptr<ASTPrototype> proto =
             make_unique<ASTPrototype>(name, std::move(argument));
         functions_->push_back(
@@ -534,7 +536,6 @@ namespace script
                 table, std::move(proto), std::move(block)));
 
         // Create closure
-        int closureArgsSize = argument.size();
         argument.clear();
         for (auto &i : catchTable)
             argument.push_back(i);

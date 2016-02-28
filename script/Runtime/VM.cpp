@@ -18,7 +18,7 @@ namespace script
 
     void VirtualMachine::excute(Byte * opcode, size_t length)
     {
-        opcodes_ = opcode;
+        opcodes_ = opcode + 8;
         length_ = length;
 
         int32_t *temp = (int32_t *)opcode, offsetOfEntry = *temp++;
@@ -105,6 +105,12 @@ namespace script
             case OK_Entry:
                 excuteEntry(ip);
                 break;
+            case OK_NewSlot:
+                excuteNewSlot(ip);
+                break;
+            case OK_NewArray:
+                excuteNewArray(ip);
+                break;
             }
         }
 
@@ -172,7 +178,8 @@ namespace script
         if (length + num == need)
         {   
             // call
-            Frame *temp = new Frame(need, currentFrame_);
+            frameStack_.push(std::move(Frame(need, currentFrame_)));
+            Frame *temp = &frameStack_.top();
             temp->ip_ = ip;
             ip = ClosurePosition(value);
             Pointer *params = ClosureParams(value);
@@ -233,6 +240,7 @@ namespace script
         currentFrame_ = currentFrame_->previous_;
         setRegister(temp->result_, value);
         ip = temp->ip_;
+        frameStack_.pop();
     }
 
     void VirtualMachine::excuteLoad(size_t &ip)
@@ -243,7 +251,14 @@ namespace script
 
     void VirtualMachine::excuteLoadA(size_t &ip)
     {
-        // TODO;
+        unsigned regid = opcodes_[ip++], regindex = opcodes_[ip++], regresult = opcodes_[ip++];
+        Pointer array = getRegister(regid), index = getRegister(regindex);
+        if (!IsArray(array)) throw std::runtime_error("求值对象非数组类型！");
+        RArray *value = (RArray*)array;
+        if (!IsFixnum(index)) throw std::runtime_error("数组索引必须是数值类型！");
+        int num = GetFixnum(index);
+        if (value->length_ <= num || num < 0) throw std::runtime_error("数组索引 out of range!");
+        setRegister(regresult, value->data[num]);
     }
 
     void VirtualMachine::excuteParam(size_t & ip)
@@ -253,15 +268,20 @@ namespace script
 
     void VirtualMachine::excuteStore(size_t & ip)
     {
-        unsigned reg = opcodes_[ip++];
-        currentFrame_->localSlot_[getInteger(ip)] = getRegister(reg);
+        Pointer value = getRegister(opcodes_[ip++]);
+        currentFrame_->localSlot_[getInteger(ip)] = value;
     }
 
     void VirtualMachine::excuteStoreA(size_t &ip)
     {
-        unsigned id = opcodes_[ip++], index = opcodes_[ip++], result = opcodes_[ip++];
-        Pointer array = getRegister(id);
-        // TODO
+        unsigned regid = opcodes_[ip++], regindex = opcodes_[ip++], regresult = opcodes_[ip++];
+        Pointer array = getRegister(regid), index = getRegister(regindex), result = getRegister(regresult);
+        if (!IsArray(array)) throw std::runtime_error("求值对象非数组类型！");
+        RArray *value = (RArray*)array;
+        if (!IsFixnum(index)) throw std::runtime_error("数组索引必须是数值类型！");
+        int num = GetFixnum(index);
+        if (value->length_ <= num || num < 0) throw std::runtime_error("数组索引 out of range!");
+        value->data[num] = result;
     }
 
     void VirtualMachine::excuteMove(size_t &ip)
@@ -307,9 +327,24 @@ namespace script
     void VirtualMachine::excuteEntry(size_t &ip)
     {
         int offset = getInteger(ip);
-        currentFrame_ = globalFrame_ = new Frame(getInteger(ip));
+        frameStack_.push(std::move(Frame(getInteger(ip))));
+        currentFrame_ = globalFrame_ = &frameStack_.top();
         //FIXME
         ip = offset;
+    }
+
+    void VirtualMachine::excuteNewSlot(size_t & ip)
+    {
+        currentFrame_->localSlot_.resize(getInteger(ip));
+    }
+
+    void VirtualMachine::excuteNewArray(size_t &ip)
+    {
+        unsigned reg = opcodes_[ip++];
+        int length = getInteger(ip);
+        Pointer array = gc_.allocate(ARRAY_SIZE(length));
+        MakeArray(array, length);
+        setRegister(reg, array);
     }
 
     void VirtualMachine::setRegister(unsigned reg, Pointer value)
@@ -362,25 +397,56 @@ namespace script
 
     void VirtualMachine::processGlobals()
     {
+        Frame *temp = currentFrame_;
+        while (true)
+        {
+            for (int i = 0; i < temp->localSlot_.size(); ++i)
+            {
+                gc_.processReference(&(temp->localSlot_[i]));
+            }
+            temp = temp->previous_;
+            if (temp == nullptr) break;
+        }
     }
 
     void VirtualMachine::variableReference(Pointer *pointer)
     {
+        if (IsClosure(*pointer))
+        {
+            size_t need = ClosureNeed(*pointer);
+            Pointer *params = ClosureParams(*pointer);
+            for (int i = 0; i < need; ++i)
+            {
+                gc_.processReference(&(params[i]));
+            }
+        }
     }
 
     Pointer VirtualMachine::add(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(GetFixnum(lhs) + GetFixnum(rhs));
     }
 
     Pointer VirtualMachine::sub(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(GetFixnum(lhs) - GetFixnum(rhs));
     }
 
     Pointer VirtualMachine::mul(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(GetFixnum(lhs) * GetFixnum(rhs));
     }
 
     Pointer VirtualMachine::div(Pointer lhs, Pointer rhs)
@@ -405,7 +471,11 @@ namespace script
 
     Pointer VirtualMachine::lt(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(GetFixnum(lhs) <= GetFixnum(rhs));
     }
 
     Pointer VirtualMachine::et(Pointer lhs, Pointer rhs)
@@ -430,7 +500,7 @@ namespace script
 
     void VirtualMachine::loadStringPool()
     {
-        int32_t *base = (int32_t*)&opcodes_[opcodeLength_ + 8];
+        int32_t *base = (int32_t*)&opcodes_[opcodeLength_];
         int32_t total = *base;
 
         int32_t *offset = base + 1, *begin = offset + total, count = 0;
@@ -452,7 +522,7 @@ namespace script
         int32_t result = 0;
         for (int i = 0; i < 4; ++i)
         {
-            result <<= 8; result |= opcodes_[ip++];
+            result <<= 8; result |= (unsigned char)opcodes_[ip++];
         }
         return result;
     }

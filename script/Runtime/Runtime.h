@@ -43,6 +43,7 @@ namespace script
         TYPE_PAIR = 0,
         TYPE_STRING = 1,
         TYPE_CLOSURE = 2,
+        TYPE_ARRAY = 3,
     };
 
     // common property of heap object
@@ -77,7 +78,7 @@ namespace script
         char str_[];
     } String;
 
-#define STRING_SIZE(length) (sizeof(String) + (length))
+#define STRING_SIZE(length) (sizeof(String) + (length) * sizeof(char))
 
     /* make string from exist str and memory. */
     Pointer MakeString(Pointer self, const char *from, size_t length);
@@ -95,7 +96,7 @@ namespace script
         Pointer params[];
     } Closure;
 
-#define CLOSURE_SIZE(length) (sizeof(Closure) + (length))
+#define CLOSURE_SIZE(length) (sizeof(Closure) + (length) * sizeof(Pointer))
 
     Pointer MakeClosure(Pointer self, size_t position, size_t length, size_t need);
     Pointer *ClosureParams(Pointer self);
@@ -103,6 +104,20 @@ namespace script
     size_t ClosureLength(Pointer self);
     size_t ClosurePosition(Pointer self);
     bool IsClosure(Pointer p);
+
+    typedef struct
+    {
+        HEAP_OBJECT_HEAD;
+        size_t length_;
+        Pointer data[];
+    } RArray;
+
+#define ARRAY_SIZE(length) (sizeof(RArray) + (length) * sizeof(Pointer))
+
+    Pointer MakeArray(Pointer self, size_t length_);
+    Pointer *ArrayData(Pointer self);
+    size_t ArrayLength(Pointer self);
+    bool IsArray(Pointer self);
 
     size_t SizeOfObject(Pointer p);
 

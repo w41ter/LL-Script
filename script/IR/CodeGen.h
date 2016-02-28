@@ -22,9 +22,12 @@ namespace script
     private:
         int backLabel(Quad *label);
         int backFunction(std::string &str);
+        int backSlot(std::string &name);
 
         int genIRCode(IRCode &code);
         int genBasicBlock(BasicBlock *block);
+
+        void genConstant(Register reg, Constant *cons);
 
         virtual bool visit(Constant *v) override;
         virtual bool visit(Temp *v) override;
@@ -59,6 +62,7 @@ namespace script
         std::map<Quad*, int> labels_;
         std::map<Quad*, BasicBlock*> blocks_;
         std::set<BasicBlock*> hasVisit_;
+        std::map<std::string, int> functionSlot_;
     };
 }
 

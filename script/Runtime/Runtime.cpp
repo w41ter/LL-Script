@@ -146,6 +146,28 @@ namespace script
         return (!IsTagging(p) || ((String *)p)->obType_ == (Pointer)TYPE_CLOSURE);
     }
 
+    Pointer MakeArray(Pointer self, size_t length_)
+    {
+        ((RArray *)self)->obType_ = (Pointer)TYPE_ARRAY;
+        ((RArray *)self)->length_ = length_;
+        return self;
+    }
+
+    Pointer * ArrayData(Pointer self)
+    {
+        return ((RArray *)self)->data;
+    }
+
+    size_t ArrayLength(Pointer self)
+    {
+        return ((RArray *)self)->length_;
+    }
+
+    bool IsArray(Pointer self)
+    {
+        return (!IsTagging(self) || ((RArray *)self)->obType_ == (Pointer)TYPE_ARRAY);
+    }
+
     size_t SizeOfObject(Pointer p)
     {
         if (IsTagging(p))
@@ -157,6 +179,10 @@ namespace script
             return sizeof(Pair);
         case Type::TYPE_STRING:
             return sizeof(String) + ((String*)p)->length_;
+        case Type::TYPE_CLOSURE:
+            return sizeof(Closure) + ((Closure*)p)->length_;
+        case Type::TYPE_ARRAY:
+            return sizeof(RArray) + ((RArray*)p)->length_;
         }
         return 0;
     }

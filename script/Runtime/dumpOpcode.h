@@ -37,6 +37,8 @@ namespace script
         void dumpPushR(size_t &ip);
         void dumpPopR(size_t &ip);
         void dumpEntry(size_t &ip);
+        void dumpNewSlot(size_t &ip);
+        void dumpNewArray(size_t & ip);
 
         void dumpRegister(unsigned reg);
         void dumpStringPool();

@@ -21,7 +21,11 @@ namespace script
                 setInteger(i.second, index);
             }
             labelBack_.clear();
-
+            for (auto &i : slotBack_)
+            {
+                int index = getFunctionSlotTarget_(i.first);
+                setInteger(i.second, index);
+            }
             // cal string pool size : opcode length + string nums + string offset + string length
             length = 8 + codeList_.size() + 4 * stringNum_ + 4;
             for (auto &i : stringPool_)
@@ -129,12 +133,30 @@ namespace script
         getFunctionTarget_ = std::move(func);
     }
 
+    void OpcodeContext::bindGetFunctionSlotTarget(GetFunctionSlotTarget func)
+    {
+        getFunctionSlotTarget_ = std::move(func);
+    }
+
+    void OpcodeContext::insertNewArray(Register reg, int32_t total)
+    {
+        makeOpcode(OK_NewArray, reg);
+        pushInteger(total);
+    }
+
+    void OpcodeContext::insertNewSlot(const std::string &name)
+    {
+        makeOpcode(OK_NewSlot);
+        slotBack_.push_back(std::pair<std::string, int>(name, getNextPos()));
+        pushInteger(0);
+    }
+
     void OpcodeContext::insertHalt()
     {
         makeOpcode(OK_Halt);
     }
 
-    void OpcodeContext::insertEntry(int offset, int32_t num)
+    void OpcodeContext::insertEntry(int32_t offset, int32_t num)
     {
         entryOffset_ = getNextPos();
         makeOpcode(OK_Entry);

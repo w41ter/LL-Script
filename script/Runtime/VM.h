@@ -15,8 +15,9 @@ namespace script
 {
     struct Frame 
     {
-        Frame(size_t slot, Frame *parent = nullptr) : localSlot_{ new Pointer[slot] }, previous_(parent) {}
-        ~Frame() { delete []localSlot_; }
+        Frame(size_t slot, Frame *parent = nullptr) 
+            : localSlot_(slot)
+            , previous_(parent) {}
 
         struct 
         {
@@ -25,7 +26,7 @@ namespace script
                 regL_, regM_, regN_, regO_, regP_, regQ_;
         } register_;
 
-        Pointer *localSlot_;
+        std::vector<Pointer> localSlot_;
         unsigned result_;
         std::stack<Pointer> registerStack_;
         Frame *previous_;
@@ -64,6 +65,8 @@ namespace script
         void excutePushR(size_t & ip);
         void excutePopR(size_t & ip);
         void excuteEntry(size_t & ip);
+        void excuteNewSlot(size_t &ip);
+        void excuteNewArray(size_t & ip);
 
         void setRegister(unsigned reg, Pointer value);
         Pointer getRegister(unsigned reg);
@@ -83,6 +86,7 @@ namespace script
         Pointer ne(Pointer lhs, Pointer rhs);
         Pointer not(Pointer lhs);
         Pointer negative(Pointer lhs);
+
     private:
         Byte *opcodes_ = nullptr;
         size_t length_;
@@ -95,6 +99,7 @@ namespace script
         
         std::queue<Pointer> paramStack_;
         std::vector<std::string> stringPool_;
+        std::stack<Frame> frameStack_;
     };
 }
 

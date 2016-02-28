@@ -18,8 +18,8 @@ namespace script
         length_ = length;
 
         //file_.fill('0');
-        file_.setf(std::ios::showbase);
-        file_.setf(std::ios_base::hex, std::ios_base::basefield);
+        //file_.setf(std::ios::showbase);
+        //file_.setf(std::ios_base::hex, std::ios_base::basefield);
         file_ << "offset of entry : " << offsetOfEntry << endl;
         file_ << "length of opcode : " << opcodeLength_ << endl;
         file_ << "begin of opcode : " << endl;
@@ -102,6 +102,12 @@ namespace script
                 break;
             case OK_Entry:
                 dumpEntry(ip);
+                break;
+            case OK_NewSlot:
+                dumpNewSlot(ip);
+                break;
+            case OK_NewArray:
+                dumpNewArray(ip);
                 break;
             }
             if (ip >= opcodeLength_ + 8) break;
@@ -279,7 +285,19 @@ namespace script
 
     void DumpOpcode::dumpEntry(size_t & ip)
     {
-        file_ << "entry offset:" << getInteger(ip) << " frame:" << getInteger(ip) << endl;
+        file_ << "entry offset:" << getInteger(ip);
+        file_ << " frame:" << getInteger(ip) << endl;
+    }
+
+    void DumpOpcode::dumpNewSlot(size_t & ip)
+    {
+        file_ << "new slot : " << getInteger(ip) << endl;
+    }
+
+    void DumpOpcode::dumpNewArray(size_t &ip)
+    {
+        dumpRegister(opcode_[ip++]);
+        file_ << " = array[ " << getInteger(ip) << " ]" << endl;
     }
     
     void DumpOpcode::dumpRegister(unsigned reg)
@@ -332,7 +350,7 @@ namespace script
         int32_t result = 0;
         for (int i = 0; i < 4; ++i)
         {
-            result <<= 8; result |= opcode_[ip++];
+            result <<= 8; result |= (unsigned char)opcode_[ip++];
         }
         return result;
     }
