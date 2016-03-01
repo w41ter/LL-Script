@@ -422,51 +422,110 @@ namespace script
         }
     }
 
+    bool IsCalable(Pointer lhs)
+    {
+        return (IsFixnum(lhs) || IsReal(lhs));
+    }
+
     Pointer VirtualMachine::add(Pointer lhs, Pointer rhs)
     {
-        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        if (!IsCalable(lhs) || !IsCalable(rhs))
         {
             throw std::runtime_error("类型不匹配");
         }
-        return MakeFixnum(GetFixnum(lhs) + GetFixnum(rhs));
+        if (IsFixnum(lhs) && IsFixnum(rhs))
+        {
+            return MakeFixnum(GetFixnum(lhs) + GetFixnum(rhs));
+        }
+        else
+        {
+            float left = IsReal(lhs) ? GetReal(lhs) : GetFixnum(lhs);
+            float right = IsReal(rhs) ? GetReal(rhs) : GetFixnum(rhs);
+            return MakeReal(left + right);
+        }
     }
 
     Pointer VirtualMachine::sub(Pointer lhs, Pointer rhs)
     {
-        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        if (!IsCalable(lhs) || !IsCalable(rhs))
         {
             throw std::runtime_error("类型不匹配");
         }
-        return MakeFixnum(GetFixnum(lhs) - GetFixnum(rhs));
+        if (IsFixnum(lhs) && IsFixnum(rhs))
+        {
+            return MakeFixnum(GetFixnum(lhs) - GetFixnum(rhs));
+        }
+        else
+        {
+            float left = IsReal(lhs) ? GetReal(lhs) : GetFixnum(lhs);
+            float right = IsReal(rhs) ? GetReal(rhs) : GetFixnum(rhs);
+            return MakeReal(left - right);
+        }
     }
 
     Pointer VirtualMachine::mul(Pointer lhs, Pointer rhs)
     {
-        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        if (!IsCalable(lhs) || !IsCalable(rhs))
         {
             throw std::runtime_error("类型不匹配");
         }
-        return MakeFixnum(GetFixnum(lhs) * GetFixnum(rhs));
+        if (IsFixnum(lhs) && IsFixnum(rhs))
+        {
+            return MakeFixnum(GetFixnum(lhs) * GetFixnum(rhs));
+        }
+        else
+        {
+            float left = IsReal(lhs) ? GetReal(lhs) : GetFixnum(lhs);
+            float right = IsReal(rhs) ? GetReal(rhs) : GetFixnum(rhs);
+            return MakeReal(left * right);
+        }
     }
 
     Pointer VirtualMachine::div(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsCalable(lhs) || !IsCalable(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        if (IsFixnum(lhs) && IsFixnum(rhs))
+        {
+            int right = GetFixnum(rhs);
+            return MakeFixnum(GetFixnum(lhs) / right);
+        }
+        else
+        {
+            float left = IsReal(lhs) ? GetReal(lhs) : GetFixnum(lhs);
+            float right = IsReal(rhs) ? GetReal(rhs) : GetFixnum(rhs);
+            if (right == 0.0f) throw std::runtime_error("div 0 error!");
+            return MakeReal(left / right);
+        }
     }
 
     Pointer VirtualMachine::g(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(GetFixnum(lhs) > GetFixnum(rhs));
     }
 
     Pointer VirtualMachine::gt(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(GetFixnum(lhs) >= GetFixnum(rhs));
     }
 
     Pointer VirtualMachine::l(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs) || !IsFixnum(rhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(GetFixnum(lhs) < GetFixnum(rhs));
     }
 
     Pointer VirtualMachine::lt(Pointer lhs, Pointer rhs)
@@ -480,22 +539,67 @@ namespace script
 
     Pointer VirtualMachine::et(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (IsFixnum(lhs) && IsFixnum(rhs))
+        {
+            return MakeFixnum(lhs == rhs);
+        }
+        else if (IsReal(lhs) && IsReal(rhs))
+        {
+            return MakeFixnum(lhs == rhs);
+        }
+        else if (IsString(lhs) && IsString(rhs))
+        {
+            return MakeFixnum(strcmp(GetString(lhs), GetString(rhs)) == 0);
+        }
+        else
+        {
+            return MakeFixnum(lhs == rhs);
+        }
     }
 
     Pointer VirtualMachine::ne(Pointer lhs, Pointer rhs)
     {
-        return Pointer();
+        if (IsFixnum(lhs) && IsFixnum(rhs))
+        {
+            return MakeFixnum(lhs != rhs);
+        }
+        else if (IsReal(lhs) && IsReal(rhs))
+        {
+            return MakeFixnum(lhs != rhs);
+        }
+        else if (IsString(lhs) && IsString(rhs))
+        {
+            return MakeFixnum(strcmp(GetString(lhs), GetString(rhs)));
+        }
+        else
+        {
+            return MakeFixnum(lhs != rhs);
+        }
     }
 
     Pointer VirtualMachine::not(Pointer lhs)
     {
-        return Pointer();
+        if (!IsFixnum(lhs))
+        {
+            throw std::runtime_error("类型不匹配");
+        }
+        return MakeFixnum(!GetFixnum(lhs));
     }
 
     Pointer VirtualMachine::negative(Pointer lhs)
     {
-        return Pointer();
+        if (IsFixnum(lhs))
+        {
+            return MakeFixnum(-GetFixnum(lhs));
+        }
+        else if (IsReal(lhs))
+        {
+            return MakeReal(-GetReal(lhs));
+        }
+        else
+        {
+            throw std::runtime_error("类型不匹配");
+        }
     }
 
     void VirtualMachine::loadStringPool()
@@ -529,7 +633,9 @@ namespace script
 
     float VirtualMachine::getFloat(size_t & ip)
     {
-        return (float)getInteger(ip);
+        int ival = getInteger(ip), *iptr = &ival;
+        double *fptr = reinterpret_cast<double*>(iptr);
+        return *fptr;
     }
 
 }

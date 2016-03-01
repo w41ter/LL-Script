@@ -46,7 +46,8 @@ namespace script
 
     float GetReal(Pointer p)
     {
-        return (p >> TAG_SHIFT);
+        int ival = (p >> TAG_SHIFT), *iptr = &ival;
+        return *reinterpret_cast<float*>(iptr);
     }
     
     Pointer SetChar(char c)
@@ -61,7 +62,9 @@ namespace script
 
     Pointer MakeReal(float value)
     {
-        return ((((int)value) << TAG_SHIFT) | TAG_REAL);
+        float *fptr = &value;
+        int *iptr = reinterpret_cast<int*>(fptr), ival = *iptr;
+        return ((ival << TAG_SHIFT) | TAG_REAL);
     }
 
     Pointer Nil()
