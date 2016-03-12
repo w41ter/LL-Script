@@ -567,11 +567,16 @@ namespace script
         return make_unique<ASTDefine>(name, std::move(tree));
     }
 
+    Parser::Parser(Lexer & lexer) : lexer_(lexer) 
+    {
+        initialize(); 
+    }
+
     //
     // program: 
     //  { define_decl }
     //
-    unique_ptr<ASTProgram> Parser::parse()
+    ASTContext *Parser::parse()
     {
         Symbols *symbol = new Symbols(nullptr);
         vector<unique_ptr<ASTDefine>> defines;
@@ -589,8 +594,9 @@ namespace script
         }
 
         this->functions_ = nullptr;
-        return make_unique<ASTProgram>(
-            symbol, std::move(defines), std::move(functions));
+        context_.setProgram(context_.allocate<ASTProgram>(
+            symbol, std::move(defines), std::move(functions)));
+        return &this->context_;
     }
 
     void Parser::advance()

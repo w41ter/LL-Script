@@ -6,6 +6,7 @@
 
 #include "lexer.h"
 #include "../Semantic/AST.h"
+#include "../Semantic/ASTContext.h"
 
 namespace script
 {
@@ -29,9 +30,9 @@ namespace script
     class Parser
     {
     public:
-        Parser(Lexer &lexer) : lexer_(lexer) { initialize(); }
+        Parser(Lexer &lexer);
 
-        std::unique_ptr<ASTProgram> parse();
+        ASTContext *parse();
 
     private:
         void initialize();
@@ -68,6 +69,9 @@ namespace script
         std::vector<Symbols*> symbolTable_;
         std::vector<std::set<std::string>*> catch_;
         std::vector<std::unique_ptr<ASTFunction>> *functions_;
+
+        // ASTContext 用于管理 AST 上下文
+        ASTContext context_;
     };
 }
 

@@ -6,114 +6,33 @@
 #include <set>
 #include <memory>
 
+#include "../Parser/lexer.h"
+
 namespace script
 {
-    class ASTExpressionList;
-    class ASTIdentifier;
-    class ASTNull;
-    class ASTConstant;
-    class ASTArray;
-    class ASTCall;
-    class ASTArrayIndex;
-    class ASTSingleExpression;
-    class ASTBinaryExpression;
-    class ASTRelationalExpression;
-    class ASTAndExpression;
-    class ASTOrExpression;
-    class ASTAssignExpression;
-    class ASTVarDeclStatement;
-    class ASTContinueStatement;
-    class ASTBreakStatement;
-    class ASTReturnStatement;
-    class ASTWhileStatement;
-    class ASTIfStatement;
-    class ASTStatement;
-    class ASTBlock;
-    class ASTFunction;
-    class ASTProgram;
-    class ASTPrototype;
-    class ASTDefine;
-    class ASTClosure;
+    enum class SymbolType { ST_NONE, ST_Constant, ST_Variable, };
 
-    class ASTVisitor
+    struct Symbol
     {
-    public:
-        virtual ~ASTVisitor() {};
-        virtual bool visit(ASTExpressionList *v) = 0;
-        virtual bool visit(ASTIdentifier *v) = 0;
-        virtual bool visit(ASTNull *v) = 0;
-        virtual bool visit(ASTConstant *v) = 0;
-        virtual bool visit(ASTArray *v) = 0;
-        virtual bool visit(ASTCall *v) = 0;
-        virtual bool visit(ASTArrayIndex *v) = 0;
-        virtual bool visit(ASTSingleExpression *v) = 0;
-        virtual bool visit(ASTBinaryExpression *v) = 0;
-        virtual bool visit(ASTRelationalExpression *v) = 0;
-        virtual bool visit(ASTAndExpression *v) = 0;
-        virtual bool visit(ASTOrExpression *v) = 0;
-        virtual bool visit(ASTAssignExpression *v) = 0;
-        virtual bool visit(ASTVarDeclStatement *v) = 0;
-        virtual bool visit(ASTContinueStatement *v) = 0;
-        virtual bool visit(ASTBreakStatement *v) = 0;
-        virtual bool visit(ASTReturnStatement *v) = 0;
-        virtual bool visit(ASTWhileStatement *v) = 0;
-        virtual bool visit(ASTIfStatement *v) = 0;
-        virtual bool visit(ASTStatement *v) = 0;
-        virtual bool visit(ASTBlock *v) = 0;
-        virtual bool visit(ASTFunction *v) = 0;
-        virtual bool visit(ASTProgram *v) = 0;
-        virtual bool visit(ASTPrototype *v) = 0;
-        virtual bool visit(ASTDefine *v) = 0;
-        virtual bool visit(ASTClosure *v) = 0;
+        Token token_;
+        SymbolType type_;
     };
 
-    template<typename T, T val>
     class SymbolTable
     {
     public:
-        SymbolTable(SymbolTable<T, val> *parent) : parent_(parent) {}
+        SymbolTable(SymbolTable *parent);
 
-        bool insert(const std::string &name, T t)
-        {
-            if (table_.count(name) == 0)
-            {
-                table_.insert(std::pair<std::string, T>(name, t));
-                return true;
-            }
-            return false;
-        }
-
-        T &find(const std::string &name)
-        {
-            if (table_.count(name) == 0)
-                return end();
-            return table_[name];
-        }
-
-        T &findInTree(const std::string &name)
-        {
-            if (table_.count(name) == 0)
-            {
-                if (parent_ != nullptr)
-                    return parent_->findInTree(name);
-                return end();
-            }
-            return table_[name];
-        }
-
-        T &end() const 
-        {
-            static T t = val;
-            return t; 
-        }
-
+        bool insert(const std::string &name, SymbolType type, Token token);
+        Symbol &find(const std::string &name);
+        Symbol &findInTree(const std::string &name);
+        Symbol &end() const;
+    
     private:
-        SymbolTable<T, val> *parent_;
-        std::map<std::string, T> table_;
+        SymbolTable *parent_;
+        std::map<std::string, Symbol> table_;
     };
 
-    enum class SymbolType { ST_NONE, ST_Constant, ST_Variable, };
-    typedef SymbolTable<SymbolType, SymbolType::ST_NONE> Symbols;
 
     class ASTree
     {
@@ -517,18 +436,47 @@ namespace script
     class ASTProgram : public ASTree
     {
     public:
-        ASTProgram(Symbols *table,
-            std::vector<std::unique_ptr<ASTDefine>> defines,
-            std::vector<std::unique_ptr<ASTFunction>> function)
-            : table_(table)
-            , defines_(std::move(defines))
-            , function_(std::move(function))
-        {}
-        virtual ~ASTProgram() { delete table_; }
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        ASTProgram(SymbolTable *table,
+            std::vector<ASTDefine*> defines,
+            std::vector<ASTFunction*> function);
 
-        Symbols *table_;
+        virtual ~ASTProgram();
+        virtual bool accept(ASTVisitor *v) override;
+
+        SymbolTable *table_;
         std::vector<std::unique_ptr<ASTDefine>> defines_;
         std::vector<std::unique_ptr<ASTFunction>> function_;
+    };
+
+    class ASTVisitor
+    {
+    public:
+        virtual ~ASTVisitor() {};
+        virtual bool visit(ASTExpressionList *v) = 0;
+        virtual bool visit(ASTIdentifier *v) = 0;
+        virtual bool visit(ASTNull *v) = 0;
+        virtual bool visit(ASTConstant *v) = 0;
+        virtual bool visit(ASTArray *v) = 0;
+        virtual bool visit(ASTCall *v) = 0;
+        virtual bool visit(ASTArrayIndex *v) = 0;
+        virtual bool visit(ASTSingleExpression *v) = 0;
+        virtual bool visit(ASTBinaryExpression *v) = 0;
+        virtual bool visit(ASTRelationalExpression *v) = 0;
+        virtual bool visit(ASTAndExpression *v) = 0;
+        virtual bool visit(ASTOrExpression *v) = 0;
+        virtual bool visit(ASTAssignExpression *v) = 0;
+        virtual bool visit(ASTVarDeclStatement *v) = 0;
+        virtual bool visit(ASTContinueStatement *v) = 0;
+        virtual bool visit(ASTBreakStatement *v) = 0;
+        virtual bool visit(ASTReturnStatement *v) = 0;
+        virtual bool visit(ASTWhileStatement *v) = 0;
+        virtual bool visit(ASTIfStatement *v) = 0;
+        virtual bool visit(ASTStatement *v) = 0;
+        virtual bool visit(ASTBlock *v) = 0;
+        virtual bool visit(ASTFunction *v) = 0;
+        virtual bool visit(ASTProgram *v) = 0;
+        virtual bool visit(ASTPrototype *v) = 0;
+        virtual bool visit(ASTDefine *v) = 0;
+        virtual bool visit(ASTClosure *v) = 0;
     };
 }
