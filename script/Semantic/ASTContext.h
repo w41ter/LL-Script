@@ -9,6 +9,9 @@ namespace script
 {
     class ASTContext
     {
+        friend class Translator;
+        friend class DumpAST;
+        friend class Analysis;
     public:
         ASTContext();
         ~ASTContext();

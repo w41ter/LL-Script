@@ -1,9 +1,19 @@
 #include <iostream>
+#include <set>
+#include <string>
+#include <stdexcept>
+#include <vector>
 
+#include "ASTContext.h"
 #include "Analysis.h"
 
 namespace script
 {
+    void Analysis::analysis(ASTContext & context)
+    {
+        context.program_->accept(this);
+    }
+
     bool Analysis::visit(ASTExpressionList *v)
     {
         for (auto &i : v->exprs_)
@@ -15,9 +25,9 @@ namespace script
     bool Analysis::visit(ASTIdentifier *v)
     {
         auto end = table_->find(v->name_);
-        if (end == SymbolType::ST_Variable)
+        if (end.type_ == SymbolType::ST_Variable)
             type_ = TP_Identifier;
-        else if (end == SymbolType::ST_Constant)
+        else if (end.type_ == SymbolType::ST_Constant)
             type_ = TP_Constant;
         else
             throw std::runtime_error("undefined identifier " + v->name_);
@@ -200,7 +210,7 @@ namespace script
         //v->prototype_->accept(this); 
         //std::cout << "\tbegin analysis function: " 
         //    << v->prototype_->name_ << std::endl;
-        Symbols *table = table_;
+        SymbolTable *table = table_;
         table_ = v->table_;
         v->block_->accept(this);
         table_ = table;
@@ -244,4 +254,40 @@ namespace script
         v->tree_->accept(this);
         return false;
     }
+
+    void Analysis::except(unsigned tp) {
+        if (type_ == TP_Identifier
+            || type_ == TP_Constant
+            || type_ == tp)
+            return;
+
+        if (number(tp))
+        {
+            if (number(type_))
+                return;
+        }
+
+        throw std::runtime_error("¿‡–Õ¥ÌŒÛ");
+    }
+
+    bool Analysis::number(unsigned type)
+    {
+        return (type == TP_Integer ||
+            type == TP_Character ||
+            type == TP_Float);
+    }
+
+    unsigned Analysis::maxType(unsigned left, unsigned right)
+    {
+        if (left == TP_Constant || right == TP_Constant)
+            return TP_Identifier;
+        if (left == TP_Identifier || right == TP_Identifier)
+            return TP_Identifier;
+        if (left == TP_Float || right == TP_Float)
+            return TP_Float;
+        if (left == TP_Integer || right == TP_Integer)
+            return TP_Integer;
+        return TP_Character;
+    }
+
 }

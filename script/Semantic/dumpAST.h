@@ -7,11 +7,15 @@
 
 namespace script
 {
+    class ASTContext;
+
     class DumpAST : public ASTVisitor
     {
     public:
         DumpAST(std::fstream &file) : file_(file) {}
         virtual ~DumpAST() = default;
+
+        void dump(ASTContext &context);
 
         virtual bool visit(ASTExpressionList *v) override;
         virtual bool visit(ASTIdentifier *v) override;

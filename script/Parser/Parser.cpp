@@ -1,7 +1,3 @@
-#include <map>
-#include <string>
-#include <iostream>
-#include <sstream>
 
 #include "Parser.h"
 
@@ -10,10 +6,14 @@ using std::set;
 using std::string;
 using std::vector;
 using std::unique_ptr;
-using std::make_unique;
 
 namespace script
 {
+    bool operator == (const Symbol &lhs, const Symbol &rhs)
+    {
+        return (lhs.token_ == rhs.token_ && lhs.type_ == rhs.type_);
+    }
+
     bool Parser::isRelational(unsigned tok)
     {
         return (tok == TK_Less || tok == TK_LessThan ||
@@ -53,24 +53,19 @@ namespace script
         }
     }
 
-    unique_ptr<ASTree> Parser::parseKeywordConstant()
+    ASTree *Parser::parseKeywordConstant()
     {
-        unique_ptr<ASTree> expr = nullptr;
+        ASTree *expr = nullptr;
         if (token_.kind_ == TK_True)
-            expr = make_unique<ASTConstant>(1);
+            expr = context_.allocate<ASTConstant>(1);
         else if (token_.kind_ == TK_False)
-            expr = make_unique<ASTConstant>(0);
+            expr = context_.allocate<ASTConstant>(0);
         else if (token_.kind_ == TK_Null)
-            expr = make_unique<ASTNull>();
+            expr = context_.allocate<ASTNull>();
         else
-        {
-            std::cout << "find " << token_.value_ << "(" 
-                << token_.coord_.lineNum_ << "," 
-                << token_.coord_.linePos_ << ")" << std::endl;
-            throw std::runtime_error(" i dont konw");
-        }
+            errorUnrecordToken();
         advance();
-        return std::move(expr);
+        return expr;
     }
 
     //
@@ -84,251 +79,231 @@ namespace script
     //    | "[" expression_list "]"
     //    | function_decl
     //
-    unique_ptr<ASTree> Parser::parseFactor()
+    ASTree *Parser::parseFactor()
     {
-        unique_ptr<ASTree> expr = nullptr;
+        ASTree *expr = nullptr;
         switch (token_.kind_)
         {
         case TK_LitFloat: 
         {
-            expr = make_unique<ASTConstant>(token_.fnum_);
+            expr = context_.allocate<ASTConstant>(token_.fnum_);
             advance();
             break;
         }
         case TK_LitString:
         {
-            expr = make_unique<ASTConstant>(token_.value_);
+            expr = context_.allocate<ASTConstant>(token_.value_);
             advance();
             break;
         }
         case TK_LitInteger:
         {
-            expr = make_unique<ASTConstant>(token_.num_);
+            expr = context_.allocate<ASTConstant>(token_.num_);
             advance();
             break;
         }
         case TK_LitCharacter:
         {
-            expr = make_unique<ASTConstant>(token_.value_[0]);
+            expr = context_.allocate<ASTConstant>(token_.value_[0]);
             advance();
             break;
         }
         case TK_Identifier:
         {
-            Symbols *symbol = symbolTable_.back();
+            SymbolTable *symbol = symbolTable_.back();
             if (symbol->find(token_.value_) == symbol->end())
             {
                 if (symbol->findInTree(token_.value_) == symbol->end())
-                {
-                    // error
-                    std::cout << token_.value_ << " are undefined!" << std::endl;
-                    throw std::runtime_error("identifier undefined!");
-                }
+                    errorUndefined(token_.value_);
                 catch_.back()->insert(token_.value_);
             }
-            expr = make_unique<ASTIdentifier>(token_.value_);
+            expr = context_.allocate<ASTIdentifier>(token_.value_);
             advance();
             break;
         }
         case TK_LParen:
         {
             advance();
-            expr = std::move(parseExpr());
+            expr = parseExpr();
             match(TK_RParen);
             break;
         }
         case TK_LSquareBrace:
         {
             advance();
-            expr = make_unique<ASTArray>(parseExprList());
+            expr = context_.allocate<ASTArray>(parseExprList());
             match(TK_RSquareBrace);
             break;
         }
         case TK_Function:
         {
-            return std::move(parseFunctionDecl());
-            break;
+            return parseFunctionDecl();
         }
         default:
-            expr = std::move(parseKeywordConstant());
+            expr = parseKeywordConstant();
             break;
         }
-        return std::move(expr);
+        return expr;
     }
 
     //
     // positive_factor:
     //  factor{ (["[" expression "]"] | ["(" expression_list ")"]) }
     // 
-    unique_ptr<ASTree> Parser::parsePositveFactor()
+    ASTree *Parser::parsePositveFactor()
     {
-        unique_ptr<ASTree> expr = std::move(parseFactor());
-        while (token_.kind_ == TK_LSquareBrace ||
-            token_.kind_ == TK_LParen)
+        ASTree *expr = parseFactor();
+        while (token_.kind_ == TK_LSquareBrace || token_.kind_ == TK_LParen)
         {
             if (token_.kind_ == TK_LSquareBrace)
             {
                 advance();
-                expr = make_unique<ASTArrayIndex>(
-                    std::move(expr), std::move(parseExpr()));
+                expr = context_.allocate<ASTArrayIndex>(expr, parseExpr());
                 match(TK_RSquareBrace);
             }
             else
             {
                 advance();
-                unique_ptr<ASTree> exprList = 
-                    make_unique<ASTExpressionList>();
+                ASTree *exprList = context_.allocate<ASTExpressionList>();
                 if (token_.kind_ != TK_RParen)
-                    exprList = std::move(parseExprList());
-                expr = make_unique<ASTCall>(
-                    std::move(expr), std::move(exprList));
+                    exprList = parseExprList();
+                expr = context_.allocate<ASTCall>(expr, exprList);
                 match(TK_RParen);
             }
         }
-        return std::move(expr);
+        return expr;
     }
 
     //
     // not_factor:
     //  ["!"] positive_factor
     //
-    unique_ptr<ASTree> Parser::parseNotFactor()
+    ASTree *Parser::parseNotFactor()
     {
         if (token_.kind_ == TK_Not)
         {
             advance();
-            return make_unique<ASTSingleExpression>(
-                TK_Not,
-                std::move(parsePositveFactor())
-                );
+            return context_.allocate<ASTSingleExpression>(
+                TK_Not, parsePositveFactor());
         }
-        return std::move(parsePositveFactor());
+        return parsePositveFactor();
     }
 
     //
     // term:
     //  ["-"] not_factor
     //
-    unique_ptr<ASTree> Parser::parseTerm()
+    ASTree *Parser::parseTerm()
     {
         if (token_.kind_ == TK_Sub)
         {
             advance();
-            return make_unique<ASTSingleExpression>(
-                TK_Sub, std::move(parseNotFactor()));
+            return context_.allocate<ASTSingleExpression>(
+                TK_Sub, parseNotFactor());
         }
-        return std::move(parseNotFactor());
+        return parseNotFactor();
     }
 
     //
     // additive_expression:
     //  term{ ("*" | "/") term }
     //
-    unique_ptr<ASTree> Parser::parseAdditiveExpr()
+    ASTree *Parser::parseAdditiveExpr()
     {
-        unique_ptr<ASTree> expr = std::move(parseTerm());
+        ASTree *expr = parseTerm();
         while (token_.kind_ == TK_Mul || token_.kind_ == TK_Div)
         {
             unsigned op = token_.kind_;
             advance();
-            expr = make_unique<ASTBinaryExpression>(
-                op,
-                std::move(expr),
-                std::move(parseTerm())
-                );
+            expr = context_.allocate<ASTBinaryExpression>(
+                op, expr, parseTerm());
         }
-        return std::move(expr);
+        return expr;
     }
 
     //
     // relational_expression:
     //  additive_expression{ ("+" | "-") additive_expression }
     // 
-    unique_ptr<ASTree> Parser::parseRelationalExpr()
+    ASTree *Parser::parseRelationalExpr()
     {
-        unique_ptr<ASTree> expr = std::move(parseAdditiveExpr());
+        ASTree *expr = parseAdditiveExpr();
         while (token_.kind_ == TK_Plus || token_.kind_ == TK_Sub)
         {
             unsigned op = token_.kind_;
             advance();
-            expr = make_unique<ASTBinaryExpression>(
-                op,
-                std::move(expr),
-                std::move(parseAdditiveExpr())
-                );
+            expr = context_.allocate<ASTBinaryExpression>(
+                op,expr, parseAdditiveExpr());
         }
-        return std::move(expr);
+        return expr;
     }
 
     //
     // and_expression:
     //  relational_expression[("<" | ">" | ">=" | "<=" | "==" | "!=") relational_expression]
     // 
-    unique_ptr<ASTree> Parser::parseAndExpr()
+    ASTree *Parser::parseAndExpr()
     {
-        unique_ptr<ASTree> expr = std::move(parseRelationalExpr());
+        ASTree *expr = parseRelationalExpr();
         if (isRelational(token_.kind_))
         {
             unsigned op = token_.kind_;
             advance();
-            expr = make_unique<ASTRelationalExpression>(
-                op, std::move(expr),
-                std::move(parseRelationalExpr())
-                );
+            expr = context_.allocate<ASTRelationalExpression>(
+                op, expr, parseRelationalExpr());
         }
-        return std::move(expr);
+        return expr;
     }
 
     //
     // or_expression:
     //  and_expression{ "&&" and_expression }
     //
-    unique_ptr<ASTree> Parser::parseOrExpr()
+    ASTree *Parser::parseOrExpr()
     {
-        unique_ptr<ASTree> expr = parseAndExpr();
+        ASTree *expr = parseAndExpr();
         if (token_.kind_ != TK_And)
-            return std::move(expr);
-        unique_ptr<ASTAndExpression> andExpr = make_unique<ASTAndExpression>();
-        andExpr->push_back(std::move(expr));
+            return expr;
+        ASTAndExpression *andExpr = context_.allocate<ASTAndExpression>();
+        andExpr->push_back(expr);
         while (token_.kind_ == TK_And)
         {
             advance();
-            andExpr->push_back(std::move(parseAndExpr()));
+            andExpr->push_back(parseAndExpr());
         }
-        return std::move(andExpr);
+        return andExpr;
     }
 
     //
     // expression:
     //  or_expression{ "||" or_expression }
     //
-    unique_ptr<ASTree> Parser::parseExpr()
+    ASTree *Parser::parseExpr()
     {
-        unique_ptr<ASTree> expr = std::move(parseOrExpr());
+        ASTree *expr = parseOrExpr();
         if (token_.kind_ != TK_Or)
-            return std::move(expr);
-        unique_ptr<ASTOrExpression> orExpr = make_unique<ASTOrExpression>();
-        orExpr->push_back(std::move(expr));
+            return expr;
+        ASTOrExpression *orExpr = context_.allocate<ASTOrExpression>();
+        orExpr->push_back(expr);
         while (token_.kind_ == TK_Or)
         {
             advance();
-            orExpr->push_back(std::move(parseOrExpr()));
+            orExpr->push_back(parseOrExpr());
         }
-        return std::move(orExpr);
+        return orExpr;
     }
 
     //
     // assign_expression:
     //  expression { "=" expression }
     //
-    unique_ptr<ASTree> Parser::parseAssignExpr()
+    ASTree *Parser::parseAssignExpr()
     {
-        unique_ptr<ASTree> expr = std::move(parseExpr());
+        ASTree *expr = parseExpr();
         while (token_.kind_ == TK_Assign)
         {
             advance();
-            expr = make_unique<ASTAssignExpression>(
-                std::move(expr), std::move(parseExpr()));
+            expr = context_.allocate<ASTAssignExpression>(expr, parseExpr());
         }
         return expr;
     }
@@ -337,16 +312,16 @@ namespace script
     // expression_list:
     //  expression { "," expression }
     //
-    unique_ptr<ASTree> Parser::parseExprList()
+    ASTree *Parser::parseExprList()
     {
-        unique_ptr<ASTExpressionList> list = make_unique<ASTExpressionList>();
-        list->push_back(std::move(parseExpr()));
+        ASTExpressionList *list = context_.allocate<ASTExpressionList>();
+        list->push_back(parseExpr());
         while (token_.kind_ == TK_Comma)
         {
             advance();
-            list->push_back(std::move(parseExpr()));
+            list->push_back(parseExpr());
         }
-        return std::move(list);
+        return list;
     }
 
     //
@@ -360,89 +335,81 @@ namespace script
     //    | assign_expression ";"
     //    | var_decl
     //
-    unique_ptr<ASTree> Parser::parseStatement()
+    ASTree *Parser::parseStatement()
     {
         switch (token_.kind_)
         {
         case TK_LCurlyBrace:
-            return std::move(parseBlock());
-            break;
+            return parseBlock();
         case TK_If:
         {
             advance();
             match(TK_LParen);
-            unique_ptr<ASTree> condition = std::move(parseAssignExpr());
+            ASTree *condition = parseAssignExpr();
             match(TK_RParen);
-            unique_ptr<ASTree> ifState = std::move(parseStatement());
+            ASTree *ifState = parseStatement();
             if (token_.kind_ == TK_Else)
             {
                 advance();
-                unique_ptr<ASTree> elseState = std::move(parseStatement());
-                return make_unique<ASTIfStatement>(
-                    std::move(condition), 
-                    std::move(ifState), 
-                    std::move(elseState));
+                ASTree *elseState = parseStatement();
+                return context_.allocate<ASTIfStatement>(
+                    condition, ifState, elseState);
             }
-            return make_unique<ASTIfStatement>(
-                std::move(condition), std::move(ifState));
+            return context_.allocate<ASTIfStatement>(
+                condition, ifState);
         }
         case TK_While:
         {
             advance();
             match(TK_LParen);
-            unique_ptr<ASTree> condition = std::move(parseAssignExpr());
+            ASTree *condition = parseAssignExpr();
             match(TK_RParen);
-            unique_ptr<ASTree> state = std::move(parseStatement());
-            return make_unique<ASTWhileStatement>(
-                std::move(condition), std::move(state));
+            ASTree *state = parseStatement();
+            return context_.allocate<ASTWhileStatement>(condition, state);
         }
         case TK_Return:
         {    
             advance();
-            unique_ptr<ASTree> expr = nullptr;
+            ASTree *expr = nullptr;
             if (token_.kind_ != TK_Semicolon)
-                expr = std::move(parseAssignExpr());
+                expr = parseAssignExpr();
             
             match(TK_Semicolon);
-            return make_unique<ASTReturnStatement>(std::move(expr));
+            return context_.allocate<ASTReturnStatement>(expr);
         }
         case TK_Break:
         {
             advance();
             match(TK_Semicolon);
-            return make_unique<ASTBreakStatement>();
+            return context_.allocate<ASTBreakStatement>();
         }
         case TK_Continue:
         {
             advance();
             match(TK_Semicolon);
-            return make_unique<ASTContinueStatement>();
+            return context_.allocate<ASTContinueStatement>();
         }
         case TK_Let:
         {
             advance();
+            Token token = token_;
             string name = exceptIdentifier();
 
             match(TK_Assign);
-            unique_ptr<ASTree> expr = std::move(parseAssignExpr());
+            ASTree *expr = parseAssignExpr();
             match(TK_Semicolon);
 
             // insert symbol to symbol table only after it done.
-            Symbols *symbol = symbolTable_.back();
-            if (!symbol->insert(name, SymbolType::ST_Variable))
-            {
-                // error redefine
-                std::cout << name << " are redefined!" << std::endl;
-                throw std::runtime_error("identifier redefined!");
-            }
+            SymbolTable *symbol = symbolTable_.back();
+            if (!symbol->insert(name, SymbolType::ST_Variable, token))
+                errorRedefined(name);
 
-            return make_unique<ASTVarDeclStatement>(name, std::move(expr));
+            return context_.allocate<ASTVarDeclStatement>(name, expr);
         }
         default:
-            unique_ptr<ASTree> expr = 
-                make_unique<ASTStatement>(std::move(parseAssignExpr()));
+            ASTree *expr = context_.allocate<ASTStatement>(parseAssignExpr());
             match(TK_Semicolon);
-            return std::move(expr);
+            return expr;
         }
     }
 
@@ -450,153 +417,190 @@ namespace script
     // block:
     //  "{" { statement } "}"
     //
-    unique_ptr<ASTBlock> Parser::parseBlock()
+    ASTBlock *Parser::parseBlock()
     {
-        unique_ptr<ASTBlock> block = make_unique<ASTBlock>();
+        ASTBlock *block = context_.allocate<ASTBlock>();
         match(TK_LCurlyBrace);
         while (token_.kind_ != TK_RCurlyBrace)
         {
-            block->push_back(std::move(parseStatement()));
+            block->push_back(parseStatement());
         }
         advance();
-        return std::move(block);
+        return block;
     }
 
     //
-    // param_list:
-    //  ID{ ","  ID }
-    //
-    // function_decl:
-    //  "function" "("[param_list] ")" block
-    //
-    unique_ptr<ASTClosure> Parser::parseFunctionDecl()
+    // "("[param_list] ")"
+    // 
+    SymbolTable *Parser::readParams()
     {
-        string name = getTempIDName("lambda");
-
-        advance();
         match(TK_LParen);
 
-        vector<string> params;
+        map<string, Token> params;
         if (token_.kind_ == TK_Identifier)
         {
-            params.push_back(token_.value_);
+            params.insert(std::pair<string, Token>(token_.value_, token_));
             advance();
             while (token_.kind_ == TK_Comma)
             {
                 advance();
-                params.push_back(exceptIdentifier());
+                Token token = token_;
+                params.insert(std::pair<string, Token>(exceptIdentifier(), token));
             }
         }
-        
+
         match(TK_RParen);
 
         // init symbol table
-        Symbols *table = new Symbols(symbolTable_.back());
+        SymbolTable *table = new SymbolTable(symbolTable_.back());
         for (auto &i : params)
         {
             // all params is constant.
-            if (!table->insert(i, SymbolType::ST_Constant))
-            {
-                // error redefined
-                std::cout << i << " are redefined!" << std::endl;
-                throw std::runtime_error("identifier redefined!");
-            }
+            if (!table->insert(i.first, SymbolType::ST_Constant, i.second))
+                errorRedefined(i.first);
         }
         symbolTable_.push_back(table);
 
-        // parse block
+        return table;
+    }
+
+    //
+    // param_list:
+    //  ID { ","  ID }
+    //
+    // function_decl:
+    //  "function" "("[param_list] ")" block
+    //
+    ASTClosure *Parser::parseFunctionDecl()
+    {
+        advance();
+
+        string name = getTempIDName("lambda");
+        SymbolTable *table = readParams();
+
         set<string> catchTable;
         catch_.push_back(&catchTable);
-        unique_ptr<ASTBlock> block = std::move(parseBlock());
+
+        ASTBlock *block = parseBlock();
+
         catch_.pop_back();
         symbolTable_.pop_back();
 
         // insert catch table
-        Symbols *parent = symbolTable_.back();
+        //SymbolTable *parent = symbolTable_.back();
 
         vector<string> argument;
-        for (auto &i : catchTable)
-        {
-            argument.push_back(i);
-            table->insert(i, SymbolType::ST_Constant);
-            // insert catch table into parent
-            if (parent->find(i) == parent->end())
-                catch_.back()->insert(i);
-        }
+        for (const auto &cat : catchTable)
+            argument.push_back(cat);
+        for (auto symbol : table->getTables()) 
+            argument.push_back(symbol.first);
 
-        for (auto &i : params)
-            argument.push_back(i);
+        //for (auto &i : catchTable)
+        //{
+        //    argument.push_back(i);
+        //    table->insert(i, SymbolType::ST_Constant);
+        //    // insert catch table into parent
+        //    if (parent->find(i) == parent->end())
+        //        catch_.back()->insert(i);
+        //}
         
         int closureArgsSize = argument.size();
 
-        unique_ptr<ASTPrototype> proto =
-            make_unique<ASTPrototype>(name, std::move(argument));
-        functions_->push_back(
-            make_unique<ASTFunction>(
-                table, std::move(proto), std::move(block)));
+        ASTPrototype *proto = context_.allocate<ASTPrototype>(name, std::move(argument));
+        functions_->push_back(context_.allocate<ASTFunction>(table, proto, block));
 
         // Create closure
         argument.clear();
         for (auto &i : catchTable)
             argument.push_back(i);
-        return make_unique<ASTClosure>(name, closureArgsSize, argument);
+        return context_.allocate<ASTClosure>(name, closureArgsSize, std::move(argument));
     }
 
     //
     // define_decl:
     //  "define" ID "=" expression ";"
     //
-    unique_ptr<ASTDefine> Parser::parseDefine()
+    ASTDefine *Parser::parseDefine()
     {
         match(TK_Define);
         string name = exceptIdentifier();
         
         match(TK_Assign);
-        unique_ptr<ASTree> tree = std::move(parseExpr());
+        ASTree *tree = parseExpr();
         match(TK_Semicolon);
 
         // like let, symbol be insert into after it done.
-        Symbols *symbol = symbolTable_.back();
-        if (!symbol->insert(name, SymbolType::ST_Constant))
+        SymbolTable *symbol = symbolTable_.back();
+        if (!symbol->insert(name, SymbolType::ST_Constant, token_))
         {
-            // error redefined
-            std::cout << name << " are redefined!" << std::endl;
-            throw std::runtime_error("identifier redefined!");
+            errorRedefined(name);
         }
 
-        return make_unique<ASTDefine>(name, std::move(tree));
-    }
-
-    Parser::Parser(Lexer & lexer) : lexer_(lexer) 
-    {
-        initialize(); 
+        return context_.allocate<ASTDefine>(name, tree);
     }
 
     //
     // program: 
-    //  { define_decl }
+    //  { ( define_decl | statement ) }
     //
-    ASTContext *Parser::parse()
+    void Parser::parse()
     {
-        Symbols *symbol = new Symbols(nullptr);
-        vector<unique_ptr<ASTDefine>> defines;
-        vector<unique_ptr<ASTFunction>> functions;
+        SymbolTable *symbol = new SymbolTable(nullptr);
+        vector<ASTDefine*> defines;
+        vector<ASTFunction*> functions;
         this->functions_ = &functions;
 
         set<string> catchTable;
         symbolTable_.push_back(symbol);
         catch_.push_back(&catchTable);
 
+        // TODO:
+
         advance();
         while (token_.kind_ == TK_Define)
         {
-            defines.push_back(std::move(parseDefine()));
+            defines.push_back(parseDefine());
         }
 
         this->functions_ = nullptr;
         context_.setProgram(context_.allocate<ASTProgram>(
             symbol, std::move(defines), std::move(functions)));
-        return &this->context_;
+    }
+
+    Parser::Parser(Lexer & lexer, ASTContext &context) 
+        : lexer_(lexer), context_(context)
+    {
+        initialize();
+    }
+
+    // 
+    // 输出公共错误信息
+    // 
+    void Parser::commonError()
+    {
+        std::cout << token_.coord_.fileName_ << "(" <<
+            token_.coord_.lineNum_ << "," << token_.coord_.linePos_ << "): ";
+    }
+
+    void Parser::errorUnrecordToken()
+    {
+        commonError();
+        std::cout << "find unexcepted character " << token_.value_ << std::endl;
+        throw std::runtime_error(" i dont konw");
+    }
+
+    void Parser::errorUndefined(const std::string & name)
+    {
+        commonError();
+        std::cout << "identifier \"" << name << "\" are undefined!" << std::endl;
+        throw std::runtime_error("identifier undefined!");
+    }
+
+    void Parser::errorRedefined(const std::string & name)
+    {
+        commonError();
+        std::cout << "identifier \"" << name << "\" are redefined!" << std::endl;
+        throw std::runtime_error("identifier redefined!");
     }
 
     void Parser::advance()
@@ -608,9 +612,9 @@ namespace script
     {
         if (token_.kind_ != tok)
         {
-            std::cout << tok << " need in file but find " 
-                << token_.kind_ << " "<< token_.coord_.lineNum_ 
-                << " " << token_.coord_.linePos_ << std::endl;
+            commonError();
+            std::cout << tok << " except in file but find " 
+                << token_.kind_ << std::endl;
             throw std::runtime_error("match false");
         }
         advance();
@@ -620,9 +624,8 @@ namespace script
     {
         if (token_.kind_ != TK_Identifier)
         {
-            std::cout << " Identifier need in file but find " 
-                << token_.kind_ << " " << token_.coord_.lineNum_ 
-                << " " << token_.coord_.linePos_ << std::endl;
+            commonError();
+            std::cout << "identifier need but find " << token_.kind_ << std::endl;
             throw std::runtime_error("match false");
         }
         string value = std::move(token_.value_);

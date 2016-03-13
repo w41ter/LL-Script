@@ -12,6 +12,7 @@
 #include "Semantic\Analysis.h"
 #include "Semantic\dumpAST.h"
 #include "Semantic\Translator.h"
+#include "Semantic\ASTContext.h"
 #include "IR\QuadGenerator.h"
 #include "IR\Quad.h"
 #include "IR\dumpQuad.h"
@@ -28,14 +29,14 @@ int main(int argc, char* argv[])
         return 0;
 
     script::Lexer lexer;
-    script::Parser parser(lexer);
+    script::ASTContext context;
+    script::Parser parser(lexer, context);
     
     script::Analysis analysis;
-    std::unique_ptr<script::ASTProgram> program;
     try {
         lexer.setProgram(std::string(driver.filename));
-        program = std::move(parser.parse());
-        program->accept(&analysis);
+        parser.parse();
+        analysis.analysis(context);
     }
     catch (std::runtime_error &e) {
         std::cout << e.what() << std::endl;
@@ -49,13 +50,13 @@ int main(int argc, char* argv[])
         dumpFilename += ".ast";
         std::fstream dumpASTFile(dumpFilename, std::ofstream::out);
         script::DumpAST dumpAST(dumpASTFile);
-        program->accept(&dumpAST);
+        dumpAST.dump(context);
     }
     
     // translate AST to IR (quad).
     script::IRModule module;
     script::Translator translator(module);
-    translator.translate(program.get());
+    translator.translate(context);
 
     if (driver.dumpQuad_)
     {

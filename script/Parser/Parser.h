@@ -1,6 +1,9 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
-
+#include <map>
+#include <string>
+#include <iostream>
+#include <sstream>
 #include <set>
 #include <memory>
 
@@ -10,7 +13,8 @@
 
 namespace script
 {
-    enum KeywordsIDs {
+    enum KeywordsIDs 
+    {
         TK_If = TK_BeginKeywordIDs,
         TK_Let,
         TK_Else,
@@ -30,30 +34,36 @@ namespace script
     class Parser
     {
     public:
-        Parser(Lexer &lexer);
+        Parser(Lexer &lexer, ASTContext &context);
 
-        ASTContext *parse();
+        void parse();
 
     private:
         void initialize();
 
-        std::unique_ptr<ASTree> parseKeywordConstant();
-        std::unique_ptr<ASTree> parseFactor();
-        std::unique_ptr<ASTree> parsePositveFactor();
-        std::unique_ptr<ASTree> parseNotFactor();
-        std::unique_ptr<ASTree> parseTerm();
-        std::unique_ptr<ASTree> parseAdditiveExpr();
-        std::unique_ptr<ASTree> parseRelationalExpr();
-        std::unique_ptr<ASTree> parseAndExpr();
-        std::unique_ptr<ASTree> parseOrExpr();
-        std::unique_ptr<ASTree> parseExpr();
-        std::unique_ptr<ASTree> parseExprList();
-        std::unique_ptr<ASTree> parseAssignExpr();
-        std::unique_ptr<ASTree> parseStatement();
-        std::unique_ptr<ASTBlock> parseBlock();
-        std::unique_ptr<ASTClosure> parseFunctionDecl();
-        std::unique_ptr<ASTDefine> parseDefine();
+        ASTree *parseKeywordConstant();
+        ASTree *parseFactor();
+        ASTree *parsePositveFactor();
+        ASTree *parseNotFactor();
+        ASTree *parseTerm();
+        ASTree *parseAdditiveExpr();
+        ASTree *parseRelationalExpr();
+        ASTree *parseAndExpr();
+        ASTree *parseOrExpr();
+        ASTree *parseExpr();
+        ASTree *parseExprList();
+        ASTree *parseAssignExpr();
+        ASTree *parseStatement();
+        ASTBlock *parseBlock();
+        ASTClosure *parseFunctionDecl();
+        ASTDefine *parseDefine();
 
+        SymbolTable *readParams();
+
+        void commonError();
+        void errorUnrecordToken();
+        void errorUndefined(const std::string &name);
+        void errorRedefined(const std::string &name);
         void advance();
         void match(unsigned tok);
         std::string exceptIdentifier();
@@ -66,12 +76,12 @@ namespace script
         Lexer &lexer_;
         Token token_;
 
-        std::vector<Symbols*> symbolTable_;
+        std::vector<SymbolTable*> symbolTable_;
         std::vector<std::set<std::string>*> catch_;
-        std::vector<std::unique_ptr<ASTFunction>> *functions_;
+        std::vector<ASTFunction*> *functions_;
 
         // ASTContext 用于管理 AST 上下文
-        ASTContext context_;
+        ASTContext &context_;
     };
 }
 

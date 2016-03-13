@@ -11,6 +11,8 @@
 
 namespace script
 {
+    class ASTContext;
+
     class Translator : public ASTVisitor
     {
     public:
@@ -21,6 +23,9 @@ namespace script
         }
 
         virtual ~Translator() {};
+
+        void translate(ASTContext &context);
+
         virtual bool visit(ASTExpressionList *v) override;
         virtual bool visit(ASTIdentifier *v) override;
         virtual bool visit(ASTNull *v) override;
@@ -47,8 +52,6 @@ namespace script
         virtual bool visit(ASTStatement *v) override;
         virtual bool visit(ASTPrototype *v) override;
         virtual bool visit(ASTDefine *v) override;
-
-        void translate(ASTProgram *program);
 
     private:
         Value *loadValue(Value *value);

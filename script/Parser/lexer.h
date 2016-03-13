@@ -1,5 +1,4 @@
 #pragma once
-
 #include <deque>
 #include <cctype>
 #include <string>
@@ -93,46 +92,34 @@ namespace script
             , coord_(coord)
             , fnum_(fnum)
         {}
+        bool operator == (const Token &rhs) const
+        {
+            if (kind_ != rhs.kind_)
+                return false;
+            if (kind_ == TK_LitInteger)
+                return num_ == rhs.num_;
+            if (kind_ == TK_LitFloat)
+                return fnum_ == rhs.fnum_;
+            return value_ == rhs.value_;
+        }
     };
 
     class Lexer
     {
         using KeywordsKind = std::unordered_map<std::string, unsigned>;
     public:
-        Lexer() { }
+        Lexer() = default;
 
         Token getToken();
         
-        void setProgram(std::string &file)
-        {
-            if (file_)
-                file_.close();
-            file_.open(file);
-            if (!file_)
-                throw std::runtime_error("open file is false");
-            fileName_ = file;
-            coord_ = TokenCoord();
-            coord_.fileName_ = fileName_.c_str();
-        }
+        void setProgram(std::string &file);
 
         Token lookAhead(unsigned num);
         void registerKeyword(const std::string &str, unsigned tok);
 
     private:
-        char lookChar()
-        {
-            char ch = 0;
-            file_.get(ch);
-            coord_.linePos_++;
-            return ch;
-        }
-
-        void unget()
-        {
-            if (coord_.linePos_ > 0)
-                coord_.linePos_--;
-            file_.unget();
-        }
+        char lookChar();
+        void unget();
 
         unsigned short getKeywordsID(const char *name);
 

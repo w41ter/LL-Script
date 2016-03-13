@@ -10,7 +10,12 @@
 
 namespace script
 {
-    enum class SymbolType { ST_NONE, ST_Constant, ST_Variable, };
+    enum class SymbolType 
+    { 
+        ST_NONE, 
+        ST_Constant, 
+        ST_Variable, 
+    };
 
     struct Symbol
     {
@@ -27,12 +32,14 @@ namespace script
         Symbol &find(const std::string &name);
         Symbol &findInTree(const std::string &name);
         Symbol &end() const;
+        std::map<std::string, Symbol> &getTables();
     
     private:
         SymbolTable *parent_;
         std::map<std::string, Symbol> table_;
     };
 
+    class ASTVisitor;
 
     class ASTree
     {
@@ -45,14 +52,10 @@ namespace script
     {
     public:
         ASTClosure(std::string name, int total,
-            std::vector<std::string> params)
-            : total_(total)
-            , name_(std::move(name))
-            , params_(std::move(params))
-        {}
+            std::vector<std::string> params);
 
         virtual ~ASTClosure() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         int total_;
         std::string name_;
@@ -63,9 +66,9 @@ namespace script
     {
     public:
         virtual ~ASTIdentifier() = default;
-        ASTIdentifier(std::string name) : name_(name) {}
+        ASTIdentifier(std::string name);
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         std::string name_;
     };
@@ -74,12 +77,11 @@ namespace script
     {
     public:
         virtual ~ASTNull() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
     };
 
     class ASTConstant : public ASTree
     {
-       
     public:
         enum {
             T_Character,
@@ -88,12 +90,12 @@ namespace script
             T_String,
         };
         virtual ~ASTConstant() = default;
-        ASTConstant(char c) : type_(T_Character), c_(c) {}
-        ASTConstant(int num) : type_(T_Integer), num_(num) {}
-        ASTConstant(float fnum) : type_(T_Float), fnum_(fnum) {}
-        ASTConstant(std::string &str) : type_(T_String), str_(str) {}
+        ASTConstant(char c);
+        ASTConstant(int num);
+        ASTConstant(float fnum);
+        ASTConstant(std::string &str);
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         unsigned type_;
         char c_;
@@ -106,57 +108,44 @@ namespace script
     {
     public:
         virtual ~ASTExpressionList() = default;
-        void push_back(std::unique_ptr<ASTree> tree) 
-        { 
-            exprs_.push_back(std::move(tree));
-        }
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        void push_back(ASTree *tree);
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::vector<std::unique_ptr<ASTree>> exprs_;
+        std::vector<ASTree*> exprs_;
     };
 
     class ASTArray : public ASTree
     {
     public:
-        ASTArray(std::unique_ptr<ASTree> tree) 
-            : array_(std::move(tree)) 
-        {}
+        ASTArray(ASTree *tree);
         virtual ~ASTArray() = default;
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> array_;
+        ASTree *array_;
     };
 
     class ASTCall : public ASTree
     {
     public:
-        ASTCall(std::unique_ptr<ASTree> function, 
-            std::unique_ptr<ASTree> arguments)
-            : function_(std::move(function))
-            , arguments_(std::move(arguments))
-        {}
+        ASTCall(ASTree *function, ASTree *arguments);
         virtual ~ASTCall() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> function_;
-        std::unique_ptr<ASTree> arguments_;
+        ASTree *function_;
+        ASTree *arguments_;
     };
 
     class ASTArrayIndex : public ASTree
     {
     public:
-        ASTArrayIndex(std::unique_ptr<ASTree> array,
-            std::unique_ptr<ASTree> index)
-            : array_(std::move(array))
-            , index_(std::move(index))
-        {}
+        ASTArrayIndex(ASTree *array, ASTree *index);
 
         virtual ~ASTArrayIndex() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> array_;
-        std::unique_ptr<ASTree> index_;
+        ASTree *array_;
+        ASTree *index_;
     };
 
     class ASTSingleExpression : public ASTree
@@ -167,15 +156,12 @@ namespace script
         //    OP_Sub,
         //};
 
-        ASTSingleExpression(unsigned op, 
-            std::unique_ptr<ASTree> expr)
-            : op_(op), expr_(std::move(expr))
-        {}
+        ASTSingleExpression(unsigned op, ASTree *expr);
         virtual ~ASTSingleExpression() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         unsigned op_;
-        std::unique_ptr<ASTree> expr_;
+        ASTree *expr_;
     };
 
     class ASTBinaryExpression : public ASTree
@@ -188,19 +174,13 @@ namespace script
         //    OP_Div,
         //};
 
-        ASTBinaryExpression(unsigned op,
-            std::unique_ptr<ASTree> left,
-            std::unique_ptr<ASTree> right)
-            : op_(op)
-            , left_(std::move(left))
-            , right_(std::move(right))
-        {}
+        ASTBinaryExpression(unsigned op, ASTree *left, ASTree *right);
         virtual ~ASTBinaryExpression() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         unsigned op_;
-        std::unique_ptr<ASTree> left_;
-        std::unique_ptr<ASTree> right_;
+        ASTree *left_;
+        ASTree *right_;
     };
 
     class ASTRelationalExpression : public ASTree
@@ -215,187 +195,142 @@ namespace script
         //    RL_NotEqual,
         //};
 
-        ASTRelationalExpression(unsigned relation, 
-            std::unique_ptr<ASTree> left, 
-            std::unique_ptr<ASTree> right)
-            : relation_(relation)
-            , left_(std::move(left))
-            , right_(std::move(right))
-        {}
+        ASTRelationalExpression(unsigned relation, ASTree *left, ASTree *right);
         virtual ~ASTRelationalExpression() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         unsigned relation_;
-        std::unique_ptr<ASTree> left_;
-        std::unique_ptr<ASTree> right_;
+        ASTree *left_;
+        ASTree *right_;
     };
 
     class ASTAndExpression : public ASTree
     {
     public:
         virtual ~ASTAndExpression() = default;
-        void push_back(std::unique_ptr<ASTree> relation) 
-        { 
-            relations_.push_back(std::move(relation)); 
-        }
+        void push_back(ASTree *relation);
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::vector<std::unique_ptr<ASTree>> relations_;
+        std::vector<ASTree*> relations_;
     };
 
     class ASTOrExpression : public ASTree
     {
     public:
         virtual ~ASTOrExpression() = default;
-        void push_back(std::unique_ptr<ASTree> relation) 
-        { 
-            relations_.push_back(std::move(relation)); 
-        }
+        void push_back(ASTree *relation);
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::vector<std::unique_ptr<ASTree>> relations_;
+        std::vector<ASTree*> relations_;
     };
 
     class ASTAssignExpression : public ASTree
     {
     public:
-        ASTAssignExpression(std::unique_ptr<ASTree> left, 
-            std::unique_ptr<ASTree> right)
-            : left_(std::move(left))
-            , right_(std::move(right))
-        {}
+        ASTAssignExpression(ASTree *left, ASTree *right);
         virtual ~ASTAssignExpression() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> left_;
-        std::unique_ptr<ASTree> right_;
+        ASTree *left_;
+        ASTree *right_;
     };
 
     class ASTVarDeclStatement : public ASTree
     {
     public:
-        ASTVarDeclStatement(std::string &str, 
-            std::unique_ptr<ASTree> expr)
-            : name_(str), expr_(std::move(expr)) 
-        {}
+        ASTVarDeclStatement(std::string &str, ASTree *expr);
         virtual ~ASTVarDeclStatement() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         std::string name_;
-        std::unique_ptr<ASTree> expr_;
+        ASTree *expr_;
     };
 
     class ASTContinueStatement : public ASTree
     {
     public:
         virtual ~ASTContinueStatement() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
     };
 
     class ASTBreakStatement : public ASTree
     {
     public:
         virtual ~ASTBreakStatement() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
     };
 
     class ASTReturnStatement : public ASTree
     {
     public:
-        ASTReturnStatement(std::unique_ptr<ASTree> expr = nullptr) 
-            : expr_(std::move(expr)) 
-        {}
+        ASTReturnStatement(ASTree *expr = nullptr);
         virtual ~ASTReturnStatement() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> expr_;
+        ASTree *expr_;
     };
 
     class ASTWhileStatement : public ASTree
     {
     public:
-        ASTWhileStatement(std::unique_ptr<ASTree> cond, 
-            std::unique_ptr<ASTree> statement)
-            : condition_(std::move(cond))
-            , statement_(std::move(statement))
-        {}
+        ASTWhileStatement(ASTree *cond, ASTree *statement);
         virtual ~ASTWhileStatement() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> condition_;
-        std::unique_ptr<ASTree> statement_;
+        ASTree *condition_;
+        ASTree *statement_;
     };
 
     class ASTIfStatement : public ASTree
     {
     public:
-        ASTIfStatement(std::unique_ptr<ASTree> cond, 
-            std::unique_ptr<ASTree> ifState)
-            : condition_(std::move(cond))
-            , ifStatement_(std::move(ifState))
-            , elseStatement_(nullptr)
-            , hasElse_(false)
-        {}
-        ASTIfStatement(std::unique_ptr<ASTree> cond,
-            std::unique_ptr<ASTree> ifState, 
-            std::unique_ptr<ASTree> elseState)
-            : condition_(std::move(cond))
-            , ifStatement_(std::move(ifState))
-            , elseStatement_(std::move(elseState))
-            , hasElse_(true)
-        {}
+        ASTIfStatement(ASTree *cond, ASTree *ifState);
+        ASTIfStatement(ASTree *cond, ASTree *ifState, ASTree *elseState);
+
         virtual ~ASTIfStatement() = default;
-        bool hasElse() const { return hasElse_; }
+        bool hasElse() const;
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> condition_;
-        std::unique_ptr<ASTree> ifStatement_;
-        std::unique_ptr<ASTree> elseStatement_;
+        ASTree *condition_;
+        ASTree *ifStatement_;
+        ASTree *elseStatement_;
         bool hasElse_;
     };
 
     class ASTStatement : public ASTree
     {
     public:
-        ASTStatement(std::unique_ptr<ASTree> tree)
-            : tree_(std::move(tree))
-        {}
+        ASTStatement(ASTree *tree);
         virtual ~ASTStatement() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::unique_ptr<ASTree> tree_;
+        ASTree *tree_;
     };
 
     class ASTBlock : public ASTree
     {
     public:
-        ASTBlock() {}
+        ASTBlock() = default;
+        virtual ~ASTBlock() = default;
 
-        virtual ~ASTBlock() { }
-
-        void push_back(std::unique_ptr<ASTree> tree)
-        { 
-            statements_.push_back(std::move(tree)); 
-        }
+        void push_back(ASTree *tree);
         
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        std::vector<std::unique_ptr<ASTree>> statements_;
+        std::vector<ASTree*> statements_;
     };
 
     class ASTPrototype : public ASTree
     {
     public:
         ASTPrototype(const std::string &name,
-            std::vector<std::string> args)
-            : name_(name), args_(std::move(args)) 
-        {}
+            std::vector<std::string> args);
         virtual ~ASTPrototype() = default;
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         std::string name_;
         std::vector<std::string> args_;
@@ -404,33 +339,25 @@ namespace script
     class ASTFunction : public ASTree
     {
     public:
-        ASTFunction(Symbols *table,
-            std::unique_ptr<ASTPrototype> proto,
-            std::unique_ptr<ASTBlock> block)
-            : table_(table)
-            , prototype_(std::move(proto))
-            , block_(std::move(block))
-        {}
-        virtual ~ASTFunction() { delete table_; }
+        ASTFunction(SymbolTable *table, ASTPrototype *proto, ASTBlock *block);
+        virtual ~ASTFunction();
 
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
-        Symbols *table_;
-        std::unique_ptr<ASTPrototype> prototype_;
-        std::unique_ptr<ASTBlock> block_;
+        SymbolTable *table_;
+        ASTPrototype *prototype_;
+        ASTBlock *block_;
     };
 
     class ASTDefine : public ASTree
     {
     public:
-        ASTDefine(std::string &name, std::unique_ptr<ASTree> expr)
-            : name_(name), expr_(std::move(expr))
-        {}
+        ASTDefine(std::string &name, ASTree *expr);
         virtual ~ASTDefine() = default;
-        virtual bool accept(ASTVisitor *v) override { return v->visit(this); }
+        virtual bool accept(ASTVisitor *v) override;
 
         std::string name_;
-        std::unique_ptr<ASTree> expr_;
+        ASTree *expr_;
     };
 
     class ASTProgram : public ASTree
@@ -444,8 +371,8 @@ namespace script
         virtual bool accept(ASTVisitor *v) override;
 
         SymbolTable *table_;
-        std::vector<std::unique_ptr<ASTDefine>> defines_;
-        std::vector<std::unique_ptr<ASTFunction>> function_;
+        std::vector<ASTDefine*> defines_;
+        std::vector<ASTFunction*> function_;
     };
 
     class ASTVisitor

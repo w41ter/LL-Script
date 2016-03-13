@@ -1,11 +1,17 @@
 #include <iostream>
 
+#include "ASTContext.h"
 #include "dumpAST.h"
 
 using std::endl;
 
 namespace script
 {
+    void DumpAST::dump(ASTContext & context)
+    {
+        context.program_->accept(this);
+    }
+
     bool DumpAST::visit(ASTExpressionList *v)
     {
         int index = v->exprs_.size();
@@ -162,7 +168,7 @@ namespace script
     {
         printIndent();
         file_ << "(return ";
-        if (v->expr_.get() != nullptr)
+        if (v->expr_ != nullptr)
             v->expr_->accept(this);
         file_ << ")" << endl;
         return false;

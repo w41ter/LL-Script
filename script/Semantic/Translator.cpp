@@ -1,10 +1,19 @@
 #include <sstream>
 
+#include "astcontext.h"
 #include "Translator.h"
 #include "../Parser/lexer.h"
 
 namespace script
 {
+    void Translator::translate(ASTContext & context)
+    {
+        context.program_->accept(this);
+
+        // translate to CFG
+        module_.translateToCFG();
+    }
+
     bool Translator::visit(ASTExpressionList *v)
     {
         return false;
@@ -351,14 +360,6 @@ namespace script
         gen_->insertStore(name, loadValue(result_));
         result_ = nullptr;
         return false;
-    }
-
-    void Translator::translate(ASTProgram * program)
-    {
-        program->accept(this);
-
-        // translate to CFG
-        module_.translateToCFG();
     }
 
     Value * Translator::loadValue(Value * value)

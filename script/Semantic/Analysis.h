@@ -1,15 +1,12 @@
 #ifndef __ANALYSIS_H__
 #define __ANALYSIS_H__
 
-#include <set>
-#include <string>
-#include <stdexcept>
-#include <vector>
-
 #include "AST.h"
 
 namespace script
 {
+    class ASTContext;
+
     class Analysis : public ASTVisitor
     {
         enum Type {
@@ -26,6 +23,9 @@ namespace script
         Analysis() : table_(nullptr), breakLevel_(0) {}
         virtual ~Analysis() {}
 
+        void analysis(ASTContext &context);
+
+    protected:
         virtual bool visit(ASTExpressionList *v) override;
         virtual bool visit(ASTIdentifier *v) override;
         virtual bool visit(ASTNull *v) override;
@@ -54,46 +54,15 @@ namespace script
         virtual bool visit(ASTStatement *v) override;
 
     private:
-        void except(unsigned tp)
-        {
-            if (type_ == TP_Identifier 
-                || type_ == TP_Constant
-                || type_ == tp)
-                return;
+        void except(unsigned tp);
+        bool number(unsigned type);
+        unsigned maxType(unsigned left, unsigned right);
 
-            if (number(tp))
-            {
-                if (number(type_))
-                    return;
-            }
-
-            throw std::runtime_error("¿‡–Õ¥ÌŒÛ");
-        }
-
-        bool number(unsigned type)
-        {
-            return (type == TP_Integer ||
-                type == TP_Character ||
-                type == TP_Float);
-        }
-        
-        unsigned maxType(unsigned left, unsigned right) 
-        {
-            if (left == TP_Constant || right == TP_Constant)
-                return TP_Identifier;
-            if (left == TP_Identifier || right == TP_Identifier)
-                return TP_Identifier;
-            if (left == TP_Float || right == TP_Float)
-                return TP_Float;
-            if (left == TP_Integer || right == TP_Integer)
-                return TP_Integer;
-            return TP_Character;
-        }
     private:
         Type type_;
 
         unsigned breakLevel_;
-        Symbols *table_;
+        SymbolTable *table_;
     };
 }
 

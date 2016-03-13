@@ -245,6 +245,18 @@ namespace script
         return tok;
     }
 
+    void Lexer::setProgram(std::string & file)
+    {
+        if (file_)
+            file_.close();
+        file_.open(file);
+        if (!file_)
+            throw std::runtime_error("open file is false");
+        fileName_ = file;
+        coord_ = TokenCoord();
+        coord_.fileName_ = fileName_.c_str();
+    }
+
     Token Lexer::lookAhead(unsigned num)
     {
         if (num > tokens_.size())
@@ -258,5 +270,21 @@ namespace script
     {
         keywords_.insert(std::pair<string, unsigned>(str, tok));
     }
+
+    char Lexer::lookChar()
+    {
+        char ch = 0;
+        file_.get(ch);
+        coord_.linePos_++;
+        return ch;
+    }
+
+    void Lexer::unget()
+    {
+        if (coord_.linePos_ > 0)
+            coord_.linePos_--;
+        file_.unget();
+    }
+
 }
 
