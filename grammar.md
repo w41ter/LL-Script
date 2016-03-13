@@ -70,5 +70,5 @@ define_decl:
     "define" ID "=" expression 
     
 program: 
-    { define_decl }
+    { ( define_decl | statement ) }
 ```
