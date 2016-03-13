@@ -83,7 +83,7 @@ namespace script
 
     bool IsPair(Pointer p)
     {
-        return (!IsTagging(p) || ((Pair *)p)->obType_ == (Pointer)TYPE_PAIR);
+        return (!IsTagging(p) && ((Pair *)p)->obType_ == (Pointer)TYPE_PAIR);
     }
 
     Pointer *Car(Pointer self)
@@ -102,12 +102,13 @@ namespace script
         ((String *)self)->obType_ = (Pointer)TYPE_STRING;
         ((String *)self)->length_ = length;
         strncpy(((String *)self)->str_, from, length);
+        ((String *)self)->str_[length] = '\0';      // ensure for C call
         return self;
     }
 
     bool IsString(Pointer p)
     {
-        return (!IsTagging(p) || ((String *)p)->obType_ == (Pointer)TYPE_STRING);
+        return (!IsTagging(p) && ((String *)p)->obType_ == (Pointer)TYPE_STRING);
     }
 
     const char *GetString(Pointer p)
@@ -146,7 +147,41 @@ namespace script
 
     bool IsClosure(Pointer p)
     {
-        return (!IsTagging(p) || ((String *)p)->obType_ == (Pointer)TYPE_CLOSURE);
+        return (!IsTagging(p) && ((String *)p)->obType_ == (Pointer)TYPE_CLOSURE);
+    }
+
+    Pointer MakeBuildInClosure(Pointer self, size_t position, size_t length, size_t need)
+    {
+        ((Closure *)self)->obType_ = (Pointer)TYPE_BUILD_IN_CLOSURE;
+        ((Closure *)self)->position_ = position;
+        ((Closure *)self)->length_ = length;
+        ((Closure *)self)->need_ = need;
+        return self;
+    }
+
+    Pointer * BuildInClosureParams(Pointer self)
+    {
+        return ((Closure *)self)->params;
+    }
+
+    size_t BuildInClosureIndex(Pointer self)
+    {
+        return ((Closure *)self)->position_;
+    }
+
+    size_t BuildInClosureNeed(Pointer self)
+    {
+        return ((Closure *)self)->need_;
+    }
+
+    size_t BuildInClosureLength(Pointer self)
+    {
+        return ((Closure *)self)->length_;
+    }
+
+    bool IsBuildInClosure(Pointer p)
+    {
+        return (!IsTagging(p) && ((String *)p)->obType_ == (Pointer)TYPE_BUILD_IN_CLOSURE);
     }
 
     Pointer MakeArray(Pointer self, size_t length_)
@@ -168,7 +203,7 @@ namespace script
 
     bool IsArray(Pointer self)
     {
-        return (!IsTagging(self) || ((RArray *)self)->obType_ == (Pointer)TYPE_ARRAY);
+        return (!IsTagging(self) && ((RArray *)self)->obType_ == (Pointer)TYPE_ARRAY);
     }
 
     size_t SizeOfObject(Pointer p)

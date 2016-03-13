@@ -49,6 +49,7 @@ namespace script
         void excuteSingle(size_t &ip, unsigned op);
         void excuteCall(size_t &ip);
         void excuteInvoke(size_t &ip);
+        void excuteBuildIn(size_t &ip);
         void excuteGoto(size_t &ip);
         void excuteIf(size_t &ip);
         void excuteIfFalse(size_t &ip);

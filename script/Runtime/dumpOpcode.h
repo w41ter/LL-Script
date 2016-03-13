@@ -20,6 +20,7 @@ namespace script
         void dumpSingle(size_t &ip);
         void dumpCall(size_t &ip);
         void dumpInvoke(size_t &ip);
+        void dumpBuildIn(size_t &ip);
         void dumpGoto(size_t &ip);
         void dumpIf(size_t &ip);
         void dumpIfFalse(size_t &ip);

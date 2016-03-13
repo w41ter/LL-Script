@@ -1,5 +1,6 @@
 #include "opcode.h"
 
+#include "../BuildIn/BuildIn.h"
 #include "../Parser/lexer.h"
 #include "../IR/Quad.h"
 
@@ -183,11 +184,23 @@ namespace script
         pushInteger(0);
     }
 
+    // 
+    // insert call opcode for function and buildin-function
+    // 
     void OpcodeContext::insertCall(std::string & name, int num, int total, Register reg)
     {
-        makeOpcode(OK_Call, reg, (Byte)num, (Byte)total);
-        functionBack_.push_back(std::pair<std::string, int>(name, getNextPos()));
-        pushInteger(0);
+        int index = buildin::BuildIn::getInstance().getFunctionIndex(name);
+        if (index == -1)
+        {
+            makeOpcode(OK_Call, reg, (Byte)num, (Byte)total);
+            functionBack_.push_back(std::pair<std::string, int>(name, getNextPos()));
+            pushInteger(0);
+        }
+        else
+        {
+            makeOpcode(OK_BuildIn, reg, (Byte)num, (Byte)total);
+            pushInteger(index);
+        }
     }
 
     void OpcodeContext::insertGoto(Quad * label)

@@ -330,7 +330,7 @@ namespace script
     {
         for (auto &i : v->params_)
             gen_->insertParam(gen_->CreateValue<Identifier>(v->name_)); //(*symbols_)[i]);
-
+        
         auto *result = gen_->CreateValue<Temp>();
         //gen_->insertCall(function_[v->name_], result, v->params_.size());
         gen_->insertCall(v->name_, result, v->params_.size(), v->total_);

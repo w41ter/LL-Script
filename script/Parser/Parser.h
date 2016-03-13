@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 
 #include "lexer.h"
 
@@ -62,7 +63,7 @@ namespace script
         ASTClosure *parseFunctionDecl();
         ASTDefine *parseDefine();
 
-        SymbolTable *readParams();
+        std::map<std::string, Token> readParams();
 
         void commonError();
         void errorUnrecordToken();

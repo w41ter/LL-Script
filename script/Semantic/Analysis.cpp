@@ -7,6 +7,9 @@
 #include "ASTContext.h"
 #include "Analysis.h"
 
+using std::cout;
+using std::endl;
+
 namespace script
 {
     void Analysis::analysis(ASTContext & context)
@@ -25,12 +28,15 @@ namespace script
     bool Analysis::visit(ASTIdentifier *v)
     {
         auto end = table_->find(v->name_);
+        if (end == table_->end()) {
+            end = table_->getParent()->find(v->name_);
+        }
         if (end.type_ == SymbolType::ST_Variable)
             type_ = TP_Identifier;
         else if (end.type_ == SymbolType::ST_Constant)
             type_ = TP_Constant;
         else
-            throw std::runtime_error("undefined identifier " + v->name_);
+            error(std::string("undefined identifier " + v->name_), end.token_);
         return false;
     }
 
@@ -42,6 +48,7 @@ namespace script
 
     bool Analysis::visit(ASTConstant *v)
     {
+        token_ = &v->token_;
         switch (v->type_)
         {
         case ASTConstant::T_Character: type_ = TP_Character; break;
@@ -55,8 +62,6 @@ namespace script
     }
     bool Analysis::visit(ASTArray *v)
     {
-        /*for (auto i : v->array_)
-            i->accept(this);*/
         v->array_->accept(this);
         type_ = TP_Array;
         return false;
@@ -64,7 +69,6 @@ namespace script
 
     bool Analysis::visit(ASTCall *v)
     {
-        //std::cout << "\t\tanalysis call..." << std::endl;
         v->function_->accept(this);
         except(TP_Identifier);
         v->arguments_->accept(this);
@@ -133,10 +137,9 @@ namespace script
 
     bool Analysis::visit(ASTAssignExpression *v)
     {
-        //std::cout << "\t\tanalysis assignment..." << std::endl;
         v->left_->accept(this);
         if (type_ == TP_Constant)
-            throw std::runtime_error("cann't assign to constant!");
+            error(std::string("cann't assign to constant!"), *token_);
         except(TP_Identifier);
         v->right_->accept(this);
         // type_ = v->right_.type_;
@@ -145,7 +148,6 @@ namespace script
 
     bool Analysis::visit(ASTVarDeclStatement *v)
     {
-        //std::cout << "\t\tanalysis let... " << v->name_ << std::endl;
         v->expr_->accept(this);
         type_ = TP_Error;
         return false;
@@ -154,7 +156,7 @@ namespace script
     bool Analysis::visit(ASTContinueStatement *v)
     {
         if (breakLevel_ <= 0)
-            throw std::runtime_error("continue need while");
+            error(std::string("continue need while"), v->token_);
         type_ = TP_Error;
         return false;
     }
@@ -162,7 +164,7 @@ namespace script
     bool Analysis::visit(ASTBreakStatement *v)
     {
         if (breakLevel_ <= 0)
-            throw std::runtime_error("break need while");
+            error(std::string("break need while"), v->token_);
         type_ = TP_Error;
         return false;
     }
@@ -182,9 +184,7 @@ namespace script
         breakLevel_++;
         v->statement_->accept(this);
         breakLevel_--;
-        /// 这里有个问题，就是
-        /// while (conditon)
-        ///     break;
+        type_ = TP_Error;
         return false;
     }
 
@@ -195,6 +195,7 @@ namespace script
         v->ifStatement_->accept(this);
         if (v->elseStatement_ != nullptr)
             v->elseStatement_->accept(this);
+        type_ = TP_Error;
         return false;
     }
 
@@ -202,6 +203,7 @@ namespace script
     {
         for (auto &i : v->statements_)
             i->accept(this);
+        type_ = TP_Error;
         return false;
     }
 
@@ -214,6 +216,33 @@ namespace script
         table_ = v->table_;
         v->block_->accept(this);
         table_ = table;
+        type_ = TP_Error;
+        return false;
+    }
+
+    bool Analysis::visit(ASTPrototype *v)
+    {
+        return false;
+    }
+
+    bool Analysis::visit(ASTClosure * v)
+    {
+        //std::cout << "\t\tanalysis closure..." << v->name_ << std::endl;
+        if (v->params_.size() > v->total_)
+            error(std::string("参数过多"));
+        type_ = TP_Identifier;
+        return false;
+    }
+
+    bool Analysis::visit(ASTDefine * v)
+    {
+        v->expr_->accept(this);
+        return false;
+    }
+
+    bool Analysis::visit(ASTStatement * v)
+    {
+        v->tree_->accept(this);
         return false;
     }
 
@@ -231,34 +260,8 @@ namespace script
         return false;
     }
 
-    bool Analysis::visit(ASTPrototype *v)
-    {
-        return false;
-    }
-
-    bool Analysis::visit(ASTClosure * v)
-    {
-        //std::cout << "\t\tanalysis closure..." << v->name_ << std::endl;
-        type_ = TP_Identifier;
-        return false;
-    }
-
-    bool Analysis::visit(ASTDefine * v)
-    {
-        v->expr_->accept(this);
-        return false;
-    }
-
-    bool Analysis::visit(ASTStatement * v)
-    {
-        v->tree_->accept(this);
-        return false;
-    }
-
     void Analysis::except(unsigned tp) {
-        if (type_ == TP_Identifier
-            || type_ == TP_Constant
-            || type_ == tp)
+        if (type_ == TP_Identifier || type_ == TP_Constant || type_ == tp)
             return;
 
         if (number(tp))
@@ -272,9 +275,7 @@ namespace script
 
     bool Analysis::number(unsigned type)
     {
-        return (type == TP_Integer ||
-            type == TP_Character ||
-            type == TP_Float);
+        return (type == TP_Integer || type == TP_Character || type == TP_Float);
     }
 
     unsigned Analysis::maxType(unsigned left, unsigned right)
@@ -288,6 +289,21 @@ namespace script
         if (left == TP_Integer || right == TP_Integer)
             return TP_Integer;
         return TP_Character;
+    }
+
+    void Analysis::error(std::string & msg, Token &token)
+    {
+        std::cout << token.coord_.fileName_
+            << "(" << token.coord_.lineNum_
+            << "," << token.coord_.linePos_ << "): "
+            << msg << endl;
+        throw std::runtime_error(msg);
+    }
+
+    void Analysis::error(std::string & msg)
+    {
+        std::cout << msg << endl;
+        throw std::runtime_error(msg);
     }
 
 }

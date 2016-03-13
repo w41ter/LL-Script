@@ -1,5 +1,6 @@
 ﻿#include <stdexcept>
 #include <assert.h>
+#include <iostream>
 
 #include "GC.h"
 
@@ -18,6 +19,7 @@ namespace script
         bottom_ = new char[space_size];
         end_ = bottom_ + space_size;
         top_ = bottom_;
+        free_space_ = space_size;
     }
 
     Semispace::~Semispace()
@@ -42,6 +44,7 @@ namespace script
             return (Pointer)nullptr;
         Pointer obj = (Pointer)top_;
         top_ += space_size;
+        free_space_ -= size;
         return obj;
     }
 
@@ -129,6 +132,8 @@ namespace script
 
     void GarbageCollector::garbageCollect()
     {
+        size_t old = from_space_->free_space_;
+
         forward_ = new Pointer[Ceil(space_size_)];
         memset((void*)forward_, 0, Ceil(space_size_));
 
@@ -152,6 +157,10 @@ namespace script
 
         delete[]forward_;
         forward_ = nullptr;
+        
+        std::cout << "[GC] before free: " << old
+            << ", after free: " << from_space_->free_space_
+            << ", total free space: " << from_space_->free_space_ - old << std::endl;
     }
 
     Pointer GarbageCollector::allocate(size_t size)

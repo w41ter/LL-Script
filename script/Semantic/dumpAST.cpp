@@ -276,6 +276,12 @@ namespace script
         return false;
     }
 
+    void DumpAST::printIndent()
+    {
+        for (int i = 0; i < indent_; ++i)
+            file_ << '\t';
+    }
+
     std::string DumpAST::getOP(unsigned op)
     {
         std::string str;

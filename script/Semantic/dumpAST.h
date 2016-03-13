@@ -47,11 +47,7 @@ namespace script
     private:
         void indent() { ++indent_; }
         void decdent() { --indent_; }
-        void printIndent() 
-        {
-            for (int i = 0; i < indent_; ++i)
-                file_ << '\t';
-        }
+        void printIndent();
 
         std::string getOP(unsigned op);
 

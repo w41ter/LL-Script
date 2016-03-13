@@ -18,6 +18,7 @@ namespace script
         char* bottom_;
         char* top_;
         char* end_;
+        size_t free_space_;
     };
 
     class GarbageCollector
@@ -53,6 +54,7 @@ namespace script
         Semispace *to_space_;
         size_t size_;
         size_t space_size_;
+        size_t free_space_;
         Pointer *forward_;
     };
 

@@ -2,25 +2,18 @@
 
 #include <iostream>
 #include <sstream>
-#include <memory>
 
 #include "../Semantic/AST.h"
 #include "../Semantic/ASTContext.h"
-
+#include "../BuildIn/BuildIn.h"
 
 using std::map;
 using std::set;
 using std::string;
 using std::vector;
-using std::unique_ptr;
 
 namespace script
 {
-    bool operator == (const Symbol &lhs, const Symbol &rhs)
-    {
-        return (lhs.token_ == rhs.token_ && lhs.type_ == rhs.type_);
-    }
-
     bool Parser::isRelational(unsigned tok)
     {
         return (tok == TK_Less || tok == TK_LessThan ||
@@ -64,9 +57,9 @@ namespace script
     {
         ASTree *expr = nullptr;
         if (token_.kind_ == TK_True)
-            expr = context_.allocate<ASTConstant>(1);
+            expr = context_.allocate<ASTConstant>(1, token_);
         else if (token_.kind_ == TK_False)
-            expr = context_.allocate<ASTConstant>(0);
+            expr = context_.allocate<ASTConstant>(0, token_);
         else if (token_.kind_ == TK_Null)
             expr = context_.allocate<ASTNull>();
         else
@@ -93,25 +86,25 @@ namespace script
         {
         case TK_LitFloat: 
         {
-            expr = context_.allocate<ASTConstant>(token_.fnum_);
+            expr = context_.allocate<ASTConstant>(token_.fnum_, token_);
             advance();
             break;
         }
         case TK_LitString:
         {
-            expr = context_.allocate<ASTConstant>(token_.value_);
+            expr = context_.allocate<ASTConstant>(token_.value_, token_);
             advance();
             break;
         }
         case TK_LitInteger:
         {
-            expr = context_.allocate<ASTConstant>(token_.num_);
+            expr = context_.allocate<ASTConstant>(token_.num_, token_);
             advance();
             break;
         }
         case TK_LitCharacter:
         {
-            expr = context_.allocate<ASTConstant>(token_.value_[0]);
+            expr = context_.allocate<ASTConstant>(token_.value_[0], token_);
             advance();
             break;
         }
@@ -174,8 +167,8 @@ namespace script
                 ASTree *exprList = context_.allocate<ASTExpressionList>();
                 if (token_.kind_ != TK_RParen)
                     exprList = parseExprList();
-                expr = context_.allocate<ASTCall>(expr, exprList);
                 match(TK_RParen);
+                expr = context_.allocate<ASTCall>(expr, exprList);
             }
         }
         return expr;
@@ -387,14 +380,16 @@ namespace script
         case TK_Break:
         {
             advance();
+            Token token = token_;
             match(TK_Semicolon);
-            return context_.allocate<ASTBreakStatement>();
+            return context_.allocate<ASTBreakStatement>(token);
         }
         case TK_Continue:
         {
             advance();
+            Token token = token_;
             match(TK_Semicolon);
-            return context_.allocate<ASTContinueStatement>();
+            return context_.allocate<ASTContinueStatement>(token);
         }
         case TK_Let:
         {
@@ -439,7 +434,7 @@ namespace script
     //
     // "("[param_list] ")"
     // 
-    SymbolTable *Parser::readParams()
+    map<string, Token> Parser::readParams()
     {
         match(TK_LParen);
 
@@ -458,17 +453,7 @@ namespace script
 
         match(TK_RParen);
 
-        // init symbol table
-        SymbolTable *table = new SymbolTable(symbolTable_.back());
-        for (auto &i : params)
-        {
-            // all params is constant.
-            if (!table->insert(i.first, SymbolType::ST_Constant, i.second))
-                errorRedefined(i.first);
-        }
-        symbolTable_.push_back(table);
-
-        return table;
+        return std::move(params);
     }
 
     //
@@ -483,34 +468,30 @@ namespace script
         advance();
 
         string name = getTempIDName("lambda");
-        SymbolTable *table = readParams();
+        map<string, Token> params = std::move(readParams());
+
+        // init symbol table
+        SymbolTable *table = new SymbolTable(symbolTable_.back());
+        for (auto &i : params)
+        {
+            // all params is constant.
+            if (!table->insert(i.first, SymbolType::ST_Constant, i.second))
+                errorRedefined(i.first);
+        }
+        symbolTable_.push_back(table);
 
         set<string> catchTable;
         catch_.push_back(&catchTable);
-
         ASTBlock *block = parseBlock();
-
         catch_.pop_back();
         symbolTable_.pop_back();
-
-        // insert catch table
-        //SymbolTable *parent = symbolTable_.back();
 
         vector<string> argument;
         for (const auto &cat : catchTable)
             argument.push_back(cat);
-        for (auto symbol : table->getTables()) 
+        for (auto symbol : params)
             argument.push_back(symbol.first);
 
-        //for (auto &i : catchTable)
-        //{
-        //    argument.push_back(i);
-        //    table->insert(i, SymbolType::ST_Constant);
-        //    // insert catch table into parent
-        //    if (parent->find(i) == parent->end())
-        //        catch_.back()->insert(i);
-        //}
-        
         int closureArgsSize = argument.size();
 
         ASTPrototype *proto = context_.allocate<ASTPrototype>(name, std::move(argument));
@@ -561,6 +542,14 @@ namespace script
         symbolTable_.push_back(symbol);
         catch_.push_back(&catchTable);
 
+        buildin::BuildIn::getInstance().map(
+            [this, &defines] (const string &name, int size) -> string {
+            symbolTable_.back()->insert(name, SymbolType::ST_Constant, Token());
+            string tempName = getTempIDName(name.c_str());
+            ASTree *tree = context_.allocate<ASTClosure>(tempName, size, vector<string>());
+            defines.push_back(context_.allocate<ASTDefine>(name, tree));
+            return std::move(tempName);
+        });
         // TODO:
 
         advance();

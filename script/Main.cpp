@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
 
         script::IRModule module;
         {
+            // parser program
             script::ASTContext context;
             try {
                 script::Lexer lexer;
@@ -62,6 +63,7 @@ int main(int argc, char* argv[])
             translator.translate(context);
         }
 
+        // dump quad to file
         if (driver.dumpQuad_)
         {
             std::string dumpFilename(driver.filename);
@@ -71,6 +73,7 @@ int main(int argc, char* argv[])
             dumpQuad.dump(module);
         }
 
+        // dump CFG to file
         if (driver.dumpCFG_)
         {
             std::string dumpFilename(driver.filename);
@@ -80,11 +83,13 @@ int main(int argc, char* argv[])
             dumpCFG.dump(module);
         }
 
+        // generate opcode
         script::OpcodeContext opcode;
         script::CodeGenerator codegen(opcode);
         codegen.gen(module);
         opcodes = opcode.getOpcodes(length);
 
+        // dump opcode to file
         if (driver.dumpOpcode_)
         {
             std::string dumpFilename(driver.filename);
@@ -107,5 +112,6 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    getchar();
 	return 0;
 }

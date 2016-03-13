@@ -2,8 +2,18 @@
 
 namespace script
 {
+    bool operator == (const Symbol &lhs, const Symbol &rhs)
+    {
+        return (lhs.token_ == rhs.token_ && lhs.type_ == rhs.type_);
+    }
+
     SymbolTable::SymbolTable(SymbolTable * parent) : parent_(parent)
     {
+    }
+
+    SymbolTable * SymbolTable::getParent()
+    {
+        return parent_;
     }
 
     bool SymbolTable::insert(const std::string & name, SymbolType type, Token token)
@@ -99,19 +109,23 @@ namespace script
         return v->visit(this);
     }
 
-    ASTConstant::ASTConstant(char c) : type_(T_Character), c_(c) 
+    ASTConstant::ASTConstant(char c, Token token) 
+        : type_(T_Character), c_(c), token_(token)
     {
     }
 
-    ASTConstant::ASTConstant(int num) : type_(T_Integer), num_(num) 
+    ASTConstant::ASTConstant(int num, Token token)
+        : type_(T_Integer), num_(num), token_(token)
     {
     }
 
-    ASTConstant::ASTConstant(float fnum) : type_(T_Float), fnum_(fnum)
+    ASTConstant::ASTConstant(float fnum, Token token)
+        : type_(T_Float), fnum_(fnum), token_(token)
     {
     }
 
-    ASTConstant::ASTConstant(std::string & str) : type_(T_String), str_(str)
+    ASTConstant::ASTConstant(std::string & str, Token token)
+        : type_(T_String), str_(str), token_(token)
     {
     }
 
@@ -237,9 +251,19 @@ namespace script
         return v->visit(this);
     }
 
+    ASTContinueStatement::ASTContinueStatement(Token token)
+    {
+        token_ = std::move(token);
+    }
+
     bool ASTContinueStatement::accept(ASTVisitor * v)
     {
         return v->visit(this);
+    }
+
+    ASTBreakStatement::ASTBreakStatement(Token token)
+    {
+        token_ = token;
     }
 
     bool ASTBreakStatement::accept(ASTVisitor * v)

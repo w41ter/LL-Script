@@ -3,18 +3,16 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <set>
-#include <memory>
 
 #include "../Parser/lexer.h"
 
 namespace script
 {
-    enum class SymbolType 
-    { 
-        ST_NONE, 
-        ST_Constant, 
-        ST_Variable, 
+    enum class SymbolType
+    {
+        ST_NONE,
+        ST_Constant,
+        ST_Variable,
     };
 
     struct Symbol
@@ -28,16 +26,19 @@ namespace script
     public:
         SymbolTable(SymbolTable *parent);
 
+        SymbolTable *getParent();
         bool insert(const std::string &name, SymbolType type, Token token);
         Symbol &find(const std::string &name);
         Symbol &findInTree(const std::string &name);
         Symbol &end() const;
         std::map<std::string, Symbol> &getTables();
-    
+
     private:
         SymbolTable *parent_;
         std::map<std::string, Symbol> table_;
     };
+
+    bool operator == (const Symbol &lhs, const Symbol &rhs);
 
     class ASTVisitor;
 
@@ -90,10 +91,10 @@ namespace script
             T_String,
         };
         virtual ~ASTConstant() = default;
-        ASTConstant(char c);
-        ASTConstant(int num);
-        ASTConstant(float fnum);
-        ASTConstant(std::string &str);
+        ASTConstant(char c, Token token);
+        ASTConstant(int num, Token token);
+        ASTConstant(float fnum, Token token);
+        ASTConstant(std::string &str, Token token);
 
         virtual bool accept(ASTVisitor *v) override;
 
@@ -102,6 +103,7 @@ namespace script
         int num_;
         float fnum_;
         std::string str_;
+        Token token_;
     };
 
     class ASTExpressionList : public ASTree
@@ -251,15 +253,21 @@ namespace script
     class ASTContinueStatement : public ASTree
     {
     public:
+        ASTContinueStatement(Token token);
         virtual ~ASTContinueStatement() = default;
         virtual bool accept(ASTVisitor *v) override;
+
+        Token token_;
     };
 
     class ASTBreakStatement : public ASTree
     {
     public:
+        ASTBreakStatement(Token token);
         virtual ~ASTBreakStatement() = default;
         virtual bool accept(ASTVisitor *v) override;
+
+        Token token_;
     };
 
     class ASTReturnStatement : public ASTree
@@ -317,7 +325,7 @@ namespace script
         virtual ~ASTBlock() = default;
 
         void push_back(ASTree *tree);
-        
+
         virtual bool accept(ASTVisitor *v) override;
 
         std::vector<ASTree*> statements_;

@@ -5,6 +5,7 @@
 
 namespace script
 {
+    struct Token;
     class ASTContext;
 
     class Analysis : public ASTVisitor
@@ -58,8 +59,11 @@ namespace script
         bool number(unsigned type);
         unsigned maxType(unsigned left, unsigned right);
 
+        void error(std::string &msg, Token &token);
+        void error(std::string &msg);
     private:
         Type type_;
+        Token *token_;
 
         unsigned breakLevel_;
         SymbolTable *table_;

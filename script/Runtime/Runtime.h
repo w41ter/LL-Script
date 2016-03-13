@@ -44,6 +44,7 @@ namespace script
         TYPE_STRING = 1,
         TYPE_CLOSURE = 2,
         TYPE_ARRAY = 3,
+        TYPE_BUILD_IN_CLOSURE = 4,
     };
 
     // common property of heap object
@@ -104,6 +105,22 @@ namespace script
     size_t ClosureLength(Pointer self);
     size_t ClosurePosition(Pointer self);
     bool IsClosure(Pointer p);
+
+    typedef struct
+    {
+        HEAP_OBJECT_HEAD;
+        size_t position_;
+        size_t need_;
+        size_t length_;
+        Pointer params[];
+    } BuildInClosure;
+
+    Pointer MakeBuildInClosure(Pointer self, size_t position, size_t length, size_t need);
+    Pointer *BuildInClosureParams(Pointer self);
+    size_t BuildInClosureNeed(Pointer self);
+    size_t BuildInClosureLength(Pointer self);
+    size_t BuildInClosureIndex(Pointer self);
+    bool IsBuildInClosure(Pointer p);
 
     typedef struct
     {

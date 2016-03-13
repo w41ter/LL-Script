@@ -72,6 +72,7 @@ namespace script
         OK_Param,       // push temp
         OK_Call,        // temp = call Label in num params
         OK_Invoke,      // temp = invoke temp in num params
+        OK_BuildIn,     // temp = call buildin function in num params
 
         OK_Return,      // return temp
 

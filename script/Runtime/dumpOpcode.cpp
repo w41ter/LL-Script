@@ -52,6 +52,9 @@ namespace script
             case OK_Invoke:
                 dumpInvoke(ip);
                 break;
+            case OK_BuildIn:
+                dumpBuildIn(ip);
+                break;
             case OK_Goto:
                 dumpGoto(ip);
                 break;
@@ -167,6 +170,15 @@ namespace script
         //dumpRegister(opcode_[ip++]);
         dumpRegister(opcode_[ip++]);
         file_ << endl;
+    }
+
+    void DumpOpcode::dumpBuildIn(size_t & ip)
+    {
+        dumpRegister(opcode_[ip++]);
+        file_ << "= call-build-in <params>:";
+        file_ << (int)opcode_[ip++] << " <total>:";
+        file_ << (int)opcode_[ip++] << " <index>:";
+        file_ << getInteger(ip) << endl;
     }
 
     void DumpOpcode::dumpGoto(size_t & ip)

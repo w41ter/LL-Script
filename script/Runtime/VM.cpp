@@ -5,8 +5,12 @@
 #include <functional>
 #include <cassert>
 
+#include "../BuildIn/BuildIn.h"
+
 using std::vector;
 using std::string;
+
+using namespace buildin;
 
 namespace script
 {
@@ -53,6 +57,9 @@ namespace script
                 break;
             case OK_Invoke:
                 excuteInvoke(ip);
+                break;
+            case OK_BuildIn:
+                excuteBuildIn(ip);
                 break;
             case OK_Goto:
                 excuteGoto(ip);
@@ -172,36 +179,75 @@ namespace script
         unsigned result = opcodes_[ip++];
         int num = (int)opcodes_[ip++];
         Pointer value = getRegister(opcodes_[ip++]);
-        assert(IsClosure(value));
+        assert(IsClosure(value) || IsBuildInClosure(value));
 
-        size_t need = ClosureNeed(value), length = ClosureLength(value);
-        if (length + num == need)
-        {   
-            // call
-            frameStack_.push(std::move(Frame(need, currentFrame_)));
-            Frame *temp = &frameStack_.top();
-            temp->ip_ = ip;
-            ip = ClosurePosition(value);
-            Pointer *params = ClosureParams(value);
-            for (int i = 0; i < length; ++i)
+        if (IsClosure(value))
+        {
+            size_t need = ClosureNeed(value), length = ClosureLength(value);
+            if (length + num == need)
             {
-                temp->localSlot_[i] = params[i];
+                // call
+                frameStack_.push(std::move(Frame(need, currentFrame_)));
+                Frame *temp = &frameStack_.top();
+                temp->ip_ = ip;
+                ip = ClosurePosition(value);
+                Pointer *params = ClosureParams(value);
+                for (int i = 0; i < length; ++i)
+                {
+                    temp->localSlot_[i] = params[i];
+                }
+                for (int i = 0; i < num; ++i)
+                {
+                    temp->localSlot_[length + i] = paramStack_.front();
+                    paramStack_.pop();
+                }
+                temp->result_ = result;
+                currentFrame_ = temp;
             }
-            for (int i = 0; i < num; ++i)
+            else
             {
-                temp->localSlot_[length + i] = paramStack_.front();
-                paramStack_.pop();
+                // new 
+                Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
+                MakeClosure(newValue, ClosurePosition(value), length + num, need);
+                setRegister(result, newValue);
             }
-            temp->result_ = result;
-            currentFrame_ = temp;
         }
         else
         {
-            // new 
-            Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
-            MakeClosure(newValue, ClosurePosition(value), length + num, need);
-            setRegister(result, newValue);
+            size_t need = BuildInClosureNeed(value), length = BuildInClosureLength(value);
+            if (length + num == need)
+            {
+                // TODO: call
+                vector<Pointer> argument(need);
+                Pointer *params = BuildInClosureParams(value);
+                for (int i = 0; i < length; ++i)
+                    argument[i] = params[i];
+                for (int i = 0; i < num; ++i)
+                {
+                    argument[length + i] = paramStack_.front();
+                    paramStack_.pop();
+                }
+                int pos = BuildInClosureIndex(value);
+                setRegister(result, BuildIn::getInstance().excute(pos, std::move(argument)));
+            }
+            else
+            {
+                // new 
+                Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
+                MakeBuildInClosure(newValue, BuildInClosureIndex(value), length + num, need);
+                setRegister(result, newValue);
+            }
         }
+        
+    }
+
+    void VirtualMachine::excuteBuildIn(size_t & ip)
+    {
+        unsigned result = opcodes_[ip++];
+        int params = opcodes_[ip++], total = opcodes_[ip++], offset = getInteger(ip);
+        Pointer value = gc_.allocate(CLOSURE_SIZE(total));
+        MakeBuildInClosure(value, offset, params, total);
+        setRegister(result, value);
     }
 
     void VirtualMachine::excuteGoto(size_t & ip)
@@ -308,7 +354,7 @@ namespace script
     {
         unsigned reg = opcodes_[ip++];
         string &origin = stringPool_[getInteger(ip)];
-        Pointer str = gc_.allocate(STRING_SIZE(origin.size()));
+        Pointer str = gc_.allocate(STRING_SIZE(origin.size() + 1));
         MakeString(str, origin.c_str(), origin.size());
         setRegister(reg, str);
     }
