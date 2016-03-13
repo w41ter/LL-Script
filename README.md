@@ -33,5 +33,5 @@ define fib = function(n) {
 };
 let value = input();
 let result = fib(value);
-output("the result of fib(");output("value");output(") is : "); output(result);output("\n");
+output("the result of fib(");output(value);output(") is : "); output(result);output("\n");
 ```
