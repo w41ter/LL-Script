@@ -1,8 +1,19 @@
 #include "opcode.h"
 
+#include <algorithm>
+
 #include "../BuildIn/BuildIn.h"
 #include "../Parser/lexer.h"
 #include "../IR/Quad.h"
+
+struct CmpByValue 
+{
+    bool operator()(const std::pair<std::string, int>& lhs,
+        const std::pair<std::string, int>& rhs) 
+    {
+        return lhs.second < rhs.second;
+    }
+};
 
 namespace script
 {
@@ -49,7 +60,9 @@ namespace script
             int32_t *offset = (int32_t*)&opcodes_[l], *point = offset + (stringNum_ + 1);
 
             *offset++ = stringNum_;
-            for (auto &i : stringPool_)
+            std::vector<std::pair<std::string, int>> pool(stringPool_.begin(), stringPool_.end());
+            sort(pool.begin(), pool.end(), CmpByValue());
+            for (auto &i : pool)
             {
                 *offset++ = i.first.size(); 
                 char *base = (char*)point;
