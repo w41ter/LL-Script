@@ -1,6 +1,5 @@
 #pragma once
 #include <deque>
-#include <cctype>
 #include <string>
 #include <fstream>
 #include <unordered_map>

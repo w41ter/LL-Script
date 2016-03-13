@@ -1,6 +1,7 @@
-﻿#include <iostream>
+﻿#include "lexer.h"
 
-#include "lexer.h"
+#include <iostream>
+#include <cctype>
 
 using std::string;
 

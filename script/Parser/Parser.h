@@ -1,18 +1,22 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
-#include <map>
+
 #include <string>
-#include <iostream>
-#include <sstream>
+#include <vector>
 #include <set>
-#include <memory>
 
 #include "lexer.h"
-#include "../Semantic/AST.h"
-#include "../Semantic/ASTContext.h"
 
 namespace script
 {
+    class ASTContext;
+    class ASTree;
+    class ASTBlock;
+    class ASTClosure;
+    class ASTDefine;
+    class SymbolTable;
+    class ASTFunction;
+
     enum KeywordsIDs 
     {
         TK_If = TK_BeginKeywordIDs,

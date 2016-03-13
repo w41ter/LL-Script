@@ -14,7 +14,6 @@
 #include "Semantic\Translator.h"
 #include "Semantic\ASTContext.h"
 #include "IR\QuadGenerator.h"
-#include "IR\Quad.h"
 #include "IR\dumpQuad.h"
 #include "IR\dumpCFG.h"
 #include "IR\CodeGen.h"
@@ -24,73 +23,76 @@
 
 int main(int argc, char* argv[])
 {
-    script::Driver &driver = script::Driver::instance();
-    if (!driver.parseArguments(argc, argv))
-        return 0;
-
-    script::Lexer lexer;
-    script::ASTContext context;
-    script::Parser parser(lexer, context);
-    
-    script::Analysis analysis;
-    try {
-        lexer.setProgram(std::string(driver.filename));
-        parser.parse();
-        analysis.analysis(context);
-    }
-    catch (std::runtime_error &e) {
-        std::cout << e.what() << std::endl;
-        return 0;
-    }
-
-    // Dump ast to file
-    if (driver.dumpAST_)
-    {
-        std::string dumpFilename(driver.filename);
-        dumpFilename += ".ast";
-        std::fstream dumpASTFile(dumpFilename, std::ofstream::out);
-        script::DumpAST dumpAST(dumpASTFile);
-        dumpAST.dump(context);
-    }
-    
-    // translate AST to IR (quad).
-    script::IRModule module;
-    script::Translator translator(module);
-    translator.translate(context);
-
-    if (driver.dumpQuad_)
-    {
-        std::string dumpFilename(driver.filename);
-        dumpFilename += ".quad";
-        std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
-        script::DumpQuad dumpQuad(dumpIRFile);
-        dumpQuad.dump(module);
-    }
-
-    if (driver.dumpCFG_)
-    {
-        std::string dumpFilename(driver.filename);
-        dumpFilename += ".cfg";
-        std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
-        script::DumpCFG dumpCFG(dumpIRFile);
-        dumpCFG.dump(module);
-    }
-
-    script::OpcodeContext opcode;
-    script::CodeGenerator codegen(opcode);
-    codegen.gen(module);
-
     int length = 0;
-    script::Byte *opcodes = opcode.getOpcodes(length);
-
-    driver.dumpOpcode_ = true;
-    if (driver.dumpOpcode_)
+    script::Byte *opcodes;
     {
-        std::string dumpFilename(driver.filename);
-        dumpFilename += ".txt";
-        std::fstream dumpOpcodeFile(dumpFilename, std::ofstream::out);
-        script::DumpOpcode dumpByte(dumpOpcodeFile);
-        dumpByte.dump(opcodes, length);
+        script::Driver &driver = script::Driver::instance();
+        if (!driver.parseArguments(argc, argv))
+            return 0;
+
+        script::IRModule module;
+        {
+            script::ASTContext context;
+            try {
+                script::Lexer lexer;
+                script::Parser parser(lexer, context);
+                lexer.setProgram(std::string(driver.filename));
+                parser.parse();
+
+                script::Analysis analysis;
+                analysis.analysis(context);
+            }
+            catch (std::runtime_error &e) {
+                std::cout << e.what() << std::endl;
+                return 0;
+            }
+
+            // Dump ast to file
+            if (driver.dumpAST_)
+            {
+                std::string dumpFilename(driver.filename);
+                dumpFilename += ".ast";
+                std::fstream dumpASTFile(dumpFilename, std::ofstream::out);
+                script::DumpAST dumpAST(dumpASTFile);
+                dumpAST.dump(context);
+            }
+
+            // translate AST to IR (quad).
+            script::Translator translator(module);
+            translator.translate(context);
+        }
+
+        if (driver.dumpQuad_)
+        {
+            std::string dumpFilename(driver.filename);
+            dumpFilename += ".quad";
+            std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
+            script::DumpQuad dumpQuad(dumpIRFile);
+            dumpQuad.dump(module);
+        }
+
+        if (driver.dumpCFG_)
+        {
+            std::string dumpFilename(driver.filename);
+            dumpFilename += ".cfg";
+            std::fstream dumpIRFile(dumpFilename, std::ofstream::out);
+            script::DumpCFG dumpCFG(dumpIRFile);
+            dumpCFG.dump(module);
+        }
+
+        script::OpcodeContext opcode;
+        script::CodeGenerator codegen(opcode);
+        codegen.gen(module);
+        opcodes = opcode.getOpcodes(length);
+
+        if (driver.dumpOpcode_)
+        {
+            std::string dumpFilename(driver.filename);
+            dumpFilename += ".txt";
+            std::fstream dumpOpcodeFile(dumpFilename, std::ofstream::out);
+            script::DumpOpcode dumpByte(dumpOpcodeFile);
+            dumpByte.dump(opcodes, length);
+        }
     }
 
     try {

@@ -1,5 +1,12 @@
-
 #include "Parser.h"
+
+#include <iostream>
+#include <sstream>
+#include <memory>
+
+#include "../Semantic/AST.h"
+#include "../Semantic/ASTContext.h"
+
 
 using std::map;
 using std::set;
