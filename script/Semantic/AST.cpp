@@ -56,12 +56,13 @@ namespace script
     }
 
     ASTProgram::ASTProgram(SymbolTable * table, 
-        std::vector<ASTDefine*> defines, 
+        std::vector<ASTree*> statements,
         std::vector<ASTFunction*> function)
         : table_(table)
-        , defines_(std::move(defines))
+        , statements_(std::move(statements))
         , function_(std::move(function))
-    {}
+    {
+    }
 
     ASTProgram::~ASTProgram()
     {

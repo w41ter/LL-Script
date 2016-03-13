@@ -124,6 +124,11 @@ namespace script
         return;
     }
 
+    GarbageCollector * VirtualMachine::getGC()
+    {
+        return &gc_;
+    }
+
     void VirtualMachine::excuteBinary(size_t & ip, unsigned op)
     {
         unsigned result = opcodes_[ip++];
@@ -354,7 +359,7 @@ namespace script
     {
         unsigned reg = opcodes_[ip++];
         string &origin = stringPool_[getInteger(ip)];
-        Pointer str = gc_.allocate(STRING_SIZE(origin.size() + 1));
+        Pointer str = gc_.allocate(STRING_SIZE(origin.size()));
         MakeString(str, origin.c_str(), origin.size());
         setRegister(reg, str);
     }

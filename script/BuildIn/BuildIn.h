@@ -5,12 +5,16 @@
 #include <vector>
 #include <map>
 
+namespace script
+{
+    class GarbageCollector;
+}
+
 namespace buildin
 {
     typedef int32_t Pointer;
     using Map = std::function<std::string(const std::string&, int)>;
 
-    class GarbageCollector;
 
     class BuildIn
     {
@@ -22,7 +26,7 @@ namespace buildin
         int getFunctionIndex(const std::string &name);
         Pointer excute(int index, std::vector<Pointer> params);
 
-        void bindGC(GarbageCollector *gc);
+        void bindGC(script::GarbageCollector *gc);
 
     private:
         BuildIn();
@@ -30,6 +34,7 @@ namespace buildin
 
         void initializer();
 
+        Pointer input(std::vector<Pointer> params);
         Pointer output(std::vector<Pointer> params);
         void output(Pointer p);
     private:
@@ -37,7 +42,7 @@ namespace buildin
         std::map<std::string, int> functionMap_;
         std::map<std::string, int> mapName_;
 
-        GarbageCollector *gc_;
+        script::GarbageCollector *gc_;
     };
 
     class BuildInMoudle

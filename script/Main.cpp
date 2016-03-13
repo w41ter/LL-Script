@@ -20,6 +20,7 @@
 #include "Runtime\opcode.h"
 #include "Runtime\dumpOpcode.h"
 #include "Runtime\VM.h"
+#include "BuildIn\BuildIn.h"
 
 int main(int argc, char* argv[])
 {
@@ -102,6 +103,7 @@ int main(int argc, char* argv[])
 
     try {
         script::VirtualMachine vm;
+        buildin::BuildIn::getInstance().bindGC(vm.getGC());
         auto beginTime = GetTickCount();
         vm.excute(opcodes, length);
         auto endTime = GetTickCount();

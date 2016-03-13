@@ -355,8 +355,7 @@ namespace script
                 return context_.allocate<ASTIfStatement>(
                     condition, ifState, elseState);
             }
-            return context_.allocate<ASTIfStatement>(
-                condition, ifState);
+            return context_.allocate<ASTIfStatement>(condition, ifState);
         }
         case TK_While:
         {
@@ -534,7 +533,7 @@ namespace script
     void Parser::parse()
     {
         SymbolTable *symbol = new SymbolTable(nullptr);
-        vector<ASTDefine*> defines;
+        vector<ASTree*> statements;
         vector<ASTFunction*> functions;
         this->functions_ = &functions;
 
@@ -543,24 +542,27 @@ namespace script
         catch_.push_back(&catchTable);
 
         buildin::BuildIn::getInstance().map(
-            [this, &defines] (const string &name, int size) -> string {
+            [this, &statements] (const string &name, int size) -> string {
             symbolTable_.back()->insert(name, SymbolType::ST_Constant, Token());
             string tempName = getTempIDName(name.c_str());
             ASTree *tree = context_.allocate<ASTClosure>(tempName, size, vector<string>());
-            defines.push_back(context_.allocate<ASTDefine>(name, tree));
+            statements.push_back(context_.allocate<ASTDefine>(name, tree));
             return std::move(tempName);
         });
         // TODO:
 
         advance();
-        while (token_.kind_ == TK_Define)
+        while (token_.kind_ != TK_EOF)
         {
-            defines.push_back(parseDefine());
+            if (token_.kind_ == TK_Define)
+                statements.push_back(parseDefine());
+            else
+                statements.push_back(parseStatement());
         }
 
         this->functions_ = nullptr;
         context_.setProgram(context_.allocate<ASTProgram>(
-            symbol, std::move(defines), std::move(functions)));
+            symbol, std::move(statements), std::move(functions)));
     }
 
     Parser::Parser(Lexer & lexer, ASTContext &context) 

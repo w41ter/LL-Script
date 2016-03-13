@@ -38,6 +38,7 @@ namespace script
     public:
         VirtualMachine();
         void excute(Byte *opcode, size_t length);
+        GarbageCollector *getGC();
 
     private:
         void loadStringPool();

@@ -254,7 +254,7 @@ namespace script
         //    table_->insert(i->name_);
         for (auto &i : v->function_)
             i->accept(this);
-        for (auto &i : v->defines_)
+        for (auto &i : v->statements_)
             i->accept(this);
         //std::cout << "end analysis" << std::endl;
         return false;

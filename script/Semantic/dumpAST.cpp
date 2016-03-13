@@ -235,7 +235,7 @@ namespace script
 
         file_ << endl << endl;
         file_ << "# variable defination:" << endl;
-        for (auto &i : v->defines_)
+        for (auto &i : v->statements_)
             i->accept(this), file_ << endl;
 
         return false;

@@ -372,14 +372,14 @@ namespace script
     {
     public:
         ASTProgram(SymbolTable *table,
-            std::vector<ASTDefine*> defines,
+            std::vector<ASTree*> statements,
             std::vector<ASTFunction*> function);
 
         virtual ~ASTProgram();
         virtual bool accept(ASTVisitor *v) override;
 
         SymbolTable *table_;
-        std::vector<ASTDefine*> defines_;
+        std::vector<ASTree*> statements_;
         std::vector<ASTFunction*> function_;
     };
 

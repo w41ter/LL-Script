@@ -79,7 +79,7 @@ namespace script
         char str_[];
     } String;
 
-#define STRING_SIZE(length) (sizeof(String) + (length) * sizeof(char))
+#define STRING_SIZE(length) (sizeof(String) + ((length) + 1) * sizeof(char))
 
     /* make string from exist str and memory. */
     Pointer MakeString(Pointer self, const char *from, size_t length);

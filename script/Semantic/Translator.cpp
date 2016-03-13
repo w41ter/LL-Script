@@ -316,7 +316,7 @@ namespace script
         //symbols_ = new std::map<std::string, Identifier*>();
 
         gen_->insertLabel(begin);
-        for (auto &i : v->defines_)
+        for (auto &i : v->statements_)
             i->accept(this);
         gen_->insertLabel(end);
 

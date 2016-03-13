@@ -5,18 +5,42 @@
 #include <vector>
 #include <assert.h>
 
+#include "lexical_cast.h"
 #include "OperatorSystem.h"
 #include "../Runtime/GC.h"
 #include "../Runtime/Runtime.h"
 
 using std::string;
 using std::vector;
+using std::cin;
 using std::cout;
 using std::endl;
 using namespace script;
 
 #define FUNC_OUTPUT 1
 #define FUNC_INPUT (FUNC_OUTPUT + 1)
+
+bool getInteger(const string &str, int &val)
+{
+    try {
+        val = lexical_cast<int>(str.c_str());
+        return true;
+    }
+    catch (const exception &e) {
+        return false;
+    }
+}
+
+bool getFloat(const string &str, float &fval)
+{
+    try {
+        fval = lexical_cast<float>(str.c_str());
+        return true;
+    }
+    catch (const exception &e) {
+        return false;
+    }
+}
 
 namespace buildin
 {
@@ -52,6 +76,9 @@ namespace buildin
         case FUNC_OUTPUT:
             return output(std::move(params));
             break;
+        case FUNC_INPUT:
+            return input(std::move(params));
+            break;
         }
 
         return Pointer();
@@ -75,6 +102,28 @@ namespace buildin
     {
         functions_["output"] = 1;
         functionMap_["output"] = FUNC_OUTPUT;
+        functions_["input"] = 0;
+        functionMap_["input"] = FUNC_INPUT;
+    }
+
+    Pointer BuildIn::input(std::vector<Pointer> params)
+    {
+        assert(params.size() == 0);
+        string str;
+        cin >> str;
+        // TODO: there have some bug...
+        {
+            int val = 0;
+            if (getInteger(str, val))
+                return MakeFixnum(val);
+        }
+        {
+            float val = 0.f;
+            if (getFloat(str, val))
+                return MakeReal(val);
+        }
+        Pointer p = gc_->allocate(STRING_SIZE(str.length()));
+        return MakeString(p, str.c_str(), str.size());
     }
 
     Pointer BuildIn::output(std::vector<Pointer> params)
