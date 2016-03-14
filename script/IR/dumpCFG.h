@@ -10,7 +10,7 @@ namespace script
     class DumpCFG : public DumpQuad
     {
     public:
-        DumpCFG(std::fstream &file) : DumpQuad(file) {}
+        DumpCFG(std::fstream &file);
 
         virtual bool visit(Label *v) override;
 

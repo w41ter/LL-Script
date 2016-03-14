@@ -7,6 +7,11 @@ using std::endl;
 
 namespace script
 {
+    DumpAST::DumpAST(std::fstream & file)
+        : file_(file) 
+    {
+    }
+
     void DumpAST::dump(ASTContext & context)
     {
         context.program_->accept(this);
@@ -276,10 +281,20 @@ namespace script
         return false;
     }
 
+    void DumpAST::indent()
+    {
+        ++indent_;
+    }
+
+    void DumpAST::decdent()
+    {
+        --indent_;
+    }
+
     void DumpAST::printIndent()
     {
         for (int i = 0; i < indent_; ++i)
-            file_ << '\t';
+            file_ << "  ";
     }
 
     std::string DumpAST::getOP(unsigned op)

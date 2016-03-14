@@ -44,7 +44,7 @@ string Output(script::Pointer p)
         cout << "[";
         script::Pointer *array = script::ArrayData(p);
         size_t length = script::ArrayLength(p);
-        for (int i = 0; i < length; ++i)
+        for (size_t i = 0; i < length; ++i)
         {
             Output(*(array + i));
             if (i + 1 == length)

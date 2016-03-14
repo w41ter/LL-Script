@@ -169,9 +169,9 @@ namespace {
 
         // find end and add edge.
         breach.setState(true);
-        for (auto begin : leader)
+        for (auto beg : leader)
         {
-            Quad *end = begin;
+            Quad *end = beg;
             while (end->next_ != nullptr && nodes.count(end->next_) == 0)
                 end = end->next_;
 
@@ -180,8 +180,8 @@ namespace {
             while (LabelTarget::instance().getTarget(end) != end)
                 end = end->prev_;
 
-            BasicBlock *from = nodes[begin];
-            from->set(begin, end);
+            BasicBlock *from = nodes[beg];
+            from->set(beg, end);
             
             // add edge
             map = [&nodes, &from](Quad *quad) {
@@ -201,10 +201,10 @@ namespace {
         if (cfg->blocks_.size() > 1)
         {
             cfg->end_ = cfg->createBlock();
-            auto begin = cfg->blocks_.begin()++;
-            while (begin != cfg->blocks_.end())
+            auto beg = cfg->blocks_.begin()++;
+            while (beg != cfg->blocks_.end())
             {
-                BasicBlock *block = *begin++;
+                BasicBlock *block = *beg++;
                 if (block == cfg->end_) continue;
                 if (block->numOfPrecursors() > 0 && block->numOfSuccessors() == 0)
                 {

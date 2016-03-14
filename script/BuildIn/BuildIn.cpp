@@ -160,7 +160,7 @@ namespace buildin
             cout << "[";
             script::Pointer *array = script::ArrayData(p);
             size_t length = script::ArrayLength(p);
-            for (int i = 0; i < length; ++i)
+            for (size_t i = 0; i < length; ++i)
             {
                 output(*(array + i));
                 if (i + 1 == length)

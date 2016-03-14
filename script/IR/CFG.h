@@ -30,6 +30,7 @@ namespace script
         unsigned getID() const { return ID_; }
 
         void unique();
+
     private:
         unsigned ID_;
         Quad *head_, *end_;

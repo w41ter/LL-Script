@@ -10,8 +10,7 @@ namespace script
     class DumpQuad : public QuadVisitor
     {
     public:
-        DumpQuad(std::fstream &file) : file_(file) {}
-
+        DumpQuad(std::fstream &file);
         virtual ~DumpQuad() = default;
 
         virtual bool visit(Constant *v) override;

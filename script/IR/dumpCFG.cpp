@@ -39,7 +39,12 @@ namespace {
     };
 }
 
-    bool DumpCFG::visit(Label * v)
+DumpCFG::DumpCFG(std::fstream & file)
+    : DumpQuad(file) 
+{
+}
+
+bool DumpCFG::visit(Label * v)
     {
         Quad *tar = (*labelTarget_)[v];
         BasicBlock *block = head_[tar];

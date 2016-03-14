@@ -6,6 +6,12 @@
 
 namespace script
 {
+    Translator::Translator(IRModule & module)
+        : module_(module)
+    {
+        gen_ = module_.getContext();
+    }
+
     void Translator::translate(ASTContext & context)
     {
         context.program_->accept(this);
@@ -21,7 +27,7 @@ namespace script
 
     bool Translator::visit(ASTIdentifier *v)
     {
-        result_ = gen_->CreateValue<Identifier>(v->name_);//(*symbols_)[v->name_];
+        result_ = gen_->CreateValue<Identifier>(v->name_);
         return false;
     }
 
@@ -179,7 +185,7 @@ namespace script
             gen_->insertCopy(loadValue(result_), value);
         else
             gen_->insertStore(value, loadValue(result_));
-        // var_ = var_
+
         return false;
     }
 
@@ -270,11 +276,7 @@ namespace script
 
     bool Translator::visit(ASTFunction *v)
     {
-        //std::map<std::string, Identifier*> *origin = symbols_;
-        //symbols_ = new std::map<std::string, Identifier*>();
-
-        IRFunction *function = 
-            module_.createFunction(v->prototype_->name_);
+        IRFunction *function = module_.createFunction(v->prototype_->name_);
 
         function->setParams(v->prototype_->args_);
 
@@ -284,22 +286,19 @@ namespace script
         Label *begin = gen_->Create<Label>();
         Label *end = gen_->Create<Label>();
 
-        //function_[v->prototype_->name_] = begin;
         function->set(begin, end);
 
         gen_->insertLabel(begin);
         v->prototype_->accept(this);
         v->block_->accept(this);
-        // add return 
+
+        // add return ensure ever function can break.
         Value *value = gen_->CreateValue<Constant>(0);
         gen_->insertReturn(loadValue(value));
         gen_->insertLabel(end);
 
         // reset generaor
         gen_ = gen;
-
-        //delete symbols_;
-        //symbols_ = origin;
 
         result_ = nullptr;
         return false;
@@ -313,15 +312,10 @@ namespace script
         Label *begin = gen_->Create<Label>();
         Label *end = gen_->Create<Label>();
 
-        //symbols_ = new std::map<std::string, Identifier*>();
-
         gen_->insertLabel(begin);
         for (auto &i : v->statements_)
             i->accept(this);
         gen_->insertLabel(end);
-
-        //delete symbols_;
-        //symbols_ = nullptr;
 
         return false;
     }
@@ -329,10 +323,9 @@ namespace script
     bool Translator::visit(ASTClosure * v)
     {
         for (auto &i : v->params_)
-            gen_->insertParam(gen_->CreateValue<Identifier>(v->name_)); //(*symbols_)[i]);
+            gen_->insertParam(gen_->CreateValue<Identifier>(v->name_)); 
         
         auto *result = gen_->CreateValue<Temp>();
-        //gen_->insertCall(function_[v->name_], result, v->params_.size());
         gen_->insertCall(v->name_, result, v->params_.size(), v->total_);
         result_ = result;
         return false;
@@ -347,8 +340,6 @@ namespace script
 
     bool Translator::visit(ASTPrototype * v)
     {
-        //for (auto &i : v->args_)
-        //    (*symbols_)[i] = gen_->CreateValue<Identifier>(i);
         return false;
     }
 
@@ -356,7 +347,6 @@ namespace script
     {
         v->expr_->accept(this);
         Identifier *name = gen_->CreateValue<Identifier>(v->name_);
-        //(*symbols_)[v->name_] = name;
         gen_->insertStore(name, loadValue(result_));
         result_ = nullptr;
         return false;

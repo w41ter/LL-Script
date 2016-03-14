@@ -18,14 +18,6 @@ namespace script
         friend class IRFunction;
         friend class IRModule;
 
-        void destroy()
-        {
-            for (auto &i : codes_)
-                delete i, i = nullptr;
-            for (auto &i : values_)
-                delete i, i = nullptr;
-        }
-
     public:
         QuadContext() { end_ = &begin_; }
         ~QuadContext() { destroy(); }
@@ -64,6 +56,10 @@ namespace script
         const Quad *end() const { return end_; }
 
     private:
+
+        void destroy();
+
+    private:
         void push(Quad *quad);
 
     private:
@@ -75,45 +71,40 @@ namespace script
         std::list<Value*> values_;
     };
 
+    // 
+    // 找到该 label 对应的第一条指令
+    //
     class LabelTarget : private QuadVisitor
     {
         LabelTarget() = default;
     public:
-        static LabelTarget &instance()
-        {
-            static LabelTarget tar;
-            return tar;
-        }
+        static LabelTarget &instance();
 
         virtual ~LabelTarget() {}
 
-        Quad *getTarget(Quad *quad)
-        {
-            quad->accept(this);
-            return target_;
-        }
+        Quad *getTarget(Quad *quad);
 
     private:
-        virtual bool visit(Constant *v) { return false; };
-        virtual bool visit(Temp *v) { return false; };
-        virtual bool visit(Identifier *v) { return false; };
-        virtual bool visit(Array *v) { return false; };
-        virtual bool visit(ArrayIndex *v) { return false; };
+        virtual bool visit(Constant *v);
+        virtual bool visit(Temp *v);
+        virtual bool visit(Identifier *v);
+        virtual bool visit(Array *v);
+        virtual bool visit(ArrayIndex *v);
 
-        virtual bool visit(If *v) { target_ = v; return true; };
-        virtual bool visit(Call *v) { target_ = v; return false; };
-        virtual bool visit(Goto *v) { target_ = v; return true; };
-        virtual bool visit(Copy *v) { target_ = v; return false; };
-        virtual bool visit(Load *v) { target_ = v; return false; };
-        virtual bool visit(Store *v) { target_ = v; return false; };
-        virtual bool visit(Label *v) { if (v->next_ != nullptr) v->next_->accept(this); else target_ = nullptr; return true; };
-        virtual bool visit(Param *v) { target_ = v; return false; };
-        virtual bool visit(Invoke *v) { target_ = v; return false; };
-        virtual bool visit(Return *v) { target_ = v; return true; }; // 
-        virtual bool visit(IfFalse *v) { target_ = v; return true; };
-        virtual bool visit(Operation *v) { target_ = v; return false; };
-        virtual bool visit(AssignArray *v) { target_ = v; return false; };
-        virtual bool visit(ArrayAssign *v) { target_ = v; return false; };
+        virtual bool visit(If *v);
+        virtual bool visit(Call *v);
+        virtual bool visit(Goto *v);
+        virtual bool visit(Copy *v);
+        virtual bool visit(Load *v);
+        virtual bool visit(Store *v);
+        virtual bool visit(Label *v);
+        virtual bool visit(Param *v);
+        virtual bool visit(Invoke *v);
+        virtual bool visit(Return *v); // 
+        virtual bool visit(IfFalse *v);
+        virtual bool visit(Operation *v);
+        virtual bool visit(AssignArray *v);
+        virtual bool visit(ArrayAssign *v);
 
     private:
         Quad *target_;

@@ -133,31 +133,22 @@ namespace script
     {
         unsigned result = opcodes_[ip++];
         Pointer left = getRegister(opcodes_[ip++]), right = getRegister(opcodes_[ip++]);
-        std::function<Pointer(Pointer, Pointer)> callable;
+        //std::function<Pointer(Pointer, Pointer)> callable;
+        Pointer calRes = 0;
         switch (op)
         {
-        case OK_Add: callable = std::bind(&VirtualMachine::add, this, 
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_Sub: callable = std::bind(&VirtualMachine::sub, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_Div: callable = std::bind(&VirtualMachine::div, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_Mul: callable = std::bind(&VirtualMachine::mul, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_Great: callable = std::bind(&VirtualMachine::g, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_GreatThan: callable = std::bind(&VirtualMachine::gt, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_Less: callable = std::bind(&VirtualMachine::l, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_LessThan: callable = std::bind(&VirtualMachine::lt, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_NotEqual: callable = std::bind(&VirtualMachine::ne, this,
-            std::placeholders::_1, std::placeholders::_2); break;
-        case OK_Equal: callable = std::bind(&VirtualMachine::et, this,
-            std::placeholders::_1, std::placeholders::_2); break;
+        case OK_Add: calRes = add(left, right); break;
+        case OK_Sub: calRes = sub(left, right); break;
+        case OK_Div: calRes = div(left, right); break;
+        case OK_Mul: calRes = mul(left, right); break;
+        case OK_Great: calRes = g(left, right); break;
+        case OK_GreatThan: calRes = gt(left, right); break;
+        case OK_Less: calRes = l(left, right); break;
+        case OK_LessThan: calRes = lt(left, right); break;
+        case OK_NotEqual: calRes = ne(left, right); break;
+        case OK_Equal: calRes = et(left, right); break;
         }
-        setRegister(result, callable(left, right));
+        setRegister(result, calRes);
     }
 
     void VirtualMachine::excuteSingle(size_t & ip, unsigned op)
@@ -187,63 +178,9 @@ namespace script
         assert(IsClosure(value) || IsBuildInClosure(value));
 
         if (IsClosure(value))
-        {
-            size_t need = ClosureNeed(value), length = ClosureLength(value);
-            if (length + num == need)
-            {
-                // call
-                frameStack_.push(std::move(Frame(need, currentFrame_)));
-                Frame *temp = &frameStack_.top();
-                temp->ip_ = ip;
-                ip = ClosurePosition(value);
-                Pointer *params = ClosureParams(value);
-                for (int i = 0; i < length; ++i)
-                {
-                    temp->localSlot_[i] = params[i];
-                }
-                for (int i = 0; i < num; ++i)
-                {
-                    temp->localSlot_[length + i] = paramStack_.front();
-                    paramStack_.pop();
-                }
-                temp->result_ = result;
-                currentFrame_ = temp;
-            }
-            else
-            {
-                // new 
-                Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
-                MakeClosure(newValue, ClosurePosition(value), length + num, need);
-                setRegister(result, newValue);
-            }
-        }
+            excuteClosure(result, num, value, ip);
         else
-        {
-            size_t need = BuildInClosureNeed(value), length = BuildInClosureLength(value);
-            if (length + num == need)
-            {
-                // TODO: call
-                vector<Pointer> argument(need);
-                Pointer *params = BuildInClosureParams(value);
-                for (int i = 0; i < length; ++i)
-                    argument[i] = params[i];
-                for (int i = 0; i < num; ++i)
-                {
-                    argument[length + i] = paramStack_.front();
-                    paramStack_.pop();
-                }
-                int pos = BuildInClosureIndex(value);
-                setRegister(result, BuildIn::getInstance().excute(pos, std::move(argument)));
-            }
-            else
-            {
-                // new 
-                Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
-                MakeBuildInClosure(newValue, BuildInClosureIndex(value), length + num, need);
-                setRegister(result, newValue);
-            }
-        }
-        
+            excuteBuildInClosure(result, num, value, ip);
     }
 
     void VirtualMachine::excuteBuildIn(size_t & ip)
@@ -291,7 +228,8 @@ namespace script
         currentFrame_ = currentFrame_->previous_;
         setRegister(temp->result_, value);
         ip = temp->ip_;
-        frameStack_.pop();
+        delete temp;
+        //frameStack_.pop();
     }
 
     void VirtualMachine::excuteLoad(size_t &ip)
@@ -307,14 +245,14 @@ namespace script
         if (!IsArray(array)) throw std::runtime_error("求值对象非数组类型！");
         RArray *value = (RArray*)array;
         if (!IsFixnum(index)) throw std::runtime_error("数组索引必须是数值类型！");
-        int num = GetFixnum(index);
+        size_t num = GetFixnum(index);
         if (value->length_ <= num || num < 0) throw std::runtime_error("数组索引 out of range!");
         setRegister(regresult, value->data[num]);
     }
 
     void VirtualMachine::excuteParam(size_t & ip)
     {
-        paramStack_.push(getRegister(opcodes_[ip++]));
+        paramStack_.push_back(getRegister(opcodes_[ip++]));
     }
 
     void VirtualMachine::excuteStore(size_t & ip)
@@ -330,7 +268,7 @@ namespace script
         if (!IsArray(array)) throw std::runtime_error("求值对象非数组类型！");
         RArray *value = (RArray*)array;
         if (!IsFixnum(index)) throw std::runtime_error("数组索引必须是数值类型！");
-        int num = GetFixnum(index);
+        size_t num = GetFixnum(index);
         if (value->length_ <= num || num < 0) throw std::runtime_error("数组索引 out of range!");
         value->data[num] = result;
     }
@@ -378,8 +316,9 @@ namespace script
     void VirtualMachine::excuteEntry(size_t &ip)
     {
         int offset = getInteger(ip);
-        frameStack_.push(std::move(Frame(getInteger(ip))));
-        currentFrame_ = globalFrame_ = &frameStack_.top();
+        currentFrame_ = globalFrame_ = new Frame(getInteger(ip));
+        //frameStack_.push(std::move(Frame(getInteger(ip))));
+        //currentFrame_ = globalFrame_ = &frameStack_.top();
         //FIXME
         ip = offset;
     }
@@ -387,6 +326,7 @@ namespace script
     void VirtualMachine::excuteNewSlot(size_t & ip)
     {
         currentFrame_->localSlot_.resize(getInteger(ip));
+        //currentFrame_->resize(getInteger(ip));
     }
 
     void VirtualMachine::excuteNewArray(size_t &ip)
@@ -396,6 +336,62 @@ namespace script
         Pointer array = gc_.allocate(ARRAY_SIZE(length));
         MakeArray(array, length);
         setRegister(reg, array);
+    }
+
+    void VirtualMachine::excuteClosure(unsigned result, int num, Pointer value, size_t &ip)
+    {
+        size_t need = ClosureNeed(value), length = ClosureLength(value);
+        if (length + num == need)
+        {
+            // call
+
+            //frameStack_.push(std::move(Frame(need, currentFrame_)));
+            Frame *temp = new Frame(need, currentFrame_); //&frameStack_.top();
+            temp->ip_ = ip;
+            ip = ClosurePosition(value);
+            Pointer *params = ClosureParams(value);
+            for (size_t i = 0; i < length; ++i)
+            {
+                temp->localSlot_[i] = params[i];
+            }
+            for (size_t i = 0; i < num; ++i)
+                temp->localSlot_[length + i] = paramStack_[i];
+            paramStack_.clear();
+
+            temp->result_ = result;
+            currentFrame_ = temp;
+        }
+        else
+        {
+            // new 
+            Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
+            MakeClosure(newValue, ClosurePosition(value), length + num, need);
+            setRegister(result, newValue);
+        }
+    }
+
+    void VirtualMachine::excuteBuildInClosure(unsigned result, int num, Pointer value, size_t &ip)
+    {
+        size_t need = BuildInClosureNeed(value), length = BuildInClosureLength(value);
+        if (length + num == need)
+        {
+            vector<Pointer> argument(need);
+            Pointer *params = BuildInClosureParams(value);
+            for (size_t i = 0; i < length; ++i)
+                argument[i] = params[i];
+            for (int i = 0; i < num; ++i)
+                argument[length + i] = paramStack_[i];
+            paramStack_.clear();
+            int pos = BuildInClosureIndex(value);
+            setRegister(result, BuildIn::getInstance().excute(pos, std::move(argument)));
+        }
+        else
+        {
+            // new 
+            Pointer newValue = gc_.allocate(CLOSURE_SIZE(need));
+            MakeBuildInClosure(newValue, BuildInClosureIndex(value), length + num, need);
+            setRegister(result, newValue);
+        }
     }
 
     void VirtualMachine::setRegister(unsigned reg, Pointer value)
@@ -451,7 +447,7 @@ namespace script
         Frame *temp = currentFrame_;
         while (true)
         {
-            for (int i = 0; i < temp->localSlot_.size(); ++i)
+            for (size_t i = 0; i < temp->localSlot_.size(); ++i)
             {
                 gc_.processReference(&(temp->localSlot_[i]));
             }
@@ -466,7 +462,7 @@ namespace script
         {
             size_t need = ClosureNeed(*pointer);
             Pointer *params = ClosureParams(*pointer);
-            for (int i = 0; i < need; ++i)
+            for (size_t i = 0; i < need; ++i)
             {
                 gc_.processReference(&(params[i]));
             }

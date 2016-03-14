@@ -13,11 +13,15 @@
 
 namespace script
 {
+    // 
+    // TODO: 这个结构需要优化
+    //
     struct Frame 
     {
         Frame(size_t slot, Frame *parent = nullptr) 
             : localSlot_(slot)
-            , previous_(parent) {}
+            , previous_(parent)
+        {}
 
         struct 
         {
@@ -70,6 +74,9 @@ namespace script
         void excuteNewSlot(size_t &ip);
         void excuteNewArray(size_t & ip);
 
+        void excuteClosure(unsigned result, int num, Pointer value, size_t &ip);
+        void excuteBuildInClosure(unsigned result, int num, Pointer value, size_t &ip);
+
         void setRegister(unsigned reg, Pointer value);
         Pointer getRegister(unsigned reg);
 
@@ -99,9 +106,10 @@ namespace script
         Frame *globalFrame_ = nullptr;
         Frame *currentFrame_ = nullptr;
         
-        std::queue<Pointer> paramStack_;
+        // TODO: paramStatck_ 需要优化
+        std::vector<Pointer> paramStack_;
         std::vector<std::string> stringPool_;
-        std::stack<Frame> frameStack_;
+        //std::stack<Frame> frameStack_;
     };
 }
 

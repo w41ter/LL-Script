@@ -12,7 +12,7 @@ namespace script
     class DumpAST : public ASTVisitor
     {
     public:
-        DumpAST(std::fstream &file) : file_(file) {}
+        DumpAST(std::fstream &file);
         virtual ~DumpAST() = default;
 
         void dump(ASTContext &context);
@@ -45,8 +45,8 @@ namespace script
         virtual bool visit(ASTStatement *v) override;
 
     private:
-        void indent() { ++indent_; }
-        void decdent() { --indent_; }
+        void indent();
+        void decdent();
         void printIndent();
 
         std::string getOP(unsigned op);

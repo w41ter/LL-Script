@@ -13,15 +13,13 @@ namespace script
 {
     class ASTContext;
 
+    //
+    // Translator - °Ñ ASTContext ×ª»»³É IRModule
+    //
     class Translator : public ASTVisitor
     {
     public:
-        Translator(IRModule &module) 
-            : module_(module) 
-        { 
-            gen_ = module_.getContext(); 
-        }
-
+        Translator(IRModule &module);
         virtual ~Translator() {};
 
         void translate(ASTContext &context);
@@ -61,8 +59,6 @@ namespace script
         std::stack<Label*> breakLabels_;
         std::stack<Label*> continueLabels_;
 
-        //std::map<std::string, Label*> function_;
-        //std::map<std::string, Identifier*> *symbols_;
         QuadContext *gen_;
 
         IRModule &module_;

@@ -47,6 +47,14 @@ namespace script
         push(Create<Invoke>(function, result, num));
     }
 
+    void QuadContext::destroy()
+    {
+        for (auto &i : codes_)
+            delete i, i = nullptr;
+        for (auto &i : values_)
+            delete i, i = nullptr;
+    }
+
     void QuadContext::insertParam(Value * value)
     {
         push(Create<Param>(value));
@@ -73,6 +81,117 @@ namespace script
     void QuadContext::insertIf(Value * condition, Label * label)
     {
         push(Create<If>(condition, label));
+    }
+
+    LabelTarget & LabelTarget::instance()
+    {
+        static LabelTarget tar;
+        return tar;
+    }
+
+    Quad * LabelTarget::getTarget(Quad * quad)
+    {
+        quad->accept(this);
+        return target_;
+    }
+
+    bool LabelTarget::visit(Constant *v) 
+    {
+        return false; 
+    }
+
+    bool LabelTarget::visit(Temp *v) 
+    { 
+        return false; 
+    }
+
+    bool LabelTarget::visit(Identifier *v) 
+    {
+        return false; 
+    }
+
+    bool LabelTarget::visit(Array *v) 
+    {
+        return false; 
+    }
+
+    bool LabelTarget::visit(ArrayIndex *v) 
+    {
+        return false; 
+    }
+
+    bool LabelTarget::visit(If *v)
+    {
+        target_ = v; return true;
+    }
+
+    bool LabelTarget::visit(Call *v) 
+    {
+        target_ = v; return false; 
+    }
+
+    bool LabelTarget::visit(Goto *v) 
+    {
+        target_ = v; return true; 
+    }
+
+    bool LabelTarget::visit(Copy *v) 
+    {
+        target_ = v; return false;
+    }
+
+    bool LabelTarget::visit(Load *v) 
+    { 
+        target_ = v; return false; 
+    }
+
+    bool LabelTarget::visit(Store *v)
+    {
+        target_ = v; return false; 
+    }
+
+    bool LabelTarget::visit(Label *v) 
+    {
+        if (v->next_ != nullptr) 
+            v->next_->accept(this);
+        else 
+            target_ = nullptr; 
+        return true; 
+    }
+
+    bool LabelTarget::visit(Param *v) 
+    {
+        target_ = v; return false; 
+    }
+
+    bool LabelTarget::visit(Invoke *v) 
+    {
+        target_ = v; return false; 
+    }
+
+    bool LabelTarget::visit(Return *v) 
+    {
+        target_ = v; return true; 
+    }
+    // 
+    bool LabelTarget::visit(IfFalse *v) 
+    {
+        target_ = v; return true; 
+    }
+
+    bool LabelTarget::visit(Operation *v) 
+    {
+        target_ = v; return false;
+    }
+
+    bool LabelTarget::visit(AssignArray *v) 
+    {
+        target_ = v; return false; 
+    }
+
+    bool LabelTarget::visit(ArrayAssign *v)
+    {
+        target_ = v; return false; 
     }
 
 }

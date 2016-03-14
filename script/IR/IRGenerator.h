@@ -15,10 +15,11 @@ namespace script
         friend class DumpQuad;
         friend class CodeGenerator;
     public:
-        QuadContext *getContext() { return &context_; }
-        CFG *getCFG() { return cfg_.get(); }
-        bool isCFGForm() const { return cfg_.get() != nullptr; }
-        virtual void translateToCFG() { cfg_ = std::move(CFG::buildCFG(&context_));}
+        QuadContext *getContext();
+        CFG *getCFG();
+        bool isCFGForm() const;
+        virtual void translateToCFG();
+
     protected:
         std::unique_ptr<CFG> cfg_;
         QuadContext context_;
@@ -29,23 +30,13 @@ namespace script
         friend class DumpQuad;
         friend class CodeGenerator;
     public:
-        IRFunction(std::string name)
-            : name_(std::move(name)), begin_(nullptr), end_(nullptr)
-        {}
+        IRFunction(std::string name);
 
-        void set(Label *begin, Label *end)
-        {
-            begin_ = begin; end_ = end;
-        }
+        void set(Label *begin, Label *end);
+        std::string &getName();
+        void setParams(std::vector<std::string> params);
+        std::vector<std::string> &getParams();
 
-        std::string &getName() { return name_; }
-
-        void setParams(std::vector<std::string> params)
-        {
-            params_ = std::move(params);
-        }
-
-        std::vector<std::string> &getParams() { return params_; }
     private:
         std::string name_;
         Label *begin_;
@@ -59,33 +50,15 @@ namespace script
         friend class DumpCFG;
         friend class CodeGenerator;
     public:
-        ~IRModule() { destory(); }
 
-        IRFunction *createFunction(std::string name)
-        {
-            return functions_[name] = new IRFunction(name);
-        }
+        ~IRModule();
 
-        IRFunction *getFunction(std::string &name)
-        {
-            return functions_[name];
-        }
+        IRFunction *createFunction(std::string name);
+        IRFunction *getFunction(std::string &name);
+        virtual void translateToCFG() override;
 
-        virtual void translateToCFG() override
-        {
-            for (auto &i : functions_)
-                i.second->translateToCFG();
-            IRCode::translateToCFG();
-        }
     private:
-        void destory()
-        {
-            for (auto &i : functions_)
-            {
-                delete i.second;
-                i.second = nullptr;
-            }
-        }
+        void destory();
 
     private:
         std::map<std::string, IRFunction*> functions_;

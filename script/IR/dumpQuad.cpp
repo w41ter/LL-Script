@@ -18,6 +18,11 @@ namespace script
         // std::cout << "all dump to file" << endl;
     }
 
+    DumpQuad::DumpQuad(std::fstream & file)
+        : file_(file) 
+    {
+    }
+
     bool DumpQuad::visit(Constant * v)
     {
         switch (v->type_)

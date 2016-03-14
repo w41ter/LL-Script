@@ -7,6 +7,7 @@
 
 namespace script
 {
+    // FIXME： 整个算法需要调整
     class RegisterAllocator : private QuadVisitor
     {
     public:
