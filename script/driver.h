@@ -5,14 +5,8 @@ namespace script
 {
     class Driver
     {
-        Driver() : filename(nullptr) {}
     public:
-        static Driver &instance()
-        {
-            static Driver inst;
-            return inst;
-        }
-
+        Driver() : filename(nullptr) {}
         bool parseArguments(int argc, char *argv[]);
 
     private:

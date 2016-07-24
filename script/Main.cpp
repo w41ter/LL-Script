@@ -18,13 +18,16 @@
 #include "Runtime\dumpOpcode.h"
 #include "Runtime\VM.h"
 #include "BuildIn\BuildIn.h"
+#include "CompilerInstance.h"
 
 int main(int argc, char* argv[])
 {
+    script::CompilerInstance compiler;
+
     int length = 0;
     script::Byte *opcodes;
     {
-        script::Driver &driver = script::Driver::instance();
+        script::Driver &driver = compiler.getDriver();
         if (!driver.parseArguments(argc, argv))
             return 0;
 
