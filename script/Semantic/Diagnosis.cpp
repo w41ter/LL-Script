@@ -26,10 +26,10 @@ namespace script
     {
         string message = "";
         stringstream stream;
-        stream << "File:" << coord_.fileName_
-            << '(' << coord_.lineNum_ << ',' << coord_.linePos_ << ')'
-            << message_;
-        stream >> message;
+        stream << coord_.fileName_
+            << " (" << coord_.lineNum_ << ',' << coord_.linePos_ + 1 << ") "
+            << DiagTypeToString(type_) << ": " << message_;
+        std::getline(stream, message);
         return message;
     }
 }

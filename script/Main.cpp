@@ -23,6 +23,8 @@
 int main(int argc, char* argv[])
 {
     script::CompilerInstance compiler;
+    auto &diag = compiler.getDiagnosisConsumer();
+    diag.setMode(true);
 
     int length = 0;
     script::Byte *opcodes;
@@ -36,10 +38,14 @@ int main(int argc, char* argv[])
             // parser program
             script::ASTContext context;
             try {
-                script::Lexer lexer;
+                script::Lexer lexer(diag);
                 script::Parser parser(lexer, context);
                 lexer.setProgram(std::string(driver.filename));
                 parser.parse();
+
+                int error = diag.errors(), warning = diag.warnings();
+                std::cout << "error(" << error << "), warning(" << warning << ")" << std::endl;
+                if (error) return 0;
 
                 script::Analysis analysis;
                 analysis.analysis(context);

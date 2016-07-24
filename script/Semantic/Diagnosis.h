@@ -24,6 +24,12 @@ namespace script
             message_ += str;
             return *this;
         }
+
+        Diagnosis &operator << (char c)
+        {
+            message_ += c;
+            return *this;
+        }
         
         static const char *DiagTypeToString(DiagType type);
 
