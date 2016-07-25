@@ -360,8 +360,66 @@ namespace script
 
     void Parser::tableDecl()
     {
-        advance();
-        // TODO:
+        //match(TK_LSquareBrace);
+        do {
+            advance();
+            if (token_.kind_ == TK_Identifier)
+            {
+                string name = exceptIdentifier();
+                if (token_.kind_ == TK_Assign)
+                {
+                    advance();
+                    expression();
+                }
+            }
+            else if (token_.kind_ == TK_LSquareBrace)
+            {
+                advance();
+                if (token_.kind_ == TK_LitCharacter)
+                {
+                    advance();
+                }
+                else if (token_.kind_ == TK_LitFloat)
+                {
+                    advance();
+                }
+                else if (token_.kind_ == TK_LitInteger)
+                {
+                    advance();
+                }
+                else if (token_.kind_ == TK_LitString)
+                {
+                    advance();
+                }
+                else
+                {
+                    //error
+                }
+                match(TK_Assign);
+                expression();
+                match(TK_RSquareBrace);
+            }
+            else if (token_.kind_ == TK_LitCharacter)
+            {
+                advance();
+            }
+            else if (token_.kind_ == TK_LitFloat)
+            {
+                advance();
+            }
+            else if (token_.kind_ == TK_LitInteger)
+            {
+                advance();
+            }
+            else if (token_.kind_ == TK_LitString)
+            {
+                advance();
+            }
+            else
+            {
+                break;
+            }
+        } while (token_.kind_ == TK_Comma);
         match(TK_RSquareBrace);
     }
 

@@ -48,7 +48,7 @@ namespace script
         void tableDecl();
         void lambdaDecl();
         void keywordConstant();
-        
+
         void expression();
         void orExpr();
         void andExpr();
