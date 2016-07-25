@@ -45,6 +45,7 @@ namespace script
             { "return", TK_Return },
             { "continue", TK_Continue },
             { "function", TK_Function },
+            { "lambda", TK_Lambda },
             { "define", TK_Define }
         };
         for (auto i : keywords)
@@ -53,381 +54,262 @@ namespace script
         }
     }
 
-    ASTree *Parser::parseKeywordConstant()
+    void Parser::factor()
     {
-        ASTree *expr = nullptr;
-        if (token_.kind_ == TK_True)
-            expr = context_.allocate<ASTConstant>(1, token_);
-        else if (token_.kind_ == TK_False)
-            expr = context_.allocate<ASTConstant>(0, token_);
-        else if (token_.kind_ == TK_Null)
-            expr = context_.allocate<ASTNull>();
-        else
-            errorUnrecordToken();
-        advance();
-        return expr;
-    }
-
-    //
-    // factor:
-    //    INT_CONST
-    //    | CHAR_CONST
-    //    | STRING_CONST
-    //    | keyword_constant
-    //    | ID
-    //    | "(" expression ")"
-    //    | "[" expression_list "]"
-    //    | function_decl
-    //
-    ASTree *Parser::parseFactor()
-    {
-        ASTree *expr = nullptr;
         switch (token_.kind_)
         {
-        case TK_LitFloat: 
+        case TK_LitFloat:
         {
-            expr = context_.allocate<ASTConstant>(token_.fnum_, token_);
             advance();
             break;
         }
         case TK_LitString:
         {
-            expr = context_.allocate<ASTConstant>(token_.value_, token_);
             advance();
             break;
         }
         case TK_LitInteger:
         {
-            expr = context_.allocate<ASTConstant>(token_.num_, token_);
             advance();
             break;
         }
         case TK_LitCharacter:
         {
-            expr = context_.allocate<ASTConstant>(token_.value_[0], token_);
             advance();
             break;
         }
         case TK_Identifier:
         {
-            SymbolTable *symbol = symbolTable_.back();
-            if (symbol->find(token_.value_) == symbol->end())
-            {
-                if (symbol->findInTree(token_.value_) == symbol->end())
-                    errorUndefined(token_.value_);
-                catch_.back()->insert(token_.value_);
-            }
-            expr = context_.allocate<ASTIdentifier>(token_.value_);
             advance();
             break;
         }
         case TK_LParen:
         {
             advance();
-            expr = parseExpr();
+            expression();
             match(TK_RParen);
             break;
         }
         case TK_LSquareBrace:
         {
-            advance();
-            expr = context_.allocate<ASTArray>(parseExprList());
-            match(TK_RSquareBrace);
+            tableDecl();
             break;
         }
-        case TK_Function:
+        case TK_Lambda:
         {
-            return parseFunctionDecl();
+            lambdaDecl();
+            break;
         }
         default:
-            expr = parseKeywordConstant();
+            keywordConstant();
             break;
         }
-        return expr;
     }
 
-    //
-    // positive_factor:
-    //  factor{ (["[" expression "]"] | ["(" expression_list ")"]) }
-    // 
-    ASTree *Parser::parsePositveFactor()
+    void Parser::indexExpr()
     {
-        ASTree *expr = parseFactor();
-        while (token_.kind_ == TK_LSquareBrace || token_.kind_ == TK_LParen)
+        factor();
+        while (token_.kind_ == TK_Period)
         {
+            advance();
+            factor();
+        }
+    }
+
+    void Parser::factorSuffix()
+    {
+        indexExpr();
+        do {
             if (token_.kind_ == TK_LSquareBrace)
             {
                 advance();
-                expr = context_.allocate<ASTArrayIndex>(expr, parseExpr());
+                expression();
                 match(TK_RSquareBrace);
+            }
+            else if (token_.kind_ == TK_LParen)
+            {
+                advance();
+                if (token_.kind_ != TK_RParen)
+                {
+                    expression();
+                    while (token_.kind_ == TK_Comma)
+                    {
+                        advance();
+                        expression();
+                    }
+                }
+                
+                match(TK_RParen);
             }
             else
             {
-                advance();
-                ASTree *exprList = context_.allocate<ASTExpressionList>();
-                if (token_.kind_ != TK_RParen)
-                    exprList = parseExprList();
-                match(TK_RParen);
-                expr = context_.allocate<ASTCall>(expr, exprList);
+                break;
             }
-        }
-        return expr;
+        } while (true);
     }
 
-    //
-    // not_factor:
-    //  ["!"] positive_factor
-    //
-    ASTree *Parser::parseNotFactor()
+    void Parser::notExpr()
     {
         if (token_.kind_ == TK_Not)
         {
             advance();
-            return context_.allocate<ASTSingleExpression>(
-                TK_Not, parsePositveFactor());
         }
-        return parsePositveFactor();
+        factorSuffix();
     }
 
-    //
-    // term:
-    //  ["-"] not_factor
-    //
-    ASTree *Parser::parseTerm()
+    void Parser::negativeExpr()
     {
         if (token_.kind_ == TK_Sub)
         {
             advance();
-            return context_.allocate<ASTSingleExpression>(
-                TK_Sub, parseNotFactor());
         }
-        return parseNotFactor();
+        notExpr();
     }
 
-    //
-    // additive_expression:
-    //  term{ ("*" | "/") term }
-    //
-    ASTree *Parser::parseAdditiveExpr()
+    void Parser::mulAndDivExpr()
     {
-        ASTree *expr = parseTerm();
+        negativeExpr();
         while (token_.kind_ == TK_Mul || token_.kind_ == TK_Div)
         {
             unsigned op = token_.kind_;
             advance();
-            expr = context_.allocate<ASTBinaryExpression>(
-                op, expr, parseTerm());
+            negativeExpr();
         }
-        return expr;
     }
 
-    //
-    // relational_expression:
-    //  additive_expression{ ("+" | "-") additive_expression }
-    // 
-    ASTree *Parser::parseRelationalExpr()
+    void Parser::addAndSubExpr()
     {
-        ASTree *expr = parseAdditiveExpr();
+        mulAndDivExpr();
         while (token_.kind_ == TK_Plus || token_.kind_ == TK_Sub)
         {
             unsigned op = token_.kind_;
             advance();
-            expr = context_.allocate<ASTBinaryExpression>(
-                op,expr, parseAdditiveExpr());
+            mulAndDivExpr();
         }
-        return expr;
     }
 
-    //
-    // and_expression:
-    //  relational_expression[("<" | ">" | ">=" | "<=" | "==" | "!=") relational_expression]
-    // 
-    ASTree *Parser::parseAndExpr()
+    void Parser::relationalExpr()
     {
-        ASTree *expr = parseRelationalExpr();
-        if (isRelational(token_.kind_))
+        addAndSubExpr();
+        while (isRelational(token_.kind_))
         {
             unsigned op = token_.kind_;
             advance();
-            expr = context_.allocate<ASTRelationalExpression>(
-                op, expr, parseRelationalExpr());
+            addAndSubExpr();
         }
-        return expr;
     }
 
-    //
-    // or_expression:
-    //  and_expression{ "&&" and_expression }
-    //
-    ASTree *Parser::parseOrExpr()
+    void Parser::andExpr()
     {
-        ASTree *expr = parseAndExpr();
-        if (token_.kind_ != TK_And)
-            return expr;
-        ASTAndExpression *andExpr = context_.allocate<ASTAndExpression>();
-        andExpr->push_back(expr);
-        while (token_.kind_ == TK_And)
+        relationalExpr();
+        if (token_.kind_ == TK_And)
         {
             advance();
-            andExpr->push_back(parseAndExpr());
+            relationalExpr();
         }
-        return andExpr;
     }
 
-    //
-    // expression:
-    //  or_expression{ "||" or_expression }
-    //
-    ASTree *Parser::parseExpr()
+    void Parser::orExpr()
     {
-        ASTree *expr = parseOrExpr();
-        if (token_.kind_ != TK_Or)
-            return expr;
-        ASTOrExpression *orExpr = context_.allocate<ASTOrExpression>();
-        orExpr->push_back(expr);
+        andExpr();
         while (token_.kind_ == TK_Or)
         {
             advance();
-            orExpr->push_back(parseOrExpr());
+            andExpr();
         }
-        return orExpr;
     }
 
-    //
-    // assign_expression:
-    //  expression { "=" expression }
-    //
-    ASTree *Parser::parseAssignExpr()
+    void Parser::expression()
     {
-        ASTree *expr = parseExpr();
+        orExpr();
         while (token_.kind_ == TK_Assign)
         {
             advance();
-            expr = context_.allocate<ASTAssignExpression>(expr, parseExpr());
+            orExpr();
         }
-        return expr;
     }
 
-    //
-    // expression_list:
-    //  expression { "," expression }
-    //
-    ASTree *Parser::parseExprList()
+    void Parser::breakStat()
     {
-        ASTExpressionList *list = context_.allocate<ASTExpressionList>();
-        list->push_back(parseExpr());
-        while (token_.kind_ == TK_Comma)
+        match(TK_Break);
+        match(TK_Semicolon);
+    }
+
+    void Parser::continueStat()
+    {
+        match(TK_Continue);
+        match(TK_Semicolon);
+    }
+
+    void Parser::returnStat()
+    {
+        advance();
+        if (token_.kind_ != TK_Semicolon)
+            expression();
+
+        match(TK_Semicolon);
+    }
+
+    void Parser::whileStat()
+    {
+        advance();
+        match(TK_LParen);
+        expression();
+        match(TK_RParen);
+        statement();
+    }
+
+    void Parser::ifStat()
+    {
+        advance();
+        match(TK_LParen);
+        expression();
+        match(TK_RParen);
+        statement();
+        if (token_.kind_ == TK_Else)
         {
             advance();
-            list->push_back(parseExpr());
+            statement();
         }
-        return list;
     }
 
-    //
-    // statement:
-    //    block
-    //    | "if" "(" assign_expression ")" statement["else" statement]
-    //    | "while" "(" assign_expression ")" statement
-    //    | "return"[assign_expression] ";"
-    //    | "break" ";"
-    //    | "continue" ";"
-    //    | assign_expression ";"
-    //    | var_decl
-    //
-    ASTree *Parser::parseStatement()
+    void Parser::statement()
     {
         switch (token_.kind_)
         {
         case TK_LCurlyBrace:
-            return parseBlock();
+            return block();
         case TK_If:
-        {
-            advance();
-            match(TK_LParen);
-            ASTree *condition = parseAssignExpr();
-            match(TK_RParen);
-            ASTree *ifState = parseStatement();
-            if (token_.kind_ == TK_Else)
-            {
-                advance();
-                ASTree *elseState = parseStatement();
-                return context_.allocate<ASTIfStatement>(
-                    condition, ifState, elseState);
-            }
-            return context_.allocate<ASTIfStatement>(condition, ifState);
-        }
+            return ifStat();
         case TK_While:
-        {
-            advance();
-            match(TK_LParen);
-            ASTree *condition = parseAssignExpr();
-            match(TK_RParen);
-            ASTree *state = parseStatement();
-            return context_.allocate<ASTWhileStatement>(condition, state);
-        }
+            return whileStat();
         case TK_Return:
-        {    
-            advance();
-            ASTree *expr = nullptr;
-            if (token_.kind_ != TK_Semicolon)
-                expr = parseAssignExpr();
-            
-            match(TK_Semicolon);
-            return context_.allocate<ASTReturnStatement>(expr);
-        }
+            return returnStat();
         case TK_Break:
-        {
-            advance();
-            Token token = token_;
-            match(TK_Semicolon);
-            return context_.allocate<ASTBreakStatement>(token);
-        }
+            return breakStat();
         case TK_Continue:
-        {
-            advance();
-            Token token = token_;
-            match(TK_Semicolon);
-            return context_.allocate<ASTContinueStatement>(token);
-        }
+            return continueStat();
         case TK_Let:
-        {
-            advance();
-            Token token = token_;
-            string name = exceptIdentifier();
-
-            match(TK_Assign);
-            ASTree *expr = parseAssignExpr();
-            match(TK_Semicolon);
-
-            // insert symbol to symbol table only after it done.
-            SymbolTable *symbol = symbolTable_.back();
-            if (!symbol->insert(name, SymbolType::ST_Variable, token))
-                errorRedefined(name);
-
-            return context_.allocate<ASTVarDeclStatement>(name, expr);
-        }
+            return letDecl();
+        case TK_Define:
+            return defineDecl();
+        case TK_Function:
+            return functionDecl();
         default:
-            ASTree *expr = context_.allocate<ASTStatement>(parseAssignExpr());
+            expression();
             match(TK_Semicolon);
-            return expr;
+            return ;
         }
     }
 
-    // 
-    // block:
-    //  "{" { statement } "}"
-    //
-    ASTBlock *Parser::parseBlock()
+    void Parser::block()
     {
-        ASTBlock *block = context_.allocate<ASTBlock>();
         match(TK_LCurlyBrace);
         while (token_.kind_ != TK_RCurlyBrace)
         {
-            block->push_back(parseStatement());
+            statement();
         }
         advance();
-        return block;
     }
 
     //
@@ -455,118 +337,90 @@ namespace script
         return std::move(params);
     }
 
-    //
-    // param_list:
-    //  ID { ","  ID }
-    //
-    // function_decl:
-    //  "function" "("[param_list] ")" block
-    //
-    ASTClosure *Parser::parseFunctionDecl()
+    void Parser::keywordConstant()
     {
+        if (token_.kind_ == TK_True)
+            ;
+        else if (token_.kind_ == TK_False)
+            ;
+        else if (token_.kind_ == TK_Null)
+            ;
+        else
+            errorUnrecordToken();
         advance();
-
-        string name = getTempIDName("lambda");
-        map<string, Token> params = std::move(readParams());
-
-        // init symbol table
-        SymbolTable *table = new SymbolTable(symbolTable_.back());
-        for (auto &i : params)
-        {
-            // all params is constant.
-            if (!table->insert(i.first, SymbolType::ST_Constant, i.second))
-                errorRedefined(i.first);
-        }
-        symbolTable_.push_back(table);
-
-        set<string> catchTable;
-        catch_.push_back(&catchTable);
-        ASTBlock *block = parseBlock();
-        catch_.pop_back();
-        symbolTable_.pop_back();
-
-        vector<string> argument;
-        for (const auto &cat : catchTable)
-            argument.push_back(cat);
-        for (auto symbol : params)
-            argument.push_back(symbol.first);
-
-        int closureArgsSize = argument.size();
-
-        ASTPrototype *proto = context_.allocate<ASTPrototype>(name, std::move(argument));
-        functions_->push_back(context_.allocate<ASTFunction>(table, proto, block));
-
-        // Create closure
-        argument.clear();
-        for (auto &i : catchTable)
-            argument.push_back(i);
-        return context_.allocate<ASTClosure>(name, closureArgsSize, std::move(argument));
     }
 
-    //
-    // define_decl:
-    //  "define" ID "=" expression ";"
-    //
-    ASTDefine *Parser::parseDefine()
+    void Parser::lambdaDecl()
+    {
+        match(TK_Lambda);
+        map<string, Token> params = std::move(readParams());
+
+        block();
+    }
+
+    void Parser::tableDecl()
+    {
+        advance();
+        // TODO:
+        match(TK_RSquareBrace);
+    }
+
+    void Parser::functionDecl()
+    {
+        match(TK_Function);
+        string name = exceptIdentifier();
+
+        map<string, Token> params = std::move(readParams());
+
+        block();
+    }
+
+    void Parser::letDecl()
+    {
+        match(TK_Let);
+        string name = exceptIdentifier();
+        match(TK_Assign);
+        expression();
+        match(TK_Semicolon);
+    }
+
+    void Parser::defineDecl()
     {
         match(TK_Define);
         string name = exceptIdentifier();
-        
         match(TK_Assign);
-        ASTree *tree = parseExpr();
+        expression();
         match(TK_Semicolon);
-
-        // like let, symbol be insert into after it done.
-        SymbolTable *symbol = symbolTable_.back();
-        if (!symbol->insert(name, SymbolType::ST_Constant, token_))
-        {
-            errorRedefined(name);
-        }
-
-        return context_.allocate<ASTDefine>(name, tree);
     }
 
-    //
-    // program: 
-    //  { ( define_decl | statement ) }
-    //
+    bool Parser::topLevelDecl()
+    {
+        if (token_.kind_ == TK_Define)
+            defineDecl();
+        else if (token_.kind_ == TK_Let)
+            letDecl();
+        else if (token_.kind_ == TK_Function)
+            functionDecl();
+        else
+            return false;
+        return true;
+    }
+
     void Parser::parse()
     {
-        SymbolTable *symbol = new SymbolTable(nullptr);
-        vector<ASTree*> statements;
-        vector<ASTFunction*> functions;
-        this->functions_ = &functions;
-
-        set<string> catchTable;
-        symbolTable_.push_back(symbol);
-        catch_.push_back(&catchTable);
-
-        buildin::BuildIn::getInstance().map(
-            [this, &statements] (const string &name, int size) -> string {
-            symbolTable_.back()->insert(name, SymbolType::ST_Constant, Token());
-            string tempName = getTempIDName(name.c_str());
-            ASTree *tree = context_.allocate<ASTClosure>(tempName, size, vector<string>());
-            statements.push_back(context_.allocate<ASTDefine>(name, tree));
-            return std::move(tempName);
-        });
-        // TODO:
-
         advance();
         while (token_.kind_ != TK_EOF)
         {
-            if (token_.kind_ == TK_Define)
-                statements.push_back(parseDefine());
-            else
-                statements.push_back(parseStatement());
+            if (!topLevelDecl())
+            {
+                expression();
+                match(TK_Semicolon);
+            }
         }
-
-        this->functions_ = nullptr;
-        context_.setProgram(context_.allocate<ASTProgram>(
-            symbol, std::move(statements), std::move(functions)));
     }
 
-    Parser::Parser(Lexer & lexer, ASTContext &context) 
-        : lexer_(lexer), context_(context)
+    Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 
+        : lexer_(lexer), module_(module), diag_(diag)
     {
         initialize();
     }

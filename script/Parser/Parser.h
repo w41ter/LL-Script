@@ -10,13 +10,7 @@
 
 namespace script
 {
-    class ASTContext;
-    class ASTree;
-    class ASTBlock;
-    class ASTClosure;
-    class ASTDefine;
-    class SymbolTable;
-    class ASTFunction;
+    class IRModule;
 
     enum KeywordsIDs 
     {
@@ -31,6 +25,7 @@ namespace script
         TK_Return,
         TK_Continue,
         TK_Function,
+        TK_Lambda,
         TK_Define,
 
         TK_EndKeywordsIDs
@@ -39,29 +34,40 @@ namespace script
     class Parser
     {
     public:
-        Parser(Lexer &lexer, ASTContext &context);
+        Parser(Lexer &lexer, IRModule &context, DiagnosisConsumer &diag);
 
         void parse();
 
     private:
         void initialize();
 
-        ASTree *parseKeywordConstant();
-        ASTree *parseFactor();
-        ASTree *parsePositveFactor();
-        ASTree *parseNotFactor();
-        ASTree *parseTerm();
-        ASTree *parseAdditiveExpr();
-        ASTree *parseRelationalExpr();
-        ASTree *parseAndExpr();
-        ASTree *parseOrExpr();
-        ASTree *parseExpr();
-        ASTree *parseExprList();
-        ASTree *parseAssignExpr();
-        ASTree *parseStatement();
-        ASTBlock *parseBlock();
-        ASTClosure *parseFunctionDecl();
-        ASTDefine *parseDefine();
+        bool topLevelDecl();
+        void defineDecl();
+        void letDecl();
+        void functionDecl();
+        void tableDecl();
+        void lambdaDecl();
+        void keywordConstant();
+        
+        void expression();
+        void orExpr();
+        void andExpr();
+        void relationalExpr();
+        void addAndSubExpr();
+        void mulAndDivExpr();
+        void negativeExpr();
+        void notExpr();
+        void factorSuffix();
+        void indexExpr();
+        void factor();
+
+        void block();
+        void statement();
+        void ifStat();
+        void whileStat();
+        void breakStat();
+        void continueStat();
+        void returnStat();
 
         std::map<std::string, Token> readParams();
 
@@ -81,12 +87,8 @@ namespace script
         Lexer &lexer_;
         Token token_;
 
-        std::vector<SymbolTable*> symbolTable_;
-        std::vector<std::set<std::string>*> catch_;
-        std::vector<ASTFunction*> *functions_;
-
-        // ASTContext 用于管理 AST 上下文
-        ASTContext &context_;
+        IRModule &module_;
+        DiagnosisConsumer &diag_;
     };
 }
 
