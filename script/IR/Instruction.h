@@ -30,6 +30,8 @@ namespace ir
     class Value
     {
     public:
+        virtual ~Value() = default;
+
         // addUse/killUse - These two methods should only used by the Use class.
         void addUse(Use &u) { uses_.push_back(u); }
         void killUse(Use &u) { uses_.remove(u); }
@@ -40,12 +42,39 @@ namespace ir
         std::string name_;
     };
 
+    class Constant : public Value
+    {
+    public:
+        enum { Character, Integer, Float, String, };
+
+        Constant(int num);
+        Constant(char c);
+        Constant(float fnum);
+        Constant(std::string str);
+
+        virtual ~Constant() = default;
+
+        unsigned type() const { return type_; }
+        int getInteger() const { return num_; }
+        char getChar() const { return c_; }
+        float getFloat() const { return fnum_; }
+        const std::string &getString() const { return str_; }
+
+    protected:
+        unsigned type_;
+        int num_;
+        char c_;
+        float fnum_;
+        std::string str_;
+    };
+
     class User : public Value 
     {
     protected:
         // 相对应的，User使用vector来组织Use Object
         std::vector<Use> operands_;
     public:
+        virtual ~User() = default;
         typedef std::vector<Use>::iterator op_iterator;
         unsigned getNumOperands() const { return operands_.size(); }
         void op_reserve(unsigned NumElements) { operands_.reserve(NumElements); }
@@ -88,6 +117,7 @@ namespace ir
     class Instruction : public User 
     {
     public:
+        virtual ~Instruction() = default;
         virtual Instructions instance() const = 0;
 
         Instruction(const std::string &name, Instruction *before);
@@ -112,6 +142,7 @@ namespace ir
             : Instruction(name, insertAtEnd)
         { }
 
+        virtual ~Alloca() = default;
         virtual Instructions instance() const { return Instructions::IR_Alloca; }
     };
 
@@ -130,6 +161,7 @@ namespace ir
             init(from);
         }
 
+        virtual ~Load() = default;
         virtual Instructions instance() const { return Instructions::IR_Load; }
 
     protected:
@@ -151,6 +183,7 @@ namespace ir
             init(value, addr);
         }
 
+        virtual ~Store() = default;
         virtual Instructions instance() const { return Instructions::IR_Store; }
 
     protected:
@@ -174,6 +207,7 @@ namespace ir
             init(functionName, args);
         }
 
+        virtual ~Invoke() = default;
         virtual Instructions instance() const { return Instructions::IR_Invoke; }
 
     protected:
@@ -212,6 +246,7 @@ namespace ir
             init(cond);
         }
 
+        virtual ~Branch() = default;
         virtual Instructions instance() const { return Instructions::IR_Branch; }
 
         bool hasElseBlock() const { return else_ != nullptr; }
@@ -245,6 +280,7 @@ namespace ir
             init(value);
         }
 
+        virtual ~NotOp() = default;
         virtual Instructions instance() const { return Instructions::IR_NotOp; }
 
     protected:
@@ -266,6 +302,7 @@ namespace ir
             init(value);
         }
 
+        virtual ~Return() = default;
         virtual Instructions instance() const { return Instructions::IR_Return; }
 
     protected:
@@ -283,6 +320,7 @@ namespace ir
             : Instruction("", insertAtEnd)
         {}
 
+        virtual ~ReturnVoid() = default;
         virtual Instructions instance() const { return Instructions::IR_ReturnVoid; }
     };
 
@@ -302,6 +340,7 @@ namespace ir
             init(bop, lhs, rhs);
         }
         
+        virtual ~BinaryOperator() = default;
         virtual Instructions instance() const { return Instructions::IR_BinaryOps; }
 
     protected:
@@ -325,6 +364,7 @@ namespace ir
             init(table, index);
         }
 
+        virtual ~Index() = default;
         virtual Instructions instance() const { return Instructions::IR_Index; }
 
     protected:
@@ -346,6 +386,7 @@ namespace ir
             init(table, index, to);
         }
 
+        virtual ~SetIndex() = default;
         virtual Instructions instance() const { return Instructions::IR_SetIndex; }
 
     protected:

@@ -1,5 +1,7 @@
 #include "Instruction.h"
 
+using std::string;
+
 namespace script
 {
 namespace ir
@@ -16,6 +18,22 @@ namespace ir
         if (value_)
             value_->killUse(*this);
     }
+
+    Constant::Constant(int num)
+        : type_(Integer), num_(num)
+    {}
+
+    Constant::Constant(char c)
+        : type_(Character), c_(c)
+    {}
+
+    Constant::Constant(float fnum)
+        : type_(Float), fnum_(fnum)
+    {}
+
+    Constant::Constant(string str)
+        : type_(String), str_(str)
+    {}
 
     void Load::init(Value * from)
     {
@@ -49,7 +67,7 @@ namespace ir
     void NotOp::init(Value * value)
     {
         operands_.reserve(1);
-        operands_.push_back(value);
+        operands_.push_back(Use(value, this));
     }
 
     void Return::init(Value * value)
