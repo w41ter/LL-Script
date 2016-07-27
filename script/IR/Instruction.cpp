@@ -16,5 +16,77 @@ namespace ir
         if (value_)
             value_->killUse(*this);
     }
+
+    void Load::init(Value * from)
+    {
+        operands_.reserve(1);
+        operands_.push_back(Use(from, this));
+    }
+
+    void Store::init(Value * value, Value * addr)
+    {
+        // TODO: check param 2 is addr.
+        operands_.reserve(2);
+        operands_.push_back(Use(value, this));
+        operands_.push_back(Use(addr, this));
+    }
+
+    void Invoke::init(const std::string functionName, const std::vector<Value*>& args)
+    {
+        operands_.reserve(args.size());
+        for (Value *value : args)
+        {
+            operands_.push_back(Use(value, this));
+        }
+    }
+
+    void Branch::init(Value * cond)
+    {
+        operands_.reserve(1);
+        operands_.push_back(Use(cond, this));
+    }
+
+    void NotOp::init(Value * value)
+    {
+        operands_.reserve(1);
+        operands_.push_back(value);
+    }
+
+    void Return::init(Value * value)
+    {
+        operands_.reserve(1);
+        operands_.push_back(Use(value, this));
+    }
+
+    void BinaryOperator::init(BinaryOps bop, Value * lhs, Value * rhs)
+    {
+        operands_.reserve(2);
+        operands_.push_back(Use(lhs, this));
+        operands_.push_back(Use(rhs, this));
+    }
+
+    void Index::init(Value * table, Value * index)
+    {
+        operands_.reserve(2);
+        operands_.push_back(Use(table, this));
+        operands_.push_back(Use(index, this));
+    }
+
+    void SetIndex::init(Value * table, Value * index, Value * to)
+    {
+        operands_.reserve(3);
+        operands_.push_back(Use(table, this));
+        operands_.push_back(Use(index, this));
+        operands_.push_back(Use(to, this));
+    }
+
+    Instruction::Instruction(const std::string & name, Instruction * before)
+    {
+    }
+
+    Instruction::Instruction(const std::string & name, BasicBlock * end)
+    {
+    }
+
 }
 }
