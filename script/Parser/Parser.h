@@ -89,6 +89,9 @@ namespace script
 
         IRModule &module_;
         DiagnosisConsumer &diag_;
+
+        // Parse 时需要用的全局变量
+        BasicBlock *block_ = nullptr;
     };
 }
 

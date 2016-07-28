@@ -3,6 +3,10 @@
 #include <iostream>
 #include <sstream>
 
+#include "../IR/CFG.h"
+#include "../IR/IRContext.h"
+#include "../IR/IRModule.h"
+
 #include "../Semantic/AST.h"
 #include "../Semantic/ASTContext.h"
 #include "../BuildIn/BuildIn.h"
@@ -466,6 +470,11 @@ namespace script
 
     void Parser::parse()
     {
+        BasicBlock *entry = module_.createBasicBlock("entry");
+        block_ = entry;
+
+        module_.setEntry(entry);
+
         advance();
         while (token_.kind_ != TK_EOF)
         {

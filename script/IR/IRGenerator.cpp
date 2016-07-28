@@ -1,10 +1,16 @@
 #include "IRGenerator.h"
+#include "IRModule.h"
 
 namespace script
 {
+    IRCode::IRCode()
+    {
+        context_ = new IRContext();
+    }
+    
     QuadContext * IRCode::getContext()
     {
-        return &context_;
+        return context_;
     }
 
     CFG * IRCode::getCFG()
