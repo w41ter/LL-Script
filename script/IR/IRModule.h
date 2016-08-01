@@ -7,6 +7,7 @@
 namespace script
 {
     class IRContext;
+    class SymbolTable;
 
     class IRCode : public CFG
     {
@@ -15,9 +16,11 @@ namespace script
         ~IRCode();
 
         IRContext *getContext();
+        SymbolTable *getTable();
 
     protected:
         IRContext *context_;
+        SymbolTable *table_;
     };
 
     class IRFunction : public IRCode

@@ -10,6 +10,8 @@
 
 namespace script
 {
+    class IRContext;
+    class SymbolTable;
     class IRModule;
 
     enum KeywordsIDs 
@@ -92,6 +94,9 @@ namespace script
 
         // Parse 时需要用的全局变量
         BasicBlock *block_ = nullptr;
+        SymbolTable *table_ = nullptr;
+        IRContext *context_ = nullptr;
+        
     };
 }
 

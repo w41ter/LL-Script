@@ -1,4 +1,5 @@
 #include "Instruction.h"
+#include "CFG.h"
 
 using std::string;
 
@@ -100,10 +101,21 @@ namespace ir
 
     Instruction::Instruction(const std::string & name, Instruction * before)
     {
+        if (before->prev_ != nullptr)
+        {
+            before->prev_->next_ = this;
+            this->prev_ = before->prev_;
+        }
+        before->prev_ = this;
+        this->next_ = before;
+
+        name_ = name;
     }
 
     Instruction::Instruction(const std::string & name, BasicBlock * end)
     {
+        name_ = name;
+        end->push(this);
     }
 
 }

@@ -7,11 +7,10 @@
 
 namespace script
 {
-    class Instruction;
-
     // 一个基本块
     class BasicBlock
     {
+        friend class ir::Instruction;
     public:
         BasicBlock(int id, std::string name) 
             : ID_(id), head_(nullptr), end_(nullptr), name_(name)
@@ -21,19 +20,18 @@ namespace script
         void addSuccessor(BasicBlock *block);
         size_t numOfPrecursors() const { return precursors_.size(); }
         size_t numOfSuccessors() const { return successors_.size(); }
-        //void set(Quad *head, Quad *end) { head_ = head; end_ = end; }
-        //Quad *begin() { return head_; }
-        //Quad *end() { return end_; }
+
+        ir::Instruction *begin() { return head_; }
+        ir::Instruction *end() { return end_; }
         unsigned getID() const { return ID_; }
 
+        void push(ir::Instruction *instr);
         void unique();
 
     protected:
         unsigned ID_;
         std::string name_;
-        //Quad *head_, *end_;
-        //std::list<Quad*> phis_; 
-        Instruction *head_, *end_;
+        ir::Instruction *head_, *end_;
         std::list<BasicBlock*> precursors_;   // 记录该基本块所有前驱
         std::list<BasicBlock*> successors_;  // 后继基本块
     };

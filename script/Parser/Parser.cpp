@@ -6,6 +6,8 @@
 #include "../IR/CFG.h"
 #include "../IR/IRContext.h"
 #include "../IR/IRModule.h"
+#include "../IR/SymbolTable.h"
+#include "../IR/Instruction.h"
 
 #include "../Semantic/AST.h"
 #include "../Semantic/ASTContext.h"
@@ -450,8 +452,14 @@ namespace script
     {
         match(TK_Define);
         string name = exceptIdentifier();
+        if (table_->findName(name) != SymbolTable::None)
+        {
+            // TODO: redefined.
+        }
         match(TK_Assign);
-        expression();
+        auto *value = expression();
+        auto *constant = context_->create<ir::Constant>();
+        auto *context_->create<ir::Load>();
         match(TK_Semicolon);
     }
 
@@ -472,6 +480,8 @@ namespace script
     {
         BasicBlock *entry = module_.createBasicBlock("entry");
         block_ = entry;
+        table_ = module_.getTable();
+        context_ = module_.getContext();
 
         module_.setEntry(entry);
 
@@ -484,6 +494,8 @@ namespace script
                 match(TK_Semicolon);
             }
         }
+
+        module_.setEnd(block_);
     }
 
     Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 

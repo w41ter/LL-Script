@@ -6,11 +6,13 @@
 
 namespace script
 {
+
+    class BasicBlock;
+
 namespace ir 
 {
     class Value;
     class User;
-    class BasicBlock;
 
     class Use
     {

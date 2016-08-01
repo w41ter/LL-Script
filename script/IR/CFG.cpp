@@ -48,6 +48,21 @@ namespace script
         successors_.push_back(block);
     }
 
+    void BasicBlock::push(Instruction * instr)
+    {
+        if (head_ == nullptr)
+        {
+            end_ = head_ = instr;
+        }
+        else
+        {
+            end_->next_ = instr;
+            instr->prev_ = end_;
+            instr->next_ = nullptr;
+            end_ = instr;
+        }
+    }
+
     void BasicBlock::unique()
     {
         precursors_.sort();
