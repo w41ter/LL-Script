@@ -30,6 +30,18 @@ namespace script
             message_ += c;
             return *this;
         }
+
+        Diagnosis &operator << (std::string &str)
+        {
+            message_ += str;
+            return *this;
+        }
+
+        Diagnosis &operator << (int integer)
+        {
+            // TODO:
+            return *this;
+        }
         
         static const char *DiagTypeToString(DiagType type);
 

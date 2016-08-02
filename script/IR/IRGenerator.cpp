@@ -43,7 +43,7 @@ namespace script
         return name_;
     }
 
-    void IRFunction::setParams(std::vector<std::string> params)
+    void IRFunction::setParams(std::vector<std::pair<std::string, Token>> params)
     {
         params_ = std::move(params);
     }

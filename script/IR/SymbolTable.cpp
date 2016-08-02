@@ -15,6 +15,11 @@ namespace script
         parent_ = parent;
     }
 
+    void SymbolTable::bindValue(std::string & str, ir::Value * value)
+    {
+        values_[str] = value;
+    }
+
     void SymbolTable::insertDefines(std::string & str, Token & token)
     {
         defines_[str] = token;
@@ -44,6 +49,11 @@ namespace script
         if (result != variables_.end())
             return result->second;
         return Token();
+    }
+
+    ir::Value * SymbolTable::getValue(std::string & str)
+    {
+        return values_[str];
     }
 
 }

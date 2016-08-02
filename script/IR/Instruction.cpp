@@ -20,9 +20,19 @@ namespace ir
             value_->killUse(*this);
     }
 
+    Constant::Constant()
+        : type_(Null)
+    {
+    }
+
     Constant::Constant(int num)
         : type_(Integer), num_(num)
     {}
+
+    Constant::Constant(bool state)
+        : type_(Boolean), bool_(state)
+    {
+    }
 
     Constant::Constant(char c)
         : type_(Character), c_(c)

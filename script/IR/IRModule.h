@@ -2,6 +2,7 @@
 
 #include "CFG.h"
 
+#include "../Parser/lexer.h"
 #include <map>
 
 namespace script
@@ -29,12 +30,12 @@ namespace script
         IRFunction(std::string name);
 
         std::string &getName();
-        void setParams(std::vector<std::string> params);
+        void setParams(std::vector<std::pair<std::string, Token>> params);
         std::vector<std::string> &getParams();
 
     protected:
         std::string name_;
-        std::vector<std::string> params_;
+        std::vector<std::pair<std::string, Token>> params_;
     };
 
     class IRModule : public IRCode

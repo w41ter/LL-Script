@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <stack>
 
 #include "lexer.h"
 
@@ -47,21 +48,21 @@ namespace script
         void defineDecl();
         void letDecl();
         void functionDecl();
-        void tableDecl();
-        void lambdaDecl();
-        void keywordConstant();
+        Value *tableDecl();
+        Value *lambdaDecl();
+        Value *keywordConstant();
 
-        void expression();
-        void orExpr();
-        void andExpr();
-        void relationalExpr();
-        void addAndSubExpr();
-        void mulAndDivExpr();
-        void negativeExpr();
-        void notExpr();
-        void factorSuffix();
-        void indexExpr();
-        void factor();
+        Value *expression();
+        Value *orExpr();
+        Value *andExpr();
+        Value *relationalExpr();
+        Value *addAndSubExpr();
+        Value *mulAndDivExpr();
+        Value *negativeExpr();
+        Value *notExpr();
+        Value *factorSuffix();
+        Value *indexExpr();
+        Value *factor();
 
         void block();
         void statement();
@@ -71,7 +72,7 @@ namespace script
         void continueStat();
         void returnStat();
 
-        std::map<std::string, Token> readParams();
+        std::vector<std::pair<std::string, Token>> readParams();
 
         void commonError();
         void errorUnrecordToken();
@@ -96,7 +97,11 @@ namespace script
         BasicBlock *block_ = nullptr;
         SymbolTable *table_ = nullptr;
         IRContext *context_ = nullptr;
-        
+        CFG *cfg_ = nullptr;
+
+        // ±£´æ Stack for break / continue.
+        std::stack<BasicBlock*> breaks_;
+        std::stack<BasicBlock*> continues_;
     };
 }
 

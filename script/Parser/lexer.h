@@ -114,7 +114,8 @@ namespace script
         Lexer(DiagnosisConsumer &consumer) : diag_(consumer) {}
 
         Token getToken();
-        
+        TokenCoord getCoord();
+
         void setProgram(std::string &file);
         Token lookAhead(unsigned num);
         void registerKeyword(const std::string &str, unsigned tok);
@@ -128,7 +129,7 @@ namespace script
         void whiteSpace();
         void readComments();
 
-        char escapeChar(char c);
+        char escapeChar( char c);
 
         Token readToken();
         Token readChar();

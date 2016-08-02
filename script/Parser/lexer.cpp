@@ -265,6 +265,11 @@ namespace script
         return tok;
     }
 
+    TokenCoord Lexer::getCoord()
+    {
+        return previousCoord_;
+    }
+
     void Lexer::setProgram(std::string & file)
     {
         if (file_)

@@ -39,6 +39,8 @@ namespace ir
         void killUse(Use &u) { uses_.remove(u); }
         User *use_back() { return uses_.back().getUser(); }
     
+        virtual Instructions instance() const = 0;
+
     protected:
         std::list<Use> uses_;
         std::string name_;
@@ -47,9 +49,11 @@ namespace ir
     class Constant : public Value
     {
     public:
-        enum { Character, Integer, Float, String, };
+        enum { Null, Boolean, Character, Integer, Float, String, };
 
+        Constant();
         Constant(int num);
+        Constant(bool state);
         Constant(char c);
         Constant(float fnum);
         Constant(std::string str);
@@ -65,6 +69,7 @@ namespace ir
     protected:
         unsigned type_;
         int num_;
+        bool bool_;
         char c_;
         float fnum_;
         std::string str_;
@@ -91,6 +96,7 @@ namespace ir
         IR_Store,
         IR_Invoke,
         IR_Branch,
+        IR_Goto,
         IR_Assign,
         IR_NotOp,
         IR_Return,
@@ -120,7 +126,7 @@ namespace ir
     {
     public:
         virtual ~Instruction() = default;
-        virtual Instructions instance() const = 0;
+        virtual Instructions instance() const;
 
         Instruction(const std::string &name, Instruction *before);
         Instruction(const std::string &name, BasicBlock *end);
@@ -259,6 +265,28 @@ namespace ir
     protected:
         BasicBlock *then_;
         BasicBlock *else_;
+    };
+
+    class Goto : public Instruction
+    {
+    public:
+        Goto(BasicBlock *block, BasicBlock *insertAtEnd) 
+            : Instruction("", insertAtEnd), block_(block)
+        {
+
+        }
+
+        Goto(BasicBlock *block, Instruction *insertBefore)
+            : Instruction("", insertBefore)
+        {
+
+        }
+
+        virtual ~Goto() = default;
+        virtual Instructions instance() const { return Instructions::IR_Goto; }
+
+    protected:
+        BasicBlock *block_;
     };
 
     // TODO: 这个函数有待确认是否需要

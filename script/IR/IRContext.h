@@ -4,7 +4,7 @@
 
 namespace script
 {
-    class Value;
+    class ir::Value;
 
     class IRContext
     {
@@ -12,7 +12,7 @@ namespace script
         ~IRContext();
 
         template<typename T, typename ...Args>
-        T *create(Args ...args)
+        ir::Value *create(Args ...args)
         {
             auto *buffer = new T(args...);
             codes_.push_back(buffer);
@@ -20,6 +20,6 @@ namespace script
         }
 
     protected:
-        std::list<Value*> codes_;
+        std::list<ir::Value*> codes_;
     };
 }
