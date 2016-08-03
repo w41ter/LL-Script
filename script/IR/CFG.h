@@ -7,6 +7,10 @@
 
 namespace script
 {
+namespace ir
+{
+    class Instruction;
+}
     // 一个基本块
     class BasicBlock
     {

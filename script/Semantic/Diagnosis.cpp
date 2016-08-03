@@ -7,6 +7,50 @@ using std::stringstream;
 
 namespace script
 {
+    static char *tokens[TK_BeginKeywordIDs] = {
+        "[None]",
+        "[EOF]",
+        "[Error]",
+        "[NewLine]",
+        "[WhiteSpace]",
+        "[Comment]",
+        "[BasicTokenEnd]",
+        "[character]",
+        "[LitInteger]",
+        "[LitFloat]",
+        "[LitString]",
+        "+",
+        "-",
+        "*",
+        "/",
+        "!",
+        "=",
+        ">=",
+        "<=",
+        "<",
+        ">",
+        "!=",
+        "==",
+        "&",
+        "|",
+        "{",
+        "}",
+        "(",
+        ")",
+        "[",
+        "]",
+        ",",
+        ";",
+        ":",
+        "."
+    };
+    const char * Diagnosis::TokenToStirng(unsigned kind)
+    {
+        if (kind >= TK_BeginKeywordIDs)
+            return " ";
+        return tokens[kind];
+    }
+
     const char * Diagnosis::DiagTypeToString(DiagType type)
     {
         switch (type)

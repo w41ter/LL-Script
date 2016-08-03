@@ -14,6 +14,41 @@ namespace ir
     class Value;
     class User;
 
+    enum class Instructions
+    {
+        IR_Value,
+        IR_Alloca,
+        IR_Load,
+        IR_Store,
+        IR_Invoke,
+        IR_Branch,
+        IR_Goto,
+        IR_Assign,
+        IR_NotOp,
+        IR_Return,
+        IR_ReturnVoid,
+        IR_BinaryOps,
+        IR_Index,
+        IR_SetIndex,
+        IR_Phi,
+    };
+
+    enum class BinaryOps
+    {
+        BO_Add,
+        BO_Sub,
+        BO_Mul,
+        BO_Div,
+        BO_And,
+        BO_Or,
+        BO_Great,
+        BO_NotLess,
+        BO_Less,
+        BO_NotGreat,
+        BO_Equal,
+        BO_NotEqual,
+    };
+
     class Use
     {
     public:
@@ -23,6 +58,11 @@ namespace ir
         Value *getValue() const { return value_; }
         User *getUser() const { return user_; }
 
+        bool operator == (const Use &rhs)
+        {
+            return rhs.value_ == value_ && rhs.user_ == user_
+                && prev_ == rhs.prev_ && next_ == rhs.next_;
+        }
     private:
         Value *value_;
         User *user_;
@@ -66,6 +106,7 @@ namespace ir
         float getFloat() const { return fnum_; }
         const std::string &getString() const { return str_; }
 
+        virtual Instructions instance() const { return Instructions::IR_Value; }
     protected:
         unsigned type_;
         int num_;
@@ -89,44 +130,12 @@ namespace ir
         op_iterator op_end() { return operands_.end(); }
     };
 
-    enum class Instructions
-    {
-        IR_Alloca,
-        IR_Load,
-        IR_Store,
-        IR_Invoke,
-        IR_Branch,
-        IR_Goto,
-        IR_Assign,
-        IR_NotOp,
-        IR_Return,
-        IR_ReturnVoid,
-        IR_BinaryOps,
-        IR_Index,
-        IR_SetIndex,
-    };
-
-    enum class BinaryOps
-    {
-        BO_Add,
-        BO_Sub,
-        BO_Mul,
-        BO_Div,
-        BO_And,
-        BO_Or,
-        BO_Great,
-        BO_NotLess,
-        BO_Less,
-        BO_NotGreat,
-        BO_Equal,
-        BO_NotEqual,
-    };
-
     class Instruction : public User 
     {
+        friend class BasicBlock;
     public:
         virtual ~Instruction() = default;
-        virtual Instructions instance() const;
+        virtual Instructions instance() const = 0;
 
         Instruction(const std::string &name, Instruction *before);
         Instruction(const std::string &name, BasicBlock *end);
@@ -163,7 +172,7 @@ namespace ir
             init(from);
         }
 
-        Load(Value *from, const std::string &name, Instruction *insertAtEnd)
+        Load(Value *from, const std::string &name, BasicBlock *insertAtEnd)
             : Instruction(name, insertAtEnd)
         { 
             init(from);
@@ -203,16 +212,38 @@ namespace ir
     public:
         Invoke(const std::string functionName, const std::vector<Value*> &args,
             const std::string name, Instruction *insertBefore)
-            : Instruction(name, insertBefore), functionName_(functionName)
+            : Instruction(name, insertBefore)
+            , functionName_(functionName)
+            , callByName_(true)
         {
             init(functionName, args);
         }
 
         Invoke(const std::string functionName, const std::vector<Value*> &args,
             const std::string name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd), functionName_(functionName)
+            : Instruction(name, insertAtEnd)
+            , functionName_(functionName)
+            , callByName_(true)
         {
             init(functionName, args);
+        }
+
+        Invoke(Value *function, const std::vector<Value*> &args,
+            const std::string name, Instruction *insertBefore)
+            : Instruction(name, insertBefore)
+            , functionName_("")
+            , callByName_(false)
+        {
+            init(function, args);
+        }
+
+        Invoke(Value *function, const std::vector<Value*> &args,
+            const std::string name, BasicBlock *insertAtEnd)
+            : Instruction(name, insertAtEnd)
+            , functionName_("")
+            , callByName_(false)
+        {
+            init(function, args);
         }
 
         virtual ~Invoke() = default;
@@ -220,9 +251,10 @@ namespace ir
 
     protected:
         void init(const std::string functionName, const std::vector<Value*> &args);
-
+        void init(Value *function, const std::vector<Value*> &args);
     protected:
         std::string functionName_;
+        bool callByName_;
     };
 
     class Branch : public Instruction
@@ -293,6 +325,23 @@ namespace ir
     class Assign : public Instruction
     {
     public:
+        Assign(Value *value, const std::string &name, Instruction *insertBefore)
+            : Instruction(name, insertBefore)
+        {
+            init(value);
+        }
+
+        Assign(Value *value, const std::string &name, BasicBlock *insertAtEnd)
+            : Instruction(name, insertAtEnd)
+        {
+            init(value);
+        }
+
+        virtual ~Assign() = default;
+        virtual Instructions instance() const { return Instructions::IR_Assign; }
+
+    protected:
+        void init(Value *value);
     };
 
     class NotOp : public Instruction
@@ -388,7 +437,7 @@ namespace ir
         }
 
         Index(Value *table, Value *index, const std::string &name,
-            Instruction *insertAtEnd)
+            BasicBlock *insertAtEnd)
             : Instruction(name, insertAtEnd)
         {
             init(table, index);
@@ -423,5 +472,35 @@ namespace ir
         void init(Value *table, Value *index, Value *to);
     };
 
+    class Phi : public Instruction
+    {
+    public:
+        Phi(std::string &name, BasicBlock *insertAtEnd,
+            std::initializer_list<Value*> &params)
+            : Instruction(name, insertAtEnd)
+        {
+            init(params);
+        }
+
+        Phi(std::string &name, Instruction *insertBefore,
+            std::initializer_list<Value*> &params)
+            : Instruction(name, insertBefore)
+        {
+            init(params);
+        }
+        
+        virtual ~Phi() = default;
+
+        virtual Instructions instance() const { return Instructions::IR_Phi; }
+
+    protected:
+        void init(std::initializer_list<Value*> &params)
+        {
+            for (auto *value : params)
+            {
+                operands_.push_back(Use(value, this));
+            }
+        }
+    };
 }
 }

@@ -30,7 +30,7 @@ namespace script
         IRFunction(std::string name);
 
         std::string &getName();
-        void setParams(std::vector<std::pair<std::string, Token>> params);
+        void setParams(std::vector<std::pair<std::string, Token>> &params);
         std::vector<std::string> &getParams();
 
     protected:
@@ -44,7 +44,7 @@ namespace script
 
         ~IRModule();
 
-        IRFunction *createFunction(std::string name);
+        IRFunction *createFunction(std::string &name);
         IRFunction *getFunction(std::string &name);
 
     private:

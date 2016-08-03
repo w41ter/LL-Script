@@ -6,10 +6,9 @@
 #include "driver.h"
 #include "Parser\lexer.h"
 #include "Parser\Parser.h"
-#include "IR\IRGenerator.h"
 #include "Runtime\VM.h"
 #include "Runtime\opcode.h"
-#include "IR\CodeGen.h"
+#include "IR\IRModule.h"
 #include "CompilerInstance.h"
 
 using namespace script;
@@ -43,22 +42,22 @@ int main(int argc, char* argv[])
         return 0;
     return 0;
     // generate opcode
-    script::OpcodeContext opcode;
-    script::CodeGenerator codegen(opcode);
-    codegen.gen(module);
+    //script::OpcodeContext opcode;
+    //script::CodeGenerator codegen(opcode);
+    //codegen.gen(module);
 
-    int length = 0;
-    Byte *opcodes = opcode.getOpcodes(length);
+    //int length = 0;
+    //Byte *opcodes = opcode.getOpcodes(length);
 
-    try {
-        script::VirtualMachine vm;
-        //buildin::BuildIn::getInstance().bindGC(vm.getGC());
-        vm.excute(opcodes, length);
-    }
-    catch (std::runtime_error &e) {
-        std::cout << e.what() << std::endl;
-        return 0;
-    }
+    //try {
+    //    script::VirtualMachine vm;
+    //    //buildin::BuildIn::getInstance().bindGC(vm.getGC());
+    //    vm.excute(opcodes, length);
+    //}
+    //catch (std::runtime_error &e) {
+    //    std::cout << e.what() << std::endl;
+    //    return 0;
+    //}
 
     getchar();
 	return 0;

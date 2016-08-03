@@ -4,7 +4,10 @@
 
 namespace script
 {
-    class ir::Value;
+namespace ir
+{
+    class Value;
+}
 
     class IRContext
     {

@@ -8,9 +8,11 @@
 #include <stack>
 
 #include "lexer.h"
+#include "../IR/Instruction.h"
 
 namespace script
 {
+    class CFG;
     class IRContext;
     class SymbolTable;
     class IRModule;
@@ -36,6 +38,7 @@ namespace script
 
     class Parser
     {
+        using Value = ir::Value;
     public:
         Parser(Lexer &lexer, IRModule &context, DiagnosisConsumer &diag);
 
@@ -74,10 +77,6 @@ namespace script
 
         std::vector<std::pair<std::string, Token>> readParams();
 
-        void commonError();
-        void errorUnrecordToken();
-        void errorUndefined(const std::string &name);
-        void errorRedefined(const std::string &name);
         void advance();
         void match(unsigned tok);
         std::string exceptIdentifier();
@@ -94,6 +93,7 @@ namespace script
         DiagnosisConsumer &diag_;
 
         // Parse 时需要用的全局变量
+        BasicBlock *allocaBlock_ = nullptr;
         BasicBlock *block_ = nullptr;
         SymbolTable *table_ = nullptr;
         IRContext *context_ = nullptr;

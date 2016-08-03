@@ -43,6 +43,8 @@ namespace script
             return *this;
         }
         
+        static const char *TokenToStirng(unsigned kind);
+
         static const char *DiagTypeToString(DiagType type);
 
     private:

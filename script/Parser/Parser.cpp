@@ -31,6 +31,28 @@ namespace
         stream >> str;
         return str;
     }
+
+    ir::BinaryOps TranslateRelationalToBinaryOps(unsigned tok)
+    {
+        using ir::BinaryOps;
+        switch (tok)
+        {
+        case TK_Less:
+            return BinaryOps::BO_Less;
+        case TK_LessThan:
+            return BinaryOps::BO_NotGreat;
+        case TK_Great:
+            return BinaryOps::BO_Great;
+        case TK_GreatThan:
+            return BinaryOps::BO_NotLess;
+        case TK_NotEqual:
+            return BinaryOps::BO_NotEqual;
+        case TK_EqualThan:
+            return BinaryOps::BO_Equal;
+        default:
+            break;
+        }
+    }
 }
 
     bool Parser::isRelational(unsigned tok)
@@ -118,7 +140,7 @@ namespace
                 if (kind == SymbolTable::Let)
                 {
                     return context_->create<ir::Store>(
-                        expression(), table_->getValue(name));
+                        expression(), table_->getValue(name), block_);
                 }
                 else
                 {
@@ -130,7 +152,8 @@ namespace
             }
             else
             {
-                return context_->create<ir::Load>(table_->getValue(name));
+                return context_->create<ir::Load>(
+                    table_->getValue(name), getTmpName(), block_);
             }
         }
         case TK_LParen:
@@ -159,16 +182,18 @@ namespace
         while (token_.kind_ == TK_Period)
         {
             advance();
-            Value *rhs = factor();
+            string name = exceptIdentifier();
+            Value *rhs = context_->create<ir::Constant>(name);
             if (token_.kind_ == TK_Assign)
             {
                 result = context_->create<ir::SetIndex>(
                     result, rhs, expression(), block_);
+                return result;
             }
             else
             {
                 result = context_->create<ir::Index>(
-                    result, rhs, block_);
+                    result, rhs, getTmpName(), block_);
             }
         }
         return result;
@@ -176,35 +201,45 @@ namespace
 
     Value *Parser::factorSuffix()
     {
-        Value *result = indexExpr();
+        Value *result = indexExpr(), *rhs = nullptr;
         do {
             if (token_.kind_ == TK_LSquareBrace)
             {
                 advance();
                 Value *expr = expression();
                 match(TK_RSquareBrace);
-                
+                if (token_.kind_ == TK_Assign)
+                {
+                    return context_->create<ir::SetIndex>(
+                        result, expr, expression(), block_);
+                }
+                result = context_->create<ir::Index>(
+                    result, expr, getTmpName(), block_);
             }
             else if (token_.kind_ == TK_LParen)
             {
                 advance();
+                std::vector<Value*> params;
                 if (token_.kind_ != TK_RParen)
                 {
-                    expression();
+                    params.push_back(expression());
                     while (token_.kind_ == TK_Comma)
                     {
                         advance();
-                        expression();
+                        params.push_back(expression());
                     }
                 }
                 
                 match(TK_RParen);
+                result = context_->create<ir::Invoke>(
+                    result, params, getTmpName(), block_);
             }
             else
             {
                 break;
             }
         } while (true);
+        return result;
     }
 
     Value *Parser::notExpr()
@@ -227,7 +262,7 @@ namespace
         advance();
         Value *zero = context_->create<ir::Constant>(0);
         return context_->create<ir::BinaryOperator>(
-            BinaryOps::BO_Sub, zero, notExpr, getTmpName, block_);
+            BinaryOps::BO_Sub, zero, notExpr(), getTmpName(), block_);
     }
 
     Value *Parser::mulAndDivExpr()
@@ -236,8 +271,8 @@ namespace
         Value *result = negativeExpr();
         while (token_.kind_ == TK_Mul || token_.kind_ == TK_Div)
         {
-            // TODO: translate to BianryOps.
-            unsigned op = token_.kind_;
+            auto op = token_.kind_ == TK_Mul 
+                ? BinaryOps::BO_Mul : BinaryOps::BO_Div;
             advance();
             result = context_->create<ir::BinaryOperator>(
                 BinaryOps(op), result, negativeExpr(), getTmpName(), block_);
@@ -251,8 +286,8 @@ namespace
         Value *result = mulAndDivExpr();
         while (token_.kind_ == TK_Plus || token_.kind_ == TK_Sub)
         {
-            // TODO: translate ir to BinaryOps.
-            unsigned op = token_.kind_;
+            auto op = token_.kind_ == TK_Plus
+                ? BinaryOps::BO_Add : BinaryOps::BO_Sub;
             advance();
             result = context_->create<ir::BinaryOperator>(
                 BinaryOps(op), result, mulAndDivExpr(), getTmpName(), block_);
@@ -266,8 +301,7 @@ namespace
         Value *result = addAndSubExpr();
         while (isRelational(token_.kind_))
         {
-            // TODO: translate op to BinaryOps.
-            unsigned op = token_.kind_;
+            auto op = TranslateRelationalToBinaryOps(token_.kind_);
             advance();
             result = context_->create<ir::BinaryOperator>(
                 BinaryOps(op), result, addAndSubExpr(), getTmpName(), block_);
@@ -277,26 +311,68 @@ namespace
 
     Value *Parser::andExpr()
     {
-        using ir::BinaryOps;
         Value *result = relationalExpr();
-        if (token_.kind_ == TK_And)
+        if (token_.kind_ != TK_And)
+            return result;
+
+        BasicBlock *tmpBlock = block_,
+            *thenBlock = cfg_->createBasicBlock(getTmpName("Label_")),
+            *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
+            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_")),
+            *endBlock = cfg_->createBasicBlock(getTmpName("end_"));
+
+        context_->create<ir::Branch>(result, falseBlock, trueBlock, tmpBlock);
+        while (token_.kind_ == TK_And)
         {
             advance();
-            result = context_->create<ir::BinaryOperator>(
-                BinaryOps::BO_And, result, relationalExpr(),
-                getTmpName(), block_);
+            Value *expr = relationalExpr();
+            block_ = trueBlock;
+            trueBlock = cfg_->createBasicBlock(getTmpName("true_"));
+            context_->create<ir::Branch>(result, falseBlock, trueBlock, block_);
         }
-        return result;
+
+        Value *true_ = context_->create<ir::Constant>(true);
+        Value *false_ = context_->create<ir::Constant>(false);
+        Value *trueVal = context_->create<ir::Assign>(true_, getTmpName(), trueBlock);
+        Value *falseVal = context_->create<ir::Assign>(false_, getTmpName(), falseBlock);
+        context_->create<ir::Goto>(endBlock, trueBlock);
+        context_->create<ir::Goto>(endBlock, falseBlock);
+        block_ = endBlock;
+        auto params = { trueVal, falseVal };
+        return context_->create<ir::Phi>(getTmpName(), block_, params);
     }
 
     Value *Parser::orExpr()
     {
-        andExpr();
+        Value *result = andExpr();
+        if (token_.kind_ != TK_Or)
+            return result;
+
+        BasicBlock *tmpBlock = block_,
+            *thenBlock = cfg_->createBasicBlock(getTmpName("Label_")),
+            *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
+            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_")),
+            *endBlock = cfg_->createBasicBlock(getTmpName("end_"));
+
+        context_->create<ir::Branch>(result, trueBlock, falseBlock, tmpBlock);
         while (token_.kind_ == TK_Or)
         {
             advance();
-            andExpr();
+            Value *expr = andExpr();
+            block_ = falseBlock;
+            falseBlock = cfg_->createBasicBlock(getTmpName("false_"));
+            context_->create<ir::Branch>(result, trueBlock, falseBlock, block_);
         }
+
+        Value *true_ = context_->create<ir::Constant>(true);
+        Value *false_ = context_->create<ir::Constant>(false);
+        Value *trueVal = context_->create<ir::Assign>(true_, getTmpName(), trueBlock);
+        Value *falseVal = context_->create<ir::Assign>(false_, getTmpName(), falseBlock);
+        context_->create<ir::Goto>(endBlock, trueBlock);
+        context_->create<ir::Goto>(endBlock, falseBlock);
+        block_ = endBlock;
+        auto params = { trueVal, falseVal };
+        return context_->create<ir::Phi>(getTmpName(), block_, params);
     }
 
     Value *Parser::expression()
@@ -522,7 +598,7 @@ namespace
         else if (token_.kind_ == TK_Null)
             return context_->create<ir::Constant>();
         else
-            errorUnrecordToken();
+            throw;
         advance();
     }
 
@@ -532,10 +608,10 @@ namespace
         std::string name = getTmpName("lambda_");
         table_->insertDefines(name, token_);
         IRFunction *function = module_.createFunction(name);
-        Value *define = context_->create<ir::Alloca>(name, block_->begin());
+        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
         Value *invoke = context_->create<ir::Invoke>(
             name, std::vector<Value*>(), getTmpName(), block_);
-        context_->create<ir::Store>(invoke, define);
+        context_->create<ir::Store>(invoke, define, block_);
         table_->bindValue(name, define);
 
         auto params = std::move(readParams());
@@ -551,16 +627,22 @@ namespace
         table_ = function->getTable();
         context_ = function->getContext();
         cfg_ = function;
-        block_ = cfg_->createBasicBlock(name + "_entry");
+
+        BasicBlock *alloca = allocaBlock_;
+        allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
+        BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
 
         function->setEntry(block_);
         block();
         function->setEnd(block_);
 
+        context_->create<ir::Goto>(block_, allocaBlock_);
+        allocaBlock_ = alloca;
         block_ = oldBlock;
         cfg_ = cfg;
         context_ = context;
         table_ = table;
+        return invoke;
     }
 
     Value *Parser::tableDecl()
@@ -626,6 +708,7 @@ namespace
             }
         } while (token_.kind_ == TK_Comma);
         match(TK_RSquareBrace);
+        return nullptr;
     }
 
     void Parser::functionDecl()
@@ -641,10 +724,10 @@ namespace
         }
         table_->insertDefines(name, token_);
         IRFunction *function = module_.createFunction(name);
-        Value *define = context_->create<ir::Alloca>(name, block_->begin());
+        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
         Value *invoke = context_->create<ir::Invoke>(
             name, std::vector<Value*>(), getTmpName(), block_);
-        context_->create<ir::Store>(invoke, define);
+        context_->create<ir::Store>(invoke, define, block_);
         table_->bindValue(name, define);
 
         auto params = std::move(readParams());
@@ -660,12 +743,17 @@ namespace
         table_ = function->getTable();
         context_ = function->getContext();
         cfg_ = function;
-        block_ = cfg_->createBasicBlock(name + "_entry");
+
+        BasicBlock *alloca = allocaBlock_;
+        allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
+        BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
 
         function->setEntry(block_);
         block();
         function->setEnd(block_);
-
+        
+        context_->create<ir::Goto>(save, allocaBlock_);
+        allocaBlock_ = alloca;
         block_ = oldBlock;
         cfg_ = cfg;
         context_ = context;
@@ -683,7 +771,7 @@ namespace
             diag_.diag(diag);
         }
         table_->insertVariables(name, token_);
-        Value *let = context_->create<ir::Alloca>(name, block_->begin());
+        Value *let = context_->create<ir::Alloca>(name, allocaBlock_);
         table_->bindValue(name, let);
 
         match(TK_Assign);
@@ -705,7 +793,7 @@ namespace
 
         table_->insertDefines(name, token_);
         // insert Alloca instr.
-        Value *define = context_->create<ir::Alloca>(name, block_->begin());
+        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
         table_->bindValue(name, define);
 
         match(TK_Assign);
@@ -730,6 +818,7 @@ namespace
     void Parser::parse()
     {
         BasicBlock *entry = module_.createBasicBlock("entry");
+        allocaBlock_ = module_.createBasicBlock("global_alloca");
         block_ = entry;
         table_ = module_.getTable();
         context_ = module_.getContext();
@@ -748,42 +837,14 @@ namespace
         }
 
         module_.setEnd(block_);
+
+        context_->create<ir::Goto>(entry, allocaBlock_);
     }
 
     Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 
         : lexer_(lexer), module_(module), diag_(diag)
     {
         initialize();
-    }
-
-    // 
-    // 输出公共错误信息
-    // 
-    void Parser::commonError()
-    {
-        std::cout << token_.coord_.fileName_ << "(" <<
-            token_.coord_.lineNum_ << "," << token_.coord_.linePos_ << "): ";
-    }
-
-    void Parser::errorUnrecordToken()
-    {
-        commonError();
-        std::cout << "find unexcepted character " << token_.value_ << std::endl;
-        throw std::runtime_error(" i dont konw");
-    }
-
-    void Parser::errorUndefined(const std::string & name)
-    {
-        commonError();
-        std::cout << "identifier \"" << name << "\" are undefined!" << std::endl;
-        throw std::runtime_error("identifier undefined!");
-    }
-
-    void Parser::errorRedefined(const std::string & name)
-    {
-        commonError();
-        std::cout << "identifier \"" << name << "\" are redefined!" << std::endl;
-        throw std::runtime_error("identifier redefined!");
     }
 
     void Parser::advance()
@@ -795,10 +856,11 @@ namespace
     {
         if (token_.kind_ != tok)
         {
-            commonError();
-            std::cout << tok << " except in file but find " 
-                << token_.kind_ << std::endl;
-            throw std::runtime_error("match false");
+            Diagnosis diag(DiagType::DT_Error, token_.coord_);
+            diag << Diagnosis::TokenToStirng(tok)
+                << " except in file but find "
+                << Diagnosis::TokenToStirng(token_.kind_);
+            diag_.diag(diag);
         }
         advance();
     }
@@ -807,9 +869,11 @@ namespace
     {
         if (token_.kind_ != TK_Identifier)
         {
-            commonError();
-            std::cout << "identifier need but find " << token_.kind_ << std::endl;
-            throw std::runtime_error("match false");
+            Diagnosis diag(DiagType::DT_Error, token_.coord_);
+            diag << Diagnosis::TokenToStirng(TK_Identifier)
+                << " except in file but find "
+                << Diagnosis::TokenToStirng(token_.kind_);
+            diag_.diag(diag);
         }
         string value = std::move(token_.value_);
         advance();

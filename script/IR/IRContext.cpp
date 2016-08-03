@@ -4,7 +4,7 @@ namespace script
 {
     IRContext::~IRContext()
     {
-        for (Value * value : codes_)
+        for (ir::Value * value : codes_)
             delete value;
     }
 }

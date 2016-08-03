@@ -69,6 +69,16 @@ namespace ir
         }
     }
 
+    void Invoke::init(Value * function, const std::vector<Value*>& args)
+    {
+        operands_.reserve(args.size() + 1);
+        operands_.push_back(Use(function, this));
+        for (Value *value : args)
+        {
+            operands_.push_back(Use(value, this));
+        }
+    }
+
     void Branch::init(Value * cond)
     {
         operands_.reserve(1);
@@ -126,6 +136,12 @@ namespace ir
     {
         name_ = name;
         end->push(this);
+    }
+
+    void Assign::init(Value * value)
+    {
+        operands_.reserve(1);
+        operands_.push_back(Use(value, this));
     }
 
 }

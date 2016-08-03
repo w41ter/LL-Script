@@ -1,9 +1,13 @@
 #include "CFG.h"
 
+#include "Instruction.h"
+
 #include <map>
 #include <list>
 #include <functional>
 #include <algorithm>
+
+using script::ir::Instruction;
 
 namespace script
 {
