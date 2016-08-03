@@ -53,6 +53,20 @@ namespace
             break;
         }
     }
+
+    void LoadParamsIntoTable(
+        SymbolTable *table, 
+        IRContext *context,
+        BasicBlock *allocBlock,
+        std::vector<std::pair<std::string, Token>> &params)
+    {
+        for (auto &i : params)
+        {
+            table->insertVariables(i.first, i.second);
+            Value *value = context->create<ir::Alloca>(i.first, allocBlock);
+            table->bindValue(i.first, value);
+        }
+    }
 }
 
     bool Parser::isRelational(unsigned tok)
@@ -591,15 +605,21 @@ namespace
 
     Value *Parser::keywordConstant()
     {
+        Value *result = nullptr;
         if (token_.kind_ == TK_True)
-            return context_->create<ir::Constant>(true);
+            result = context_->create<ir::Constant>(true);
         else if (token_.kind_ == TK_False)
-            return context_->create<ir::Constant>(false);
+            result = context_->create<ir::Constant>(false);
         else if (token_.kind_ == TK_Null)
-            return context_->create<ir::Constant>();
+            result = context_->create<ir::Constant>();
         else
-            throw;
+        {
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "Unrecorded token" << Diagnosis::TokenToStirng(token_.kind_);
+            diag_.diag(diag);
+        }
         advance();
+        return result;
     }
 
     Value *Parser::lambdaDecl()
@@ -632,6 +652,7 @@ namespace
         allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
         BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
 
+        LoadParamsIntoTable(table_, function->getContext(), allocaBlock_, params);
         function->setEntry(block_);
         block();
         function->setEnd(block_);
@@ -645,67 +666,99 @@ namespace
         return invoke;
     }
 
+    void Parser::tableOthers(Value *table)
+    {
+        Value *cons = nullptr;
+        if (token_.kind_ == TK_LitCharacter)
+        {
+            cons = context_->create<ir::Constant>(token_.value_[0]);
+        }
+        else if (token_.kind_ == TK_LitFloat)
+        {
+            cons = context_->create<ir::Constant>(token_.fnum_);
+        }
+        else if (token_.kind_ == TK_LitInteger)
+        {
+            cons = context_->create<ir::Constant>(token_.num_);
+        }
+        else if (token_.kind_ == TK_LitString)
+        {
+            cons = context_->create<ir::Constant>(token_.value_);
+        }
+        else
+        {
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "Unknow table declare!";
+            diag_.diag(diag);
+            advance();
+            return;
+        }
+
+        advance();
+        if (token_.kind_ == TK_Assign)
+        {
+            advance();
+            Value *expr = expression();
+            if (cons->instance() == ir::Instructions::IR_Value)
+            {
+                ir::Constant *innerCons =
+                    static_cast<ir::Constant*>(cons);
+                if (innerCons->type() == ir::Constant::Integer
+                    && innerCons->getInteger() < 0)
+                {
+                    Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+                    diag << "table index can't be less than zero";
+                    diag_.diag(diag);
+                }
+            }
+            context_->create<ir::SetIndex>(table, cons, expr, block_);
+        }
+        else
+        {
+            Value *tmp = context_->create<ir::Constant>(-1);
+            context_->create<ir::SetIndex>(table, tmp, cons, block_);
+        }
+    }
+
+    void Parser::tableIdent(Value *table)
+    {
+        string name = exceptIdentifier();
+        if (token_.kind_ == TK_Assign)
+        {
+            // name = lambda ... == "name" = lambda
+            advance();
+            Value *expr = expression();
+            Value *str = context_->create<ir::Constant>(name);
+            context_->create<ir::SetIndex>(table, str, expr, block_);
+        }
+        else
+        {
+            if (table_->findName(name) == SymbolTable::None)
+            {
+                Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+                diag << "Using undefine id: \"" << name << "\"";
+                diag_.diag(diag);
+                return;
+            }
+            Value *cons = context_->create<ir::Constant>(-1);
+            Value *tmp = context_->create<ir::Load>(
+                table_->getValue(name), getTmpName(), block_);
+            context_->create<ir::SetIndex>(table, cons, tmp, block_);
+        }
+    }
+
     Value *Parser::tableDecl()
     {
-        //match(TK_LSquareBrace);
+        Value *table = context_->create<ir::Alloca>(getTmpName("table_"), allocaBlock_);
         do {
             advance();
             if (token_.kind_ == TK_Identifier)
-            {
-                string name = exceptIdentifier();
-                if (token_.kind_ == TK_Assign)
-                {
-                    advance();
-                    expression();
-                }
-            }
-            else if (token_.kind_ == TK_LSquareBrace)
-            {
-                advance();
-                if (token_.kind_ == TK_LitCharacter)
-                {
-                    advance();
-                }
-                else if (token_.kind_ == TK_LitFloat)
-                {
-                    advance();
-                }
-                else if (token_.kind_ == TK_LitInteger)
-                {
-                    advance();
-                }
-                else if (token_.kind_ == TK_LitString)
-                {
-                    advance();
-                }
-                else
-                {
-                    //error
-                }
-                match(TK_Assign);
-                expression();
-                match(TK_RSquareBrace);
-            }
-            else if (token_.kind_ == TK_LitCharacter)
-            {
-                advance();
-            }
-            else if (token_.kind_ == TK_LitFloat)
-            {
-                advance();
-            }
-            else if (token_.kind_ == TK_LitInteger)
-            {
-                advance();
-            }
-            else if (token_.kind_ == TK_LitString)
-            {
-                advance();
-            }
-            else
-            {
+                tableIdent(table);
+            else if (token_.kind_ == TK_RSquareBrace)
                 break;
-            }
+            else
+                tableOthers(table);
+            
         } while (token_.kind_ == TK_Comma);
         match(TK_RSquareBrace);
         return nullptr;
@@ -748,6 +801,7 @@ namespace
         allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
         BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
 
+        LoadParamsIntoTable(table_, function->getContext(), allocaBlock_, params);
         function->setEntry(block_);
         block();
         function->setEnd(block_);

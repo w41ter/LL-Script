@@ -51,6 +51,9 @@ namespace script
         void defineDecl();
         void letDecl();
         void functionDecl();
+
+        void tableIdent(Value *table);
+        void tableOthers(Value *table);
         Value *tableDecl();
         Value *lambdaDecl();
         Value *keywordConstant();
