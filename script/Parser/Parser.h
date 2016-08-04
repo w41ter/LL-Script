@@ -87,7 +87,7 @@ namespace script
         bool isRelational(unsigned tok);
 
         std::string getTempIDName(const char *name);
-
+        Value *findID(std::string &name);
     private:
         Lexer &lexer_;
         Token token_;

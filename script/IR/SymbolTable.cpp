@@ -10,7 +10,7 @@ namespace script
     {
     }
 
-    void SymbolTable::bindParent(const SymbolTable * parent)
+    void SymbolTable::bindParent(SymbolTable * parent)
     {
         parent_ = parent;
     }
@@ -54,6 +54,11 @@ namespace script
     ir::Value * SymbolTable::getValue(std::string & str)
     {
         return values_[str];
+    }
+
+    void SymbolTable::catchedName(std::string & str)
+    {
+        catched_.insert(str);
     }
 
 }

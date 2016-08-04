@@ -31,6 +31,7 @@ namespace ir
         IR_Index,
         IR_SetIndex,
         IR_Phi,
+        IR_Catch,
     };
 
     enum class BinaryOps
@@ -501,6 +502,27 @@ namespace ir
                 operands_.push_back(Use(value, this));
             }
         }
+    };
+
+    class Catch : public Instruction
+    {
+    public:
+        Catch(Value *value, std::string &name, BasicBlock *insertAtEnd)
+            : Instruction(name, insertAtEnd)
+        {
+            operands_.reserve(1);
+            operands_.push_back(Use(value, this));
+        }
+
+        Catch(Value *value, std::string &name, Instruction *insertBefore)
+            : Instruction(name, insertBefore)
+        {
+            operands_.reserve(1);
+            operands_.push_back(Use(value, this));
+        }
+
+        virtual ~Catch() = default;
+        virtual Instructions instance() const { return Instructions::IR_Catch; }
     };
 }
 }

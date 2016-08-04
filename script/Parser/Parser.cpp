@@ -69,6 +69,35 @@ namespace
     }
 }
 
+    Value *Parser::findID(std::string &name)
+    {
+        SymbolTable *table = table_;
+        if (table_->findName(name) != SymbolTable::None)
+            return table_->getValue(name);
+        table = table->getParent();
+        while (table != nullptr)
+        {
+            if (table->findName(name) != SymbolTable::None)
+            {
+                table->catchedName(name);
+                Value *result = context_->create<ir::Catch>(
+                    table_->getValue(name), name, allocaBlock_);
+                auto kind = table->findName(name);
+                if (kind == SymbolTable::Define)
+                    table_->insertDefines(name, token_);
+                else
+                    table_->insertVariables(name, token_);
+                table_->bindValue(name, result);
+                return result;
+            }
+            table = table->getParent();
+        }
+        Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+        diag << "Using undefine identifier : " << name;
+        diag_.diag(diag);
+        return nullptr;
+    }
+
     bool Parser::isRelational(unsigned tok)
     {
         return (tok == TK_Less || tok == TK_LessThan ||
@@ -140,14 +169,12 @@ namespace
         case TK_Identifier:
         {
             string name = token_.value_;
-            auto kind = table_->findName(name);
-            if (kind == SymbolTable::None)
-            {
-                Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-                diag << "Using undefine identifier : " << name;
-                diag_.diag(diag);
-            }
             advance();
+
+            Value *value = findID(name);
+            if (value == nullptr)
+                return;
+            auto kind = table_->findName(name);
             if (token_.kind_ == TK_Assign)
             {
                 advance();
@@ -733,16 +760,9 @@ namespace
         }
         else
         {
-            if (table_->findName(name) == SymbolTable::None)
-            {
-                Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-                diag << "Using undefine id: \"" << name << "\"";
-                diag_.diag(diag);
-                return;
-            }
+            Value *id = findID(name);
             Value *cons = context_->create<ir::Constant>(-1);
-            Value *tmp = context_->create<ir::Load>(
-                table_->getValue(name), getTmpName(), block_);
+            Value *tmp = context_->create<ir::Load>(id, getTmpName(), block_);
             context_->create<ir::SetIndex>(table, cons, tmp, block_);
         }
     }
