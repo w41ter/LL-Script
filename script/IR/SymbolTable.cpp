@@ -3,6 +3,7 @@
 namespace script
 {
     SymbolTable::SymbolTable()
+        : parent_(nullptr)
     {
     }
 

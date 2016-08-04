@@ -24,6 +24,7 @@ namespace script
         ir::Value *getValue(std::string &str);
         SymbolTable *getParent() { return parent_; }
         void catchedName(std::string &str);
+
     protected:
         SymbolTable * parent_;
         std::set<std::string> catched_;

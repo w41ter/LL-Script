@@ -311,19 +311,20 @@ namespace ir
         Goto(BasicBlock *block, BasicBlock *insertAtEnd) 
             : Instruction("", insertAtEnd), block_(block)
         {
-            block->addPrecursor(this->parent_);
-            this->parent_->addSuccessor(block);
+            init(block);
         }
 
         Goto(BasicBlock *block, Instruction *insertBefore)
             : Instruction("", insertBefore)
         {
-            block->addPrecursor(this->parent_);
-            this->parent_->addSuccessor(block);
+            init(block);
         }
 
         virtual ~Goto() = default;
         virtual Instructions instance() const { return Instructions::IR_Goto; }
+
+    protected:
+        void init(BasicBlock *block);
 
     protected:
         BasicBlock *block_;

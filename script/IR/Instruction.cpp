@@ -142,11 +142,13 @@ namespace ir
         this->next_ = before;
 
         name_ = name;
+        this->parent_ = before->parent_;
     }
 
     Instruction::Instruction(const std::string & name, BasicBlock * end)
     {
         name_ = name;
+        this->parent_ = end;
         end->push(this);
     }
 
@@ -154,6 +156,12 @@ namespace ir
     {
         operands_.reserve(1);
         operands_.push_back(Use(value, this));
+    }
+
+    void Goto::init(BasicBlock *block)
+    {
+        block->addPrecursor(this->parent_);
+        this->parent_->addSuccessor(block);
     }
 
 }

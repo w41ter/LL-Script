@@ -173,7 +173,7 @@ namespace
 
             Value *value = findID(name);
             if (value == nullptr)
-                return;
+                return nullptr;
             auto kind = table_->findName(name);
             if (token_.kind_ == TK_Assign)
             {
@@ -674,6 +674,7 @@ namespace
         table_ = function->getTable();
         context_ = function->getContext();
         cfg_ = function;
+        table_->bindParent(table);
 
         BasicBlock *alloca = allocaBlock_;
         allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
@@ -816,6 +817,7 @@ namespace
         table_ = function->getTable();
         context_ = function->getContext();
         cfg_ = function;
+        table_->bindParent(table);
 
         BasicBlock *alloca = allocaBlock_;
         allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
