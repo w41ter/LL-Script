@@ -266,12 +266,14 @@ namespace ir
             : Instruction("", insertBefore), then_(then), else_(_else)
         {
             init(cond);
+            init(then, _else);
         }
 
         Branch(Value *cond, BasicBlock *then, BasicBlock *_else,
             BasicBlock *insertAtEnd)
             : Instruction("", insertAtEnd), then_(then), else_(_else)
         {
+            init(then, _else);
             init(cond);
         }
 
@@ -279,11 +281,13 @@ namespace ir
             : Instruction("", insertBefore), then_(then), else_(nullptr)
         {
             init(cond);
+            init(then);
         }
 
         Branch(Value *cond, BasicBlock *then, BasicBlock *insertAtEnd)
             : Instruction("", insertAtEnd), then_(then), else_(nullptr)
         {
+            init(then);
             init(cond);
         }
 
@@ -294,6 +298,7 @@ namespace ir
 
     protected:
         void init(Value *cond);
+        void init(BasicBlock *then, BasicBlock *_else = nullptr);
 
     protected:
         BasicBlock *then_;
@@ -306,13 +311,15 @@ namespace ir
         Goto(BasicBlock *block, BasicBlock *insertAtEnd) 
             : Instruction("", insertAtEnd), block_(block)
         {
-
+            block->addPrecursor(this->parent_);
+            this->parent_->addSuccessor(block);
         }
 
         Goto(BasicBlock *block, Instruction *insertBefore)
             : Instruction("", insertBefore)
         {
-
+            block->addPrecursor(this->parent_);
+            this->parent_->addSuccessor(block);
         }
 
         virtual ~Goto() = default;

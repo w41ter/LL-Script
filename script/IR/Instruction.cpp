@@ -85,6 +85,18 @@ namespace ir
         operands_.push_back(Use(cond, this));
     }
 
+    void Branch::init(BasicBlock *then, BasicBlock *_else)
+    {
+        this->parent_->addSuccessor(then);
+        then->addPrecursor(this->parent_);
+
+        if (_else == nullptr)
+            return;
+
+        this->parent_->addSuccessor(_else);
+        _else->addPrecursor(this->parent_);
+    }
+
     void NotOp::init(Value * value)
     {
         operands_.reserve(1);
