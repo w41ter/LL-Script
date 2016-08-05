@@ -12,6 +12,7 @@ namespace script
 
     class IRCode : public CFG
     {
+        friend class DumpIR;
     public:
         IRCode();
         ~IRCode();
@@ -26,6 +27,7 @@ namespace script
 
     class IRFunction : public IRCode
     {
+        friend class DumpIR;
     public:
         IRFunction(std::string name);
 
@@ -40,6 +42,7 @@ namespace script
 
     class IRModule : public IRCode
     {
+        friend class DumpIR;
     public:
 
         ~IRModule();

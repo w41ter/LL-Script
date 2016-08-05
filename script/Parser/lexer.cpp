@@ -56,7 +56,7 @@ namespace script
         whiteSpace();
         char ch = lookChar();
         if (!ch)
-            return Token();
+            return Token(TK_EOF, coord_);
         if (isalpha(ch) || ch == '_')
             return readIdentifier(ch);
         if (isdigit(ch))
@@ -123,7 +123,7 @@ namespace script
             Diagnosis diag(DiagType::DT_Error, previousCoord_);
             diag << "unexcepted end of file";
             diag_.diag(diag);
-            return Token();
+            return Token(TK_EOF, coord_);
         };
         
         char c = lookChar();
@@ -169,7 +169,7 @@ namespace script
         Diagnosis diag(DiagType::DT_Error, previousCoord_);
         diag << "unexcepted end of file";
         diag_.diag(diag);
-        return Token();
+        return Token(TK_EOF, coord_);
 	}
 	
 	Token Lexer::readDigit(char startChar)
@@ -282,7 +282,7 @@ namespace script
             
         fileName_ = file;
         coord_ = TokenCoord();
-        coord_.fileName_ = fileName_.c_str();
+        previousCoord_.fileName_ = coord_.fileName_ = fileName_.c_str();
     }
 
     Token Lexer::lookAhead(unsigned num)

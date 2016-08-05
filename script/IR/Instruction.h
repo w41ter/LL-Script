@@ -105,6 +105,7 @@ namespace ir
         int getInteger() const { return num_; }
         char getChar() const { return c_; }
         float getFloat() const { return fnum_; }
+        bool getBoolean() const { return bool_; }
         const std::string &getString() const { return str_; }
 
         virtual Instructions instance() const { return Instructions::IR_Value; }
@@ -124,11 +125,11 @@ namespace ir
         std::vector<Use> operands_;
     public:
         virtual ~User() = default;
-        typedef std::vector<Use>::iterator op_iterator;
+        typedef std::vector<Use>::const_iterator op_iterator;
         unsigned getNumOperands() const { return operands_.size(); }
         void op_reserve(unsigned NumElements) { operands_.reserve(NumElements); }
-        op_iterator op_begin() { return operands_.begin(); }
-        op_iterator op_end() { return operands_.end(); }
+        op_iterator op_begin() const { return operands_.begin(); }
+        op_iterator op_end() const { return operands_.end(); }
     };
 
     class Instruction : public User 
@@ -141,6 +142,9 @@ namespace ir
         Instruction(const std::string &name, Instruction *before);
         Instruction(const std::string &name, BasicBlock *end);
 
+        const Instruction *prev() const { return prev_; }
+        const Instruction *next() const { return next_; }
+        const std::string &name() const { return name_; }
     protected:    
         BasicBlock *parent_;
         Instruction *prev_, *next_;
@@ -250,6 +254,8 @@ namespace ir
         virtual ~Invoke() = default;
         virtual Instructions instance() const { return Instructions::IR_Invoke; }
 
+        bool isCalledByName() const { return callByName_; }
+        const std::string &invokedName() const { return functionName_; }
     protected:
         void init(const std::string functionName, const std::vector<Value*> &args);
         void init(Value *function, const std::vector<Value*> &args);
@@ -295,7 +301,8 @@ namespace ir
         virtual Instructions instance() const { return Instructions::IR_Branch; }
 
         bool hasElseBlock() const { return else_ != nullptr; }
-
+        const BasicBlock *then() const { return then_; }
+        const BasicBlock *_else() const { return else_; }
     protected:
         void init(Value *cond);
         void init(BasicBlock *then, BasicBlock *_else = nullptr);
@@ -323,6 +330,7 @@ namespace ir
         virtual ~Goto() = default;
         virtual Instructions instance() const { return Instructions::IR_Goto; }
 
+        const BasicBlock *block() const { return block_; }
     protected:
         void init(BasicBlock *block);
 
@@ -431,8 +439,12 @@ namespace ir
         virtual ~BinaryOperator() = default;
         virtual Instructions instance() const { return Instructions::IR_BinaryOps; }
 
+        BinaryOps op() const { return op_; }
     protected:
         void init(BinaryOps bop, Value *lhs, Value* rhs);
+
+    protected:
+        BinaryOps op_;
     };
 
     class Index : public Instruction

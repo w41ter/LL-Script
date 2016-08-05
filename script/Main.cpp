@@ -9,6 +9,7 @@
 #include "Runtime\VM.h"
 #include "Runtime\opcode.h"
 #include "IR\IRModule.h"
+#include "IR\DumpIR.h"
 #include "CompilerInstance.h"
 
 using namespace script;
@@ -38,9 +39,19 @@ int main(int argc, char* argv[])
 
     int error = diag.errors(), warning = diag.warnings();
     std::cout << "error(" << error << "), warning(" << warning << ")" << std::endl;
-    if (error) 
+    if (error)
+    {
+        getchar();
         return 0;
-    return 0;
+    }
+
+    if (driver.dumpIR_)
+    {
+        std::string filename = driver.filename;
+        filename.resize(filename.find_last_of('.'));
+        DumpIR dumpIR(filename += ".ir");
+        dumpIR.dump(&module);
+    }
     // generate opcode
     //script::OpcodeContext opcode;
     //script::CodeGenerator codegen(opcode);

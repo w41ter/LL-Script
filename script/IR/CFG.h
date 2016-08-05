@@ -25,9 +25,10 @@ namespace ir
         size_t numOfPrecursors() const { return precursors_.size(); }
         size_t numOfSuccessors() const { return successors_.size(); }
 
-        ir::Instruction *begin() { return head_; }
-        ir::Instruction *end() { return end_; }
+        const ir::Instruction *begin() const { return head_; }
+        const ir::Instruction *end() const { return end_; }
         unsigned getID() const { return ID_; }
+        const std::string &getName() const { return name_; }
 
         void push(ir::Instruction *instr);
         void unique();
@@ -42,6 +43,7 @@ namespace ir
 
     class CFG
     {
+        friend class DumpIR;
     public:
         CFG();
         ~CFG();

@@ -111,6 +111,7 @@ namespace ir
 
     void BinaryOperator::init(BinaryOps bop, Value * lhs, Value * rhs)
     {
+        op_ = bop;
         operands_.reserve(2);
         operands_.push_back(Use(lhs, this));
         operands_.push_back(Use(rhs, this));

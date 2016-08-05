@@ -14,10 +14,7 @@ namespace script
         int command(int count, char *argv[]);
 
     public:
-        bool dumpAST_ = false;
-        bool dumpCFG_ = false;
-        bool dumpQuad_ = false;
-        bool dumpOpcode_ = false;
+        bool dumpIR_ = false;
         bool optimized_ = false;
 
         const char *filename;

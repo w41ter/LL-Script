@@ -22,11 +22,11 @@ namespace script
 
 namespace
 {
-    std::string getTmpName(std::string name = "Tmp")
+    std::string getTmpName(std::string name = "Tmp_")
     {
-        static int count = 0;
+        static std::map<std::string, int> count;
         std::stringstream stream;
-        stream << name << count;
+        stream << name << count[name]++;
         std::string str;
         stream >> str;
         return str;
@@ -81,7 +81,7 @@ namespace
             {
                 table->catchedName(name);
                 Value *result = context_->create<ir::Catch>(
-                    table_->getValue(name), name, allocaBlock_);
+                    table->getValue(name), name, allocaBlock_);
                 auto kind = table->findName(name);
                 if (kind == SymbolTable::Define)
                     table_->insertDefines(name, token_);
@@ -103,16 +103,6 @@ namespace
         return (tok == TK_Less || tok == TK_LessThan ||
             tok == TK_Great || tok == TK_GreatThan ||
             tok == TK_NotEqual || tok == TK_EqualThan);
-    }
-
-    std::string Parser::getTempIDName(const char *name)
-    {
-        static int index = 0;
-        std::stringstream stream;
-        stream << name << "@" << index++;
-        string str;
-        stream >> str;
-        return str;
     }
 
     void Parser::initialize()
@@ -146,25 +136,29 @@ namespace
         {
             float value = token_.fnum_;
             advance();
-            return context_->create<ir::Constant>(value);
+            Value *val = context_->create<ir::Constant>(value);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_LitString:
         {
             string str = token_.value_;
             advance();
-            return context_->create<ir::Constant>(str);
+            Value *val = context_->create<ir::Constant>(str);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_LitInteger:
         {
             int integer = token_.num_;
             advance();
-            return context_->create<ir::Constant>(integer);
+            Value *val = context_->create<ir::Constant>(integer);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_LitCharacter:
         {
             char c = token_.value_[0];
             advance();
-            return context_->create<ir::Constant>(c);
+            Value *val = context_->create<ir::Constant>(c);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_Identifier:
         {
@@ -225,6 +219,7 @@ namespace
             advance();
             string name = exceptIdentifier();
             Value *rhs = context_->create<ir::Constant>(name);
+            rhs = context_->create<ir::Assign>(rhs, getTmpName(), block_);
             if (token_.kind_ == TK_Assign)
             {
                 result = context_->create<ir::SetIndex>(
@@ -251,6 +246,7 @@ namespace
                 match(TK_RSquareBrace);
                 if (token_.kind_ == TK_Assign)
                 {
+                    advance();
                     return context_->create<ir::SetIndex>(
                         result, expr, expression(), block_);
                 }
@@ -357,18 +353,16 @@ namespace
             return result;
 
         BasicBlock *tmpBlock = block_,
-            *thenBlock = cfg_->createBasicBlock(getTmpName("Label_")),
             *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
-            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_")),
-            *endBlock = cfg_->createBasicBlock(getTmpName("end_"));
+            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
 
         context_->create<ir::Branch>(result, falseBlock, trueBlock, tmpBlock);
         while (token_.kind_ == TK_And)
         {
             advance();
-            Value *expr = relationalExpr();
             block_ = trueBlock;
-            trueBlock = cfg_->createBasicBlock(getTmpName("true_"));
+            Value *expr = relationalExpr();
+            trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_"));
             context_->create<ir::Branch>(result, falseBlock, trueBlock, block_);
         }
 
@@ -376,6 +370,8 @@ namespace
         Value *false_ = context_->create<ir::Constant>(false);
         Value *trueVal = context_->create<ir::Assign>(true_, getTmpName(), trueBlock);
         Value *falseVal = context_->create<ir::Assign>(false_, getTmpName(), falseBlock);
+
+        BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
         context_->create<ir::Goto>(endBlock, trueBlock);
         context_->create<ir::Goto>(endBlock, falseBlock);
         block_ = endBlock;
@@ -390,18 +386,16 @@ namespace
             return result;
 
         BasicBlock *tmpBlock = block_,
-            *thenBlock = cfg_->createBasicBlock(getTmpName("Label_")),
             *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
-            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_")),
-            *endBlock = cfg_->createBasicBlock(getTmpName("end_"));
+            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
 
         context_->create<ir::Branch>(result, trueBlock, falseBlock, tmpBlock);
         while (token_.kind_ == TK_Or)
         {
             advance();
-            Value *expr = andExpr();
             block_ = falseBlock;
-            falseBlock = cfg_->createBasicBlock(getTmpName("false_"));
+            Value *expr = andExpr();
+            falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
             context_->create<ir::Branch>(result, trueBlock, falseBlock, block_);
         }
 
@@ -409,6 +403,8 @@ namespace
         Value *false_ = context_->create<ir::Constant>(false);
         Value *trueVal = context_->create<ir::Assign>(true_, getTmpName(), trueBlock);
         Value *falseVal = context_->create<ir::Assign>(false_, getTmpName(), falseBlock);
+
+        BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
         context_->create<ir::Goto>(endBlock, trueBlock);
         context_->create<ir::Goto>(endBlock, falseBlock);
         block_ = endBlock;
@@ -426,17 +422,18 @@ namespace
             advance();
             //orExpr();
             Value *rhs = expression();
-            if (rhs->instance() == Instructions::IR_Load)
+            if (rhs->instance() == Instructions::IR_Alloca)
             {
                 rhs = context_->create<ir::Load>(rhs, getTmpName(), block_);
             }
 
-            if (result->instance() == Instructions::IR_Store)
+            if (result->instance() == Instructions::IR_Alloca)
             {
                 context_->create<ir::Store>(rhs, result, block_);
             }
             else
             {
+                //context_->create<ir::Assign>()
                 // rvalue can't be assignned.
                 Diagnosis diag(DiagType::DT_Error, coord);
                 diag << "不能对右值赋值";
@@ -500,7 +497,7 @@ namespace
         }
 
         match(TK_Semicolon);
-        BasicBlock *succBlock = cfg_->createBasicBlock("succ_");
+        BasicBlock *succBlock = cfg_->createBasicBlock("return_succ_");
         context_->create<ir::Goto>(succBlock, block_);
         block_ = succBlock;
     }
@@ -512,6 +509,8 @@ namespace
             *condBlock = cfg_->createBasicBlock(getTmpName("while_cond_")),
             *thenBlock = cfg_->createBasicBlock(getTmpName("while_then_")),
             *endBlock = cfg_->createBasicBlock(getTmpName("end_while_"));
+
+        context_->create<ir::Goto>(condBlock, tmpBlock);
 
         block_ = condBlock;
         match(TK_LParen);
@@ -539,30 +538,32 @@ namespace
         match(TK_RParen);
 
         BasicBlock *tmpBlock = block_,
-            *thenBlock = cfg_->createBasicBlock(getTmpName("if_then_")),
-            *endBlock = cfg_->createBasicBlock(getTmpName("if_end_")),
-            *elseBlock = nullptr;
+            *thenBlock = cfg_->createBasicBlock(getTmpName("if_then_"));
 
         block_ = thenBlock;
         statement();
-        context_->create<ir::Goto>(endBlock, /*thenBlock==*/block_);
+        BasicBlock *thenEndBlock = block_, *endBlock = nullptr;
 
         if (token_.kind_ == TK_Else)
         {
             advance();
 
-            elseBlock = cfg_->createBasicBlock(getTmpName("if_else_"));
+            BasicBlock *elseBlock = cfg_->createBasicBlock(getTmpName("if_else_"));
             context_->create<ir::Branch>(expr, thenBlock, elseBlock, tmpBlock);
 
             block_ = elseBlock;
             statement();
+
+            endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
             context_->create<ir::Goto>(endBlock, /*elseBlock==*/block_);
         }
         else
         {
+            endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
             context_->create<ir::Branch>(expr, thenBlock, endBlock, tmpBlock);
         }
 
+        context_->create<ir::Goto>(endBlock, thenEndBlock);
         block_ = endBlock;
     }
 
@@ -646,6 +647,7 @@ namespace
             diag_.diag(diag);
         }
         advance();
+        result = context_->create<ir::Assign>(result, getTmpName(), block_);
         return result;
     }
 
@@ -685,7 +687,7 @@ namespace
         block();
         function->setEnd(block_);
 
-        context_->create<ir::Goto>(block_, allocaBlock_);
+        context_->create<ir::Goto>(save, allocaBlock_);
         allocaBlock_ = alloca;
         block_ = oldBlock;
         cfg_ = cfg;
@@ -739,11 +741,14 @@ namespace
                     diag_.diag(diag);
                 }
             }
+            cons = context_->create<ir::Assign>(cons, getTmpName(), block_);
             context_->create<ir::SetIndex>(table, cons, expr, block_);
         }
         else
         {
             Value *tmp = context_->create<ir::Constant>(-1);
+            tmp = context_->create<ir::Assign>(tmp, getTmpName(), block_);
+            cons = context_->create<ir::Assign>(cons, getTmpName(), block_);
             context_->create<ir::SetIndex>(table, tmp, cons, block_);
         }
     }
@@ -757,12 +762,14 @@ namespace
             advance();
             Value *expr = expression();
             Value *str = context_->create<ir::Constant>(name);
+            str = context_->create<ir::Assign>(str, getTmpName(), block_);
             context_->create<ir::SetIndex>(table, str, expr, block_);
         }
         else
         {
             Value *id = findID(name);
             Value *cons = context_->create<ir::Constant>(-1);
+            cons = context_->create<ir::Assign>(cons, getTmpName(), block_);
             Value *tmp = context_->create<ir::Load>(id, getTmpName(), block_);
             context_->create<ir::SetIndex>(table, cons, tmp, block_);
         }
@@ -782,7 +789,7 @@ namespace
             
         } while (token_.kind_ == TK_Comma);
         match(TK_RSquareBrace);
-        return nullptr;
+        return table;
     }
 
     void Parser::functionDecl()
@@ -893,14 +900,15 @@ namespace
 
     void Parser::parse()
     {
-        BasicBlock *entry = module_.createBasicBlock("entry");
         allocaBlock_ = module_.createBasicBlock("global_alloca");
+        BasicBlock *entry = module_.createBasicBlock("entry");
+
         block_ = entry;
         table_ = module_.getTable();
         context_ = module_.getContext();
         cfg_ = &module_;
 
-        module_.setEntry(entry);
+        module_.setEntry(allocaBlock_);
 
         advance();
         while (token_.kind_ != TK_EOF)

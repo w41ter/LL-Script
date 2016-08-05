@@ -43,30 +43,15 @@ namespace script
     void Driver::usage()
     {
         std::cout << "Usage : [-op] filename" << std::endl;
-        std::cout << "\t -dumpAST" << std::endl;
-        std::cout << "\t -dumpCFG" << std::endl;
-        std::cout << "\t -dumpQuad" << std::endl;
-        std::cout << "\t -dumpOpcode" << std::endl;
+        std::cout << "\t -dumpIR" << std::endl;
         std::cout << "\t -o" << std::endl;
     }
 
     int Driver::command(int count, char *argv[])
     {
-        if (strcmp("-dumpAST", argv[count]) == 0)
+        if (strcmp("-dumpIR", argv[count]) == 0)
         {
-            dumpAST_ = true;
-        }
-        else if (strcmp("-dumpCFG", argv[count]) == 0)
-        {
-            dumpCFG_ = true;
-        }
-        else if (strcmp("-dumpQuad", argv[count]) == 0)
-        {
-            dumpQuad_ = true;
-        }
-        else if (strcmp("-dumpOpcode", argv[count]) == 0)
-        {
-            dumpOpcode_ = true;
+            dumpIR_ = true;
         }
         else if (strcmp("-o", argv[count]) == 0)
         {
