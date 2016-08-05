@@ -4,7 +4,6 @@
 
 #include "../BuildIn/BuildIn.h"
 #include "../Parser/lexer.h"
-#include "../IR/Quad.h"
 
 struct CmpByValue 
 {

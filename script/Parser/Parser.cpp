@@ -3,32 +3,106 @@
 #include <iostream>
 #include <sstream>
 
-#include "../Semantic/AST.h"
-#include "../Semantic/ASTContext.h"
-#include "../BuildIn/BuildIn.h"
+#include "../IR/CFG.h"
+#include "../IR/IRContext.h"
+#include "../IR/IRModule.h"
+#include "../IR/SymbolTable.h"
+#include "../IR/Instruction.h"
+#include "../Semantic/Diagnosis.h"
+#include "../Semantic/DiagnosisConsumer.h"
 
 using std::map;
 using std::set;
 using std::string;
 using std::vector;
+using script::ir::Value;
 
 namespace script
 {
+
+namespace
+{
+    std::string getTmpName(std::string name = "Tmp_")
+    {
+        static std::map<std::string, int> count;
+        std::stringstream stream;
+        stream << name << count[name]++;
+        std::string str;
+        stream >> str;
+        return str;
+    }
+
+    ir::BinaryOps TranslateRelationalToBinaryOps(unsigned tok)
+    {
+        using ir::BinaryOps;
+        switch (tok)
+        {
+        case TK_Less:
+            return BinaryOps::BO_Less;
+        case TK_LessThan:
+            return BinaryOps::BO_NotGreat;
+        case TK_Great:
+            return BinaryOps::BO_Great;
+        case TK_GreatThan:
+            return BinaryOps::BO_NotLess;
+        case TK_NotEqual:
+            return BinaryOps::BO_NotEqual;
+        case TK_EqualThan:
+            return BinaryOps::BO_Equal;
+        default:
+            break;
+        }
+    }
+
+    void LoadParamsIntoTable(
+        SymbolTable *table, 
+        IRContext *context,
+        BasicBlock *allocBlock,
+        std::vector<std::pair<std::string, Token>> &params)
+    {
+        for (auto &i : params)
+        {
+            table->insertVariables(i.first, i.second);
+            Value *value = context->create<ir::Alloca>(i.first, allocBlock);
+            table->bindValue(i.first, value);
+        }
+    }
+}
+
+    Value *Parser::findID(std::string &name)
+    {
+        SymbolTable *table = table_;
+        if (table_->findName(name) != SymbolTable::None)
+            return table_->getValue(name);
+        table = table->getParent();
+        while (table != nullptr)
+        {
+            if (table->findName(name) != SymbolTable::None)
+            {
+                table->catchedName(name);
+                Value *result = context_->create<ir::Catch>(
+                    table->getValue(name), name, allocaBlock_);
+                auto kind = table->findName(name);
+                if (kind == SymbolTable::Define)
+                    table_->insertDefines(name, token_);
+                else
+                    table_->insertVariables(name, token_);
+                table_->bindValue(name, result);
+                return result;
+            }
+            table = table->getParent();
+        }
+        Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+        diag << "Using undefine identifier : " << name;
+        diag_.diag(diag);
+        return nullptr;
+    }
+
     bool Parser::isRelational(unsigned tok)
     {
         return (tok == TK_Less || tok == TK_LessThan ||
             tok == TK_Great || tok == TK_GreatThan ||
             tok == TK_NotEqual || tok == TK_EqualThan);
-    }
-
-    std::string Parser::getTempIDName(const char *name)
-    {
-        static int index = 0;
-        std::stringstream stream;
-        stream << name << "@" << index++;
-        string str;
-        stream >> str;
-        return str;
     }
 
     void Parser::initialize()
@@ -45,6 +119,7 @@ namespace script
             { "return", TK_Return },
             { "continue", TK_Continue },
             { "function", TK_Function },
+            { "lambda", TK_Lambda },
             { "define", TK_Define }
         };
         for (auto i : keywords)
@@ -53,400 +128,501 @@ namespace script
         }
     }
 
-    ASTree *Parser::parseKeywordConstant()
+    Value *Parser::factor()
     {
-        ASTree *expr = nullptr;
-        if (token_.kind_ == TK_True)
-            expr = context_.allocate<ASTConstant>(1, token_);
-        else if (token_.kind_ == TK_False)
-            expr = context_.allocate<ASTConstant>(0, token_);
-        else if (token_.kind_ == TK_Null)
-            expr = context_.allocate<ASTNull>();
-        else
-            errorUnrecordToken();
-        advance();
-        return expr;
-    }
-
-    //
-    // factor:
-    //    INT_CONST
-    //    | CHAR_CONST
-    //    | STRING_CONST
-    //    | keyword_constant
-    //    | ID
-    //    | "(" expression ")"
-    //    | "[" expression_list "]"
-    //    | function_decl
-    //
-    ASTree *Parser::parseFactor()
-    {
-        ASTree *expr = nullptr;
         switch (token_.kind_)
         {
-        case TK_LitFloat: 
+        case TK_LitFloat:
         {
-            expr = context_.allocate<ASTConstant>(token_.fnum_, token_);
+            float value = token_.fnum_;
             advance();
-            break;
+            Value *val = context_->create<ir::Constant>(value);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_LitString:
         {
-            expr = context_.allocate<ASTConstant>(token_.value_, token_);
+            string str = token_.value_;
             advance();
-            break;
+            Value *val = context_->create<ir::Constant>(str);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_LitInteger:
         {
-            expr = context_.allocate<ASTConstant>(token_.num_, token_);
+            int integer = token_.num_;
             advance();
-            break;
+            Value *val = context_->create<ir::Constant>(integer);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_LitCharacter:
         {
-            expr = context_.allocate<ASTConstant>(token_.value_[0], token_);
+            char c = token_.value_[0];
             advance();
-            break;
+            Value *val = context_->create<ir::Constant>(c);
+            return context_->create<ir::Assign>(val, getTmpName(), block_);
         }
         case TK_Identifier:
         {
-            SymbolTable *symbol = symbolTable_.back();
-            if (symbol->find(token_.value_) == symbol->end())
-            {
-                if (symbol->findInTree(token_.value_) == symbol->end())
-                    errorUndefined(token_.value_);
-                catch_.back()->insert(token_.value_);
-            }
-            expr = context_.allocate<ASTIdentifier>(token_.value_);
+            string name = token_.value_;
             advance();
-            break;
+
+            Value *value = findID(name);
+            if (value == nullptr)
+                return nullptr;
+            auto kind = table_->findName(name);
+            if (token_.kind_ == TK_Assign)
+            {
+                advance();
+                if (kind == SymbolTable::Let)
+                {
+                    return context_->create<ir::Store>(
+                        expression(), table_->getValue(name), block_);
+                }
+                else
+                {
+                    Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+                    diag << "Try to assign to define constant : " << name;
+                    diag_.diag(diag);
+                    return nullptr;
+                }
+            }
+            else
+            {
+                return context_->create<ir::Load>(
+                    table_->getValue(name), getTmpName(), block_);
+            }
         }
         case TK_LParen:
         {
             advance();
-            expr = parseExpr();
+            Value * result = expression();
             match(TK_RParen);
-            break;
+            return result;
         }
         case TK_LSquareBrace:
         {
-            advance();
-            expr = context_.allocate<ASTArray>(parseExprList());
-            match(TK_RSquareBrace);
-            break;
+            return tableDecl();
         }
-        case TK_Function:
+        case TK_Lambda:
         {
-            return parseFunctionDecl();
+            return lambdaDecl();
         }
         default:
-            expr = parseKeywordConstant();
-            break;
+            return keywordConstant();
         }
-        return expr;
     }
 
-    //
-    // positive_factor:
-    //  factor{ (["[" expression "]"] | ["(" expression_list ")"]) }
-    // 
-    ASTree *Parser::parsePositveFactor()
+    Value *Parser::indexExpr()
     {
-        ASTree *expr = parseFactor();
-        while (token_.kind_ == TK_LSquareBrace || token_.kind_ == TK_LParen)
+        Value *result = factor();
+        while (token_.kind_ == TK_Period)
         {
-            if (token_.kind_ == TK_LSquareBrace)
+            advance();
+            string name = exceptIdentifier();
+            Value *rhs = context_->create<ir::Constant>(name);
+            rhs = context_->create<ir::Assign>(rhs, getTmpName(), block_);
+            if (token_.kind_ == TK_Assign)
             {
-                advance();
-                expr = context_.allocate<ASTArrayIndex>(expr, parseExpr());
-                match(TK_RSquareBrace);
+                result = context_->create<ir::SetIndex>(
+                    result, rhs, expression(), block_);
+                return result;
             }
             else
             {
-                advance();
-                ASTree *exprList = context_.allocate<ASTExpressionList>();
-                if (token_.kind_ != TK_RParen)
-                    exprList = parseExprList();
-                match(TK_RParen);
-                expr = context_.allocate<ASTCall>(expr, exprList);
+                result = context_->create<ir::Index>(
+                    result, rhs, getTmpName(), block_);
             }
         }
-        return expr;
+        return result;
     }
 
-    //
-    // not_factor:
-    //  ["!"] positive_factor
-    //
-    ASTree *Parser::parseNotFactor()
+    Value *Parser::factorSuffix()
     {
-        if (token_.kind_ == TK_Not)
+        Value *result = indexExpr(), *rhs = nullptr;
+        do {
+            if (token_.kind_ == TK_LSquareBrace)
+            {
+                advance();
+                Value *expr = expression();
+                match(TK_RSquareBrace);
+                if (token_.kind_ == TK_Assign)
+                {
+                    advance();
+                    return context_->create<ir::SetIndex>(
+                        result, expr, expression(), block_);
+                }
+                result = context_->create<ir::Index>(
+                    result, expr, getTmpName(), block_);
+            }
+            else if (token_.kind_ == TK_LParen)
+            {
+                advance();
+                std::vector<Value*> params;
+                if (token_.kind_ != TK_RParen)
+                {
+                    params.push_back(expression());
+                    while (token_.kind_ == TK_Comma)
+                    {
+                        advance();
+                        params.push_back(expression());
+                    }
+                }
+                
+                match(TK_RParen);
+                result = context_->create<ir::Invoke>(
+                    result, params, getTmpName(), block_);
+            }
+            else
+            {
+                break;
+            }
+        } while (true);
+        return result;
+    }
+
+    Value *Parser::notExpr()
+    {
+        if (token_.kind_ != TK_Not)
         {
-            advance();
-            return context_.allocate<ASTSingleExpression>(
-                TK_Not, parsePositveFactor());
+            return factorSuffix();
         }
-        return parsePositveFactor();
+        advance();
+        return context_->create<ir::NotOp>(factorSuffix(), getTmpName(), block_);
     }
 
-    //
-    // term:
-    //  ["-"] not_factor
-    //
-    ASTree *Parser::parseTerm()
+    Value *Parser::negativeExpr()
     {
-        if (token_.kind_ == TK_Sub)
+        using ir::BinaryOps;
+        if (token_.kind_ != TK_Sub)
         {
-            advance();
-            return context_.allocate<ASTSingleExpression>(
-                TK_Sub, parseNotFactor());
+            return notExpr();
         }
-        return parseNotFactor();
+        advance();
+        Value *zero = context_->create<ir::Constant>(0);
+        return context_->create<ir::BinaryOperator>(
+            BinaryOps::BO_Sub, zero, notExpr(), getTmpName(), block_);
     }
 
-    //
-    // additive_expression:
-    //  term{ ("*" | "/") term }
-    //
-    ASTree *Parser::parseAdditiveExpr()
+    Value *Parser::mulAndDivExpr()
     {
-        ASTree *expr = parseTerm();
+        using ir::BinaryOps;
+        Value *result = negativeExpr();
         while (token_.kind_ == TK_Mul || token_.kind_ == TK_Div)
         {
-            unsigned op = token_.kind_;
+            auto op = token_.kind_ == TK_Mul 
+                ? BinaryOps::BO_Mul : BinaryOps::BO_Div;
             advance();
-            expr = context_.allocate<ASTBinaryExpression>(
-                op, expr, parseTerm());
+            result = context_->create<ir::BinaryOperator>(
+                BinaryOps(op), result, negativeExpr(), getTmpName(), block_);
         }
-        return expr;
+        return result;
     }
 
-    //
-    // relational_expression:
-    //  additive_expression{ ("+" | "-") additive_expression }
-    // 
-    ASTree *Parser::parseRelationalExpr()
+    Value *Parser::addAndSubExpr()
     {
-        ASTree *expr = parseAdditiveExpr();
+        using ir::BinaryOps;
+        Value *result = mulAndDivExpr();
         while (token_.kind_ == TK_Plus || token_.kind_ == TK_Sub)
         {
-            unsigned op = token_.kind_;
+            auto op = token_.kind_ == TK_Plus
+                ? BinaryOps::BO_Add : BinaryOps::BO_Sub;
             advance();
-            expr = context_.allocate<ASTBinaryExpression>(
-                op,expr, parseAdditiveExpr());
+            result = context_->create<ir::BinaryOperator>(
+                BinaryOps(op), result, mulAndDivExpr(), getTmpName(), block_);
         }
-        return expr;
+        return result;
     }
 
-    //
-    // and_expression:
-    //  relational_expression[("<" | ">" | ">=" | "<=" | "==" | "!=") relational_expression]
-    // 
-    ASTree *Parser::parseAndExpr()
+    Value *Parser::relationalExpr()
     {
-        ASTree *expr = parseRelationalExpr();
-        if (isRelational(token_.kind_))
+        using ir::BinaryOps;
+        Value *result = addAndSubExpr();
+        while (isRelational(token_.kind_))
         {
-            unsigned op = token_.kind_;
+            auto op = TranslateRelationalToBinaryOps(token_.kind_);
             advance();
-            expr = context_.allocate<ASTRelationalExpression>(
-                op, expr, parseRelationalExpr());
+            result = context_->create<ir::BinaryOperator>(
+                BinaryOps(op), result, addAndSubExpr(), getTmpName(), block_);
         }
-        return expr;
+        return result;
     }
 
-    //
-    // or_expression:
-    //  and_expression{ "&&" and_expression }
-    //
-    ASTree *Parser::parseOrExpr()
+    Value *Parser::andExpr()
     {
-        ASTree *expr = parseAndExpr();
+        Value *result = relationalExpr();
         if (token_.kind_ != TK_And)
-            return expr;
-        ASTAndExpression *andExpr = context_.allocate<ASTAndExpression>();
-        andExpr->push_back(expr);
+            return result;
+
+        BasicBlock *tmpBlock = block_,
+            *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
+            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
+
+        context_->create<ir::Branch>(result, falseBlock, trueBlock, tmpBlock);
         while (token_.kind_ == TK_And)
         {
             advance();
-            andExpr->push_back(parseAndExpr());
+            block_ = trueBlock;
+            Value *expr = relationalExpr();
+            trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_"));
+            context_->create<ir::Branch>(result, falseBlock, trueBlock, block_);
         }
-        return andExpr;
+
+        Value *true_ = context_->create<ir::Constant>(true);
+        Value *false_ = context_->create<ir::Constant>(false);
+        Value *trueVal = context_->create<ir::Assign>(true_, getTmpName(), trueBlock);
+        Value *falseVal = context_->create<ir::Assign>(false_, getTmpName(), falseBlock);
+
+        BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
+        context_->create<ir::Goto>(endBlock, trueBlock);
+        context_->create<ir::Goto>(endBlock, falseBlock);
+        block_ = endBlock;
+        auto params = { trueVal, falseVal };
+        return context_->create<ir::Phi>(getTmpName(), block_, params);
     }
 
-    //
-    // expression:
-    //  or_expression{ "||" or_expression }
-    //
-    ASTree *Parser::parseExpr()
+    Value *Parser::orExpr()
     {
-        ASTree *expr = parseOrExpr();
+        Value *result = andExpr();
         if (token_.kind_ != TK_Or)
-            return expr;
-        ASTOrExpression *orExpr = context_.allocate<ASTOrExpression>();
-        orExpr->push_back(expr);
+            return result;
+
+        BasicBlock *tmpBlock = block_,
+            *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
+            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
+
+        context_->create<ir::Branch>(result, trueBlock, falseBlock, tmpBlock);
         while (token_.kind_ == TK_Or)
         {
             advance();
-            orExpr->push_back(parseOrExpr());
+            block_ = falseBlock;
+            Value *expr = andExpr();
+            falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
+            context_->create<ir::Branch>(result, trueBlock, falseBlock, block_);
         }
-        return orExpr;
+
+        Value *true_ = context_->create<ir::Constant>(true);
+        Value *false_ = context_->create<ir::Constant>(false);
+        Value *trueVal = context_->create<ir::Assign>(true_, getTmpName(), trueBlock);
+        Value *falseVal = context_->create<ir::Assign>(false_, getTmpName(), falseBlock);
+
+        BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
+        context_->create<ir::Goto>(endBlock, trueBlock);
+        context_->create<ir::Goto>(endBlock, falseBlock);
+        block_ = endBlock;
+        auto params = { trueVal, falseVal };
+        return context_->create<ir::Phi>(getTmpName(), block_, params);
     }
 
-    //
-    // assign_expression:
-    //  expression { "=" expression }
-    //
-    ASTree *Parser::parseAssignExpr()
+    Value *Parser::expression()
     {
-        ASTree *expr = parseExpr();
-        while (token_.kind_ == TK_Assign)
+        using ir::Instructions;
+        auto coord = lexer_.getCoord();
+        Value *result = orExpr();
+        if (token_.kind_ == TK_Assign)
         {
             advance();
-            expr = context_.allocate<ASTAssignExpression>(expr, parseExpr());
+            //orExpr();
+            Value *rhs = expression();
+            if (rhs->instance() == Instructions::IR_Alloca)
+            {
+                rhs = context_->create<ir::Load>(rhs, getTmpName(), block_);
+            }
+
+            if (result->instance() == Instructions::IR_Alloca)
+            {
+                context_->create<ir::Store>(rhs, result, block_);
+            }
+            else
+            {
+                //context_->create<ir::Assign>()
+                // rvalue can't be assignned.
+                Diagnosis diag(DiagType::DT_Error, coord);
+                diag << "不能对右值赋值";
+                diag_.diag(diag);
+            }
+
+            result = rhs;
         }
-        return expr;
+        return result;
     }
 
-    //
-    // expression_list:
-    //  expression { "," expression }
-    //
-    ASTree *Parser::parseExprList()
+    void Parser::breakStat()
     {
-        ASTExpressionList *list = context_.allocate<ASTExpressionList>();
-        list->push_back(parseExpr());
-        while (token_.kind_ == TK_Comma)
+        match(TK_Break);
+        match(TK_Semicolon);
+
+        if (breaks_.size() <= 0)
+        {
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "Break 外层需要 while statement";
+            diag_.diag(diag);
+            return;
+        }
+
+        context_->create<ir::Goto>(breaks_.top(), block_);
+
+        // 尽管后面部分为落空语句，但是仍然为他建立一个block
+        block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
+    }
+
+    void Parser::continueStat()
+    {
+        match(TK_Continue);
+        match(TK_Semicolon);
+        
+        if (continues_.size() <= 0)
+        {
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "Continue 外层需要 while statement";
+            diag_.diag(diag);
+            return;
+        }
+
+        context_->create<ir::Goto>(continues_.top(), block_);
+        
+        // 尽管后面部分为落空语句，但是仍然为他建立一个block
+        block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
+    }
+
+    void Parser::returnStat()
+    {
+        advance();
+        if (token_.kind_ != TK_Semicolon)
+        {
+            Value *expr = expression();
+            context_->create<ir::Return>(expr, block_);
+        }
+        else
+        {
+            context_->create<ir::ReturnVoid>(block_);
+        }
+
+        match(TK_Semicolon);
+        BasicBlock *succBlock = cfg_->createBasicBlock("return_succ_");
+        context_->create<ir::Goto>(succBlock, block_);
+        block_ = succBlock;
+    }
+
+    void Parser::whileStat()
+    {
+        advance();
+        BasicBlock *tmpBlock = block_,
+            *condBlock = cfg_->createBasicBlock(getTmpName("while_cond_")),
+            *thenBlock = cfg_->createBasicBlock(getTmpName("while_then_")),
+            *endBlock = cfg_->createBasicBlock(getTmpName("end_while_"));
+
+        context_->create<ir::Goto>(condBlock, tmpBlock);
+
+        block_ = condBlock;
+        match(TK_LParen);
+        Value *expr = expression();
+        match(TK_RParen);
+        context_->create<ir::Branch>(expr, thenBlock, endBlock, /*condBlock==*/block_);
+
+        breaks_.push(endBlock);
+        continues_.push(condBlock);
+
+        block_ = thenBlock;
+        statement();
+        context_->create<ir::Goto>(condBlock, /*thenBlock==*/block_);
+
+        block_ = endBlock;
+        breaks_.pop();
+        continues_.pop();
+    }
+
+    void Parser::ifStat()
+    {
+        advance();
+        match(TK_LParen);
+        Value *expr = expression();
+        match(TK_RParen);
+
+        BasicBlock *tmpBlock = block_,
+            *thenBlock = cfg_->createBasicBlock(getTmpName("if_then_"));
+
+        block_ = thenBlock;
+        statement();
+        BasicBlock *thenEndBlock = block_, *endBlock = nullptr;
+
+        if (token_.kind_ == TK_Else)
         {
             advance();
-            list->push_back(parseExpr());
+
+            BasicBlock *elseBlock = cfg_->createBasicBlock(getTmpName("if_else_"));
+            context_->create<ir::Branch>(expr, thenBlock, elseBlock, tmpBlock);
+
+            block_ = elseBlock;
+            statement();
+
+            endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
+            context_->create<ir::Goto>(endBlock, /*elseBlock==*/block_);
         }
-        return list;
+        else
+        {
+            endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
+            context_->create<ir::Branch>(expr, thenBlock, endBlock, tmpBlock);
+        }
+
+        context_->create<ir::Goto>(endBlock, thenEndBlock);
+        block_ = endBlock;
     }
 
-    //
-    // statement:
-    //    block
-    //    | "if" "(" assign_expression ")" statement["else" statement]
-    //    | "while" "(" assign_expression ")" statement
-    //    | "return"[assign_expression] ";"
-    //    | "break" ";"
-    //    | "continue" ";"
-    //    | assign_expression ";"
-    //    | var_decl
-    //
-    ASTree *Parser::parseStatement()
+    void Parser::statement()
     {
         switch (token_.kind_)
         {
         case TK_LCurlyBrace:
-            return parseBlock();
+            return block();
         case TK_If:
-        {
-            advance();
-            match(TK_LParen);
-            ASTree *condition = parseAssignExpr();
-            match(TK_RParen);
-            ASTree *ifState = parseStatement();
-            if (token_.kind_ == TK_Else)
-            {
-                advance();
-                ASTree *elseState = parseStatement();
-                return context_.allocate<ASTIfStatement>(
-                    condition, ifState, elseState);
-            }
-            return context_.allocate<ASTIfStatement>(condition, ifState);
-        }
+            return ifStat();
         case TK_While:
-        {
-            advance();
-            match(TK_LParen);
-            ASTree *condition = parseAssignExpr();
-            match(TK_RParen);
-            ASTree *state = parseStatement();
-            return context_.allocate<ASTWhileStatement>(condition, state);
-        }
+            return whileStat();
         case TK_Return:
-        {    
-            advance();
-            ASTree *expr = nullptr;
-            if (token_.kind_ != TK_Semicolon)
-                expr = parseAssignExpr();
-            
-            match(TK_Semicolon);
-            return context_.allocate<ASTReturnStatement>(expr);
-        }
+            return returnStat();
         case TK_Break:
-        {
-            advance();
-            Token token = token_;
-            match(TK_Semicolon);
-            return context_.allocate<ASTBreakStatement>(token);
-        }
+            return breakStat();
         case TK_Continue:
-        {
-            advance();
-            Token token = token_;
-            match(TK_Semicolon);
-            return context_.allocate<ASTContinueStatement>(token);
-        }
+            return continueStat();
         case TK_Let:
-        {
-            advance();
-            Token token = token_;
-            string name = exceptIdentifier();
-
-            match(TK_Assign);
-            ASTree *expr = parseAssignExpr();
-            match(TK_Semicolon);
-
-            // insert symbol to symbol table only after it done.
-            SymbolTable *symbol = symbolTable_.back();
-            if (!symbol->insert(name, SymbolType::ST_Variable, token))
-                errorRedefined(name);
-
-            return context_.allocate<ASTVarDeclStatement>(name, expr);
-        }
+            return letDecl();
+        case TK_Define:
+            return defineDecl();
+        //case TK_Function:
+            //return functionDecl();
         default:
-            ASTree *expr = context_.allocate<ASTStatement>(parseAssignExpr());
+            expression();
             match(TK_Semicolon);
-            return expr;
+            return ;
         }
     }
 
-    // 
-    // block:
-    //  "{" { statement } "}"
-    //
-    ASTBlock *Parser::parseBlock()
+    void Parser::block()
     {
-        ASTBlock *block = context_.allocate<ASTBlock>();
         match(TK_LCurlyBrace);
         while (token_.kind_ != TK_RCurlyBrace)
         {
-            block->push_back(parseStatement());
+            statement();
         }
         advance();
-        return block;
     }
 
     //
     // "("[param_list] ")"
     // 
-    map<string, Token> Parser::readParams()
+    std::vector<std::pair<string, Token>> Parser::readParams()
     {
         match(TK_LParen);
 
-        map<string, Token> params;
+        std::vector<std::pair<string, Token>> params;
         if (token_.kind_ == TK_Identifier)
         {
-            params.insert(std::pair<string, Token>(token_.value_, token_));
+            params.push_back(std::pair<string, Token>(token_.value_, token_));
             advance();
             while (token_.kind_ == TK_Comma)
             {
                 advance();
                 Token token = token_;
-                params.insert(std::pair<string, Token>(exceptIdentifier(), token));
+                params.push_back(std::pair<string, Token>(exceptIdentifier(), token));
             }
         }
 
@@ -455,150 +631,304 @@ namespace script
         return std::move(params);
     }
 
-    //
-    // param_list:
-    //  ID { ","  ID }
-    //
-    // function_decl:
-    //  "function" "("[param_list] ")" block
-    //
-    ASTClosure *Parser::parseFunctionDecl()
+    Value *Parser::keywordConstant()
     {
-        advance();
-
-        string name = getTempIDName("lambda");
-        map<string, Token> params = std::move(readParams());
-
-        // init symbol table
-        SymbolTable *table = new SymbolTable(symbolTable_.back());
-        for (auto &i : params)
+        Value *result = nullptr;
+        if (token_.kind_ == TK_True)
+            result = context_->create<ir::Constant>(true);
+        else if (token_.kind_ == TK_False)
+            result = context_->create<ir::Constant>(false);
+        else if (token_.kind_ == TK_Null)
+            result = context_->create<ir::Constant>();
+        else
         {
-            // all params is constant.
-            if (!table->insert(i.first, SymbolType::ST_Constant, i.second))
-                errorRedefined(i.first);
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "Unrecorded token" << Diagnosis::TokenToStirng(token_.kind_);
+            diag_.diag(diag);
         }
-        symbolTable_.push_back(table);
-
-        set<string> catchTable;
-        catch_.push_back(&catchTable);
-        ASTBlock *block = parseBlock();
-        catch_.pop_back();
-        symbolTable_.pop_back();
-
-        vector<string> argument;
-        for (const auto &cat : catchTable)
-            argument.push_back(cat);
-        for (auto symbol : params)
-            argument.push_back(symbol.first);
-
-        int closureArgsSize = argument.size();
-
-        ASTPrototype *proto = context_.allocate<ASTPrototype>(name, std::move(argument));
-        functions_->push_back(context_.allocate<ASTFunction>(table, proto, block));
-
-        // Create closure
-        argument.clear();
-        for (auto &i : catchTable)
-            argument.push_back(i);
-        return context_.allocate<ASTClosure>(name, closureArgsSize, std::move(argument));
+        advance();
+        result = context_->create<ir::Assign>(result, getTmpName(), block_);
+        return result;
     }
 
-    //
-    // define_decl:
-    //  "define" ID "=" expression ";"
-    //
-    ASTDefine *Parser::parseDefine()
+    Value *Parser::lambdaDecl()
+    {
+        match(TK_Lambda);
+        std::string name = getTmpName("lambda_");
+        table_->insertDefines(name, token_);
+        IRFunction *function = module_.createFunction(name);
+        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
+        Value *invoke = context_->create<ir::Invoke>(
+            name, std::vector<Value*>(), getTmpName(), block_);
+        context_->create<ir::Store>(invoke, define, block_);
+        table_->bindValue(name, define);
+
+        auto params = std::move(readParams());
+        function->setParams(params);
+
+        // Saving some old containter.
+        // Creating new containter.
+        SymbolTable *table = table_;
+        BasicBlock *oldBlock = block_;
+        CFG *cfg = cfg_;
+        IRContext *context = context_;
+
+        table_ = function->getTable();
+        context_ = function->getContext();
+        cfg_ = function;
+        table_->bindParent(table);
+
+        BasicBlock *alloca = allocaBlock_;
+        allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
+        BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
+
+        LoadParamsIntoTable(table_, function->getContext(), allocaBlock_, params);
+        function->setEntry(block_);
+        block();
+        function->setEnd(block_);
+
+        context_->create<ir::Goto>(save, allocaBlock_);
+        allocaBlock_ = alloca;
+        block_ = oldBlock;
+        cfg_ = cfg;
+        context_ = context;
+        table_ = table;
+        return invoke;
+    }
+
+    void Parser::tableOthers(Value *table)
+    {
+        Value *cons = nullptr;
+        if (token_.kind_ == TK_LitCharacter)
+        {
+            cons = context_->create<ir::Constant>(token_.value_[0]);
+        }
+        else if (token_.kind_ == TK_LitFloat)
+        {
+            cons = context_->create<ir::Constant>(token_.fnum_);
+        }
+        else if (token_.kind_ == TK_LitInteger)
+        {
+            cons = context_->create<ir::Constant>(token_.num_);
+        }
+        else if (token_.kind_ == TK_LitString)
+        {
+            cons = context_->create<ir::Constant>(token_.value_);
+        }
+        else
+        {
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "Unknow table declare!";
+            diag_.diag(diag);
+            advance();
+            return;
+        }
+
+        advance();
+        if (token_.kind_ == TK_Assign)
+        {
+            advance();
+            Value *expr = expression();
+            if (cons->instance() == ir::Instructions::IR_Value)
+            {
+                ir::Constant *innerCons =
+                    static_cast<ir::Constant*>(cons);
+                if (innerCons->type() == ir::Constant::Integer
+                    && innerCons->getInteger() < 0)
+                {
+                    Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+                    diag << "table index can't be less than zero";
+                    diag_.diag(diag);
+                }
+            }
+            cons = context_->create<ir::Assign>(cons, getTmpName(), block_);
+            context_->create<ir::SetIndex>(table, cons, expr, block_);
+        }
+        else
+        {
+            Value *tmp = context_->create<ir::Constant>(-1);
+            tmp = context_->create<ir::Assign>(tmp, getTmpName(), block_);
+            cons = context_->create<ir::Assign>(cons, getTmpName(), block_);
+            context_->create<ir::SetIndex>(table, tmp, cons, block_);
+        }
+    }
+
+    void Parser::tableIdent(Value *table)
+    {
+        string name = exceptIdentifier();
+        if (token_.kind_ == TK_Assign)
+        {
+            // name = lambda ... == "name" = lambda
+            advance();
+            Value *expr = expression();
+            Value *str = context_->create<ir::Constant>(name);
+            str = context_->create<ir::Assign>(str, getTmpName(), block_);
+            context_->create<ir::SetIndex>(table, str, expr, block_);
+        }
+        else
+        {
+            Value *id = findID(name);
+            Value *cons = context_->create<ir::Constant>(-1);
+            cons = context_->create<ir::Assign>(cons, getTmpName(), block_);
+            Value *tmp = context_->create<ir::Load>(id, getTmpName(), block_);
+            context_->create<ir::SetIndex>(table, cons, tmp, block_);
+        }
+    }
+
+    Value *Parser::tableDecl()
+    {
+        Value *table = context_->create<ir::Alloca>(getTmpName("table_"), allocaBlock_);
+        do {
+            advance();
+            if (token_.kind_ == TK_Identifier)
+                tableIdent(table);
+            else if (token_.kind_ == TK_RSquareBrace)
+                break;
+            else
+                tableOthers(table);
+            
+        } while (token_.kind_ == TK_Comma);
+        match(TK_RSquareBrace);
+        return table;
+    }
+
+    void Parser::functionDecl()
+    {
+        match(TK_Function);
+        string name = exceptIdentifier();
+
+        if (table_->findName(name) != SymbolTable::None)
+        {
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "redefined \"" << name << "\" as define function";
+            diag_.diag(diag);
+        }
+        table_->insertDefines(name, token_);
+        IRFunction *function = module_.createFunction(name);
+        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
+        Value *invoke = context_->create<ir::Invoke>(
+            name, std::vector<Value*>(), getTmpName(), block_);
+        context_->create<ir::Store>(invoke, define, block_);
+        table_->bindValue(name, define);
+
+        auto params = std::move(readParams());
+        function->setParams(params);
+
+        // Saving some old containter.
+        // Creating new containter.
+        SymbolTable *table = table_;
+        BasicBlock *oldBlock = block_;
+        CFG *cfg = cfg_;
+        IRContext *context = context_;
+
+        table_ = function->getTable();
+        context_ = function->getContext();
+        cfg_ = function;
+        table_->bindParent(table);
+
+        BasicBlock *alloca = allocaBlock_;
+        allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
+        BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
+
+        LoadParamsIntoTable(table_, function->getContext(), allocaBlock_, params);
+        function->setEntry(block_);
+        block();
+        function->setEnd(block_);
+        
+        context_->create<ir::Goto>(save, allocaBlock_);
+        allocaBlock_ = alloca;
+        block_ = oldBlock;
+        cfg_ = cfg;
+        context_ = context;
+        table_ = table;
+    }
+
+    void Parser::letDecl()
+    {
+        match(TK_Let);
+        string name = exceptIdentifier();
+        if (table_->findName(name) != SymbolTable::None)
+        {
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "redefined \"" << name << "\" as let binding";
+            diag_.diag(diag);
+        }
+        table_->insertVariables(name, token_);
+        Value *let = context_->create<ir::Alloca>(name, allocaBlock_);
+        table_->bindValue(name, let);
+
+        match(TK_Assign);
+        Value *expr = expression();
+        context_->create<ir::Store>(expr, let, block_);
+        match(TK_Semicolon);
+    }
+
+    void Parser::defineDecl()
     {
         match(TK_Define);
         string name = exceptIdentifier();
-        
-        match(TK_Assign);
-        ASTree *tree = parseExpr();
-        match(TK_Semicolon);
-
-        // like let, symbol be insert into after it done.
-        SymbolTable *symbol = symbolTable_.back();
-        if (!symbol->insert(name, SymbolType::ST_Constant, token_))
+        if (table_->findName(name) != SymbolTable::None)
         {
-            errorRedefined(name);
+            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
+            diag << "redefined \"" << name << "\" as define constant";
+            diag_.diag(diag);
         }
 
-        return context_.allocate<ASTDefine>(name, tree);
+        table_->insertDefines(name, token_);
+        // insert Alloca instr.
+        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
+        table_->bindValue(name, define);
+
+        match(TK_Assign);
+        Value *expr = expression();
+        context_->create<ir::Store>(expr, define, block_);
+        match(TK_Semicolon);
     }
 
-    //
-    // program: 
-    //  { ( define_decl | statement ) }
-    //
+    bool Parser::topLevelDecl()
+    {
+        if (token_.kind_ == TK_Define)
+            defineDecl();
+        else if (token_.kind_ == TK_Let)
+            letDecl();
+        else if (token_.kind_ == TK_Function)
+            functionDecl();
+        else
+            return false;
+        return true;
+    }
+
     void Parser::parse()
     {
-        SymbolTable *symbol = new SymbolTable(nullptr);
-        vector<ASTree*> statements;
-        vector<ASTFunction*> functions;
-        this->functions_ = &functions;
+        allocaBlock_ = module_.createBasicBlock("global_alloca");
+        BasicBlock *entry = module_.createBasicBlock("entry");
 
-        set<string> catchTable;
-        symbolTable_.push_back(symbol);
-        catch_.push_back(&catchTable);
+        block_ = entry;
+        table_ = module_.getTable();
+        context_ = module_.getContext();
+        cfg_ = &module_;
 
-        buildin::BuildIn::getInstance().map(
-            [this, &statements] (const string &name, int size) -> string {
-            symbolTable_.back()->insert(name, SymbolType::ST_Constant, Token());
-            string tempName = getTempIDName(name.c_str());
-            ASTree *tree = context_.allocate<ASTClosure>(tempName, size, vector<string>());
-            statements.push_back(context_.allocate<ASTDefine>(name, tree));
-            return std::move(tempName);
-        });
-        // TODO:
+        module_.setEntry(allocaBlock_);
 
         advance();
         while (token_.kind_ != TK_EOF)
         {
-            if (token_.kind_ == TK_Define)
-                statements.push_back(parseDefine());
-            else
-                statements.push_back(parseStatement());
+            if (!topLevelDecl())
+            {
+                expression();
+                match(TK_Semicolon);
+            }
         }
 
-        this->functions_ = nullptr;
-        context_.setProgram(context_.allocate<ASTProgram>(
-            symbol, std::move(statements), std::move(functions)));
+        module_.setEnd(block_);
+
+        context_->create<ir::Goto>(entry, allocaBlock_);
     }
 
-    Parser::Parser(Lexer & lexer, ASTContext &context) 
-        : lexer_(lexer), context_(context)
+    Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 
+        : lexer_(lexer), module_(module), diag_(diag)
     {
         initialize();
-    }
-
-    // 
-    // 输出公共错误信息
-    // 
-    void Parser::commonError()
-    {
-        std::cout << token_.coord_.fileName_ << "(" <<
-            token_.coord_.lineNum_ << "," << token_.coord_.linePos_ << "): ";
-    }
-
-    void Parser::errorUnrecordToken()
-    {
-        commonError();
-        std::cout << "find unexcepted character " << token_.value_ << std::endl;
-        throw std::runtime_error(" i dont konw");
-    }
-
-    void Parser::errorUndefined(const std::string & name)
-    {
-        commonError();
-        std::cout << "identifier \"" << name << "\" are undefined!" << std::endl;
-        throw std::runtime_error("identifier undefined!");
-    }
-
-    void Parser::errorRedefined(const std::string & name)
-    {
-        commonError();
-        std::cout << "identifier \"" << name << "\" are redefined!" << std::endl;
-        throw std::runtime_error("identifier redefined!");
     }
 
     void Parser::advance()
@@ -610,10 +940,11 @@ namespace script
     {
         if (token_.kind_ != tok)
         {
-            commonError();
-            std::cout << tok << " except in file but find " 
-                << token_.kind_ << std::endl;
-            throw std::runtime_error("match false");
+            Diagnosis diag(DiagType::DT_Error, token_.coord_);
+            diag << Diagnosis::TokenToStirng(tok)
+                << " except in file but find "
+                << Diagnosis::TokenToStirng(token_.kind_);
+            diag_.diag(diag);
         }
         advance();
     }
@@ -622,9 +953,11 @@ namespace script
     {
         if (token_.kind_ != TK_Identifier)
         {
-            commonError();
-            std::cout << "identifier need but find " << token_.kind_ << std::endl;
-            throw std::runtime_error("match false");
+            Diagnosis diag(DiagType::DT_Error, token_.coord_);
+            diag << Diagnosis::TokenToStirng(TK_Identifier)
+                << " except in file but find "
+                << Diagnosis::TokenToStirng(token_.kind_);
+            diag_.diag(diag);
         }
         string value = std::move(token_.value_);
         advance();

@@ -1,5 +1,6 @@
 ﻿#include "lexer.h"
 
+#include "../Semantic/DiagnosisConsumer.h"
 #include <iostream>
 #include <cctype>
 
@@ -18,7 +19,11 @@ namespace script
         case '"': c = '"';  break;
         case '\'': c = '\''; break;
         default:
-            throw std::runtime_error("unexcepted excape char");
+        {
+            Diagnosis diag(DiagType::DT_Error, previousCoord_);
+            diag << "unexcepted escape character" << c;
+            diag_.diag(diag);
+        }
             break;
         }
         return c;
@@ -32,13 +37,18 @@ namespace script
         while (isalpha(c) || isdigit(c) || c == '_') 
         {
             if (len > 126)
-                throw std::runtime_error("length of identifier must in 1~126");
+            {
+                Diagnosis diag(DiagType::DT_Error, previousCoord_);
+                diag << "length of identifier must in 1~126";
+                diag_.diag(diag);
+                break;
+            }
             id[len++] = c;
             c = lookChar();
         };
         file_.unget();
         unsigned short tok = getKeywordsID(id);
-        return Token(tok, coord_, id);
+        return Token(tok, previousCoord_, id);
     }
 	
     Token Lexer::readToken()
@@ -46,7 +56,7 @@ namespace script
         whiteSpace();
         char ch = lookChar();
         if (!ch)
-            return Token();
+            return Token(TK_EOF, coord_);
         if (isalpha(ch) || ch == '_')
             return readIdentifier(ch);
         if (isdigit(ch))
@@ -57,18 +67,7 @@ namespace script
             return readChar();
         if (ch == '#')
         {
-            ch = lookChar();
-            while (ch)
-            {
-                if (ch == '\n')
-                {
-                    coord_.lineNum_++;
-                    coord_.linePos_ = 0;
-                    break;
-                }
-                ch = lookChar();
-            }
-            if (!ch) return Token();
+            readComments();
             return readToken();
         }
         return readSign(ch);
@@ -87,7 +86,6 @@ namespace script
         char startChar = lookChar();
         while (startChar)
         {
-            // std::cout << "find char " << startChar <<  std::endl;
             if (!isspace(startChar))
             {
                 unget();
@@ -100,6 +98,7 @@ namespace script
             }
             startChar = lookChar();
         }
+        previousCoord_ = coord_;
 	}
 
 	void Lexer::readComments()
@@ -111,27 +110,41 @@ namespace script
             {
                 coord_.lineNum_++;
                 coord_.linePos_ = 0;
+                return;
             }
             c = lookChar();
 		}
+        unget();
 	}
 	
     Token Lexer::readChar()
     {
+        auto endOfFile = [this]() -> Token {
+            Diagnosis diag(DiagType::DT_Error, previousCoord_);
+            diag << "unexcepted end of file";
+            diag_.diag(diag);
+            return Token(TK_EOF, coord_);
+        };
+        
         char c = lookChar();
         if (!c)
-            throw std::runtime_error("以外结束文件查找");
+            return endOfFile();
+
         if (c == '\\')
         {
             c = lookChar();
             if (!c)
-                throw std::runtime_error("以外结束文件查找");
+                return endOfFile();
             c = escapeChar(c);
         }
         char tmp = lookChar();
         if (tmp != '\'')
-            throw std::runtime_error("缺少 ' ");
-        return Token(TK_LitCharacter, coord_, string(1, c).c_str());
+        {
+            Diagnosis diag(DiagType::DT_Error, previousCoord_);
+            diag << "except '";
+            diag_.diag(diag);
+        }
+        return Token(TK_LitCharacter, previousCoord_, string(1, c).c_str());
     }
 
     Token Lexer::readString()
@@ -142,7 +155,7 @@ namespace script
         {
             if (c == '"')
             {
-                return Token(TK_LitString, coord_, value.c_str());
+                return Token(TK_LitString, previousCoord_, value.c_str());
             }
             if (c == '\\')
             {
@@ -153,7 +166,10 @@ namespace script
             value += c;
             c = lookChar();
         }
-        throw std::runtime_error("以外结束文件查找！");
+        Diagnosis diag(DiagType::DT_Error, previousCoord_);
+        diag << "unexcepted end of file";
+        diag_.diag(diag);
+        return Token(TK_EOF, coord_);
 	}
 	
 	Token Lexer::readDigit(char startChar)
@@ -168,7 +184,7 @@ namespace script
         if (startChar != '.')
         {
             unget();
-            return Token(coord_, value);
+            return Token(previousCoord_, value);
         }
         startChar = lookChar();
         float fnum = value;
@@ -183,58 +199,61 @@ namespace script
         float tmp = value;
         while (tmp > 1) tmp /= 10;
         fnum += tmp;
-        return Token(coord_, fnum);
+        return Token(previousCoord_, fnum);
 	}
 
 	Token Lexer::readSign(char startChar)
 	{
 		switch (startChar)
 		{
-        case '(': return Token(TK_LParen, coord_);
-        case ')': return Token(TK_RParen, coord_);
-        case '[': return Token(TK_LSquareBrace, coord_);
-        case ']': return Token(TK_RSquareBrace, coord_);
-        case '{': return Token(TK_LCurlyBrace, coord_);
-        case '}': return Token(TK_RCurlyBrace, coord_);
-        case '+': return Token(TK_Plus, coord_);
-        case '-': return Token(TK_Sub, coord_);
-        case '*': return Token(TK_Mul, coord_);
-        case '/': return Token(TK_Div, coord_);
-        case ';': return Token(TK_Semicolon, coord_);
-        case ',': return Token(TK_Comma, coord_);
-        case '.': return Token(TK_Period, coord_);
-        case '|': return Token(TK_Or, coord_);
-        case '&': return Token(TK_And, coord_);
+        case '(': return Token(TK_LParen, previousCoord_);
+        case ')': return Token(TK_RParen, previousCoord_);
+        case '[': return Token(TK_LSquareBrace, previousCoord_);
+        case ']': return Token(TK_RSquareBrace, previousCoord_);
+        case '{': return Token(TK_LCurlyBrace, previousCoord_);
+        case '}': return Token(TK_RCurlyBrace, previousCoord_);
+        case '+': return Token(TK_Plus, previousCoord_);
+        case '-': return Token(TK_Sub, previousCoord_);
+        case '*': return Token(TK_Mul, previousCoord_);
+        case '/': return Token(TK_Div, previousCoord_);
+        case ';': return Token(TK_Semicolon, previousCoord_);
+        case ',': return Token(TK_Comma, previousCoord_);
+        case '.': return Token(TK_Period, previousCoord_);
+        case '|': return Token(TK_Or, previousCoord_);
+        case '&': return Token(TK_And, previousCoord_);
         case '!': 
         {
             if (lookChar() == '=')
-                return Token(TK_NotEqual, coord_);
+                return Token(TK_NotEqual, previousCoord_);
             unget();
-            return Token(TK_Not, coord_);
+            return Token(TK_Not, previousCoord_);
         }
         case '=': 
         {
             if (lookChar() == '=')
-                return Token(TK_EqualThan, coord_);
+                return Token(TK_EqualThan, previousCoord_);
             unget();
-            return Token(TK_Assign, coord_);
+            return Token(TK_Assign, previousCoord_);
         }
         case '<': 
         {
             if (lookChar() == '=')
-                return Token(TK_LessThan, coord_);
+                return Token(TK_LessThan, previousCoord_);
             unget();
-            return Token(TK_Less, coord_);
+            return Token(TK_Less, previousCoord_);
         }
         case '>':
         {
             if (lookChar() == '=')
-                return Token(TK_GreatThan, coord_);
+                return Token(TK_GreatThan, previousCoord_);
             unget();
-            return Token(TK_Great, coord_);
+            return Token(TK_Great, previousCoord_);
         }
 		}
-        throw std::runtime_error("bad char");
+        Diagnosis diag(DiagType::DT_Error, previousCoord_);
+        diag << "bad character";
+        diag_.diag(diag);
+        return readToken();
 	}
 
     Token Lexer::getToken()
@@ -246,16 +265,24 @@ namespace script
         return tok;
     }
 
+    TokenCoord Lexer::getCoord()
+    {
+        return previousCoord_;
+    }
+
     void Lexer::setProgram(std::string & file)
     {
         if (file_)
             file_.close();
         file_.open(file);
         if (!file_)
-            throw std::runtime_error("open file is false");
+        {
+            throw std::runtime_error("open file failed!");
+        }
+            
         fileName_ = file;
         coord_ = TokenCoord();
-        coord_.fileName_ = fileName_.c_str();
+        previousCoord_.fileName_ = coord_.fileName_ = fileName_.c_str();
     }
 
     Token Lexer::lookAhead(unsigned num)
@@ -284,6 +311,8 @@ namespace script
     {
         if (coord_.linePos_ > 0)
             coord_.linePos_--;
+        else
+            coord_.lineNum_--, coord_.linePos_ = coord_.lastLinePos_;
         file_.unget();
     }
 

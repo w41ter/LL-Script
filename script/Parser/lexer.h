@@ -60,8 +60,9 @@ namespace script
     {
         unsigned lineNum_;
         unsigned linePos_;
+        unsigned lastLinePos_;
         const char *fileName_;
-        TokenCoord() : lineNum_(1), linePos_(0), fileName_(nullptr) {}
+        TokenCoord() : lineNum_(1), linePos_(0), lastLinePos_(0), fileName_(nullptr) {}
     };
 
     struct Token
@@ -103,16 +104,19 @@ namespace script
         }
     };
 
+
+    class DiagnosisConsumer;
+
     class Lexer
     {
         using KeywordsKind = std::unordered_map<std::string, unsigned>;
     public:
-        Lexer() = default;
+        Lexer(DiagnosisConsumer &consumer) : diag_(consumer) {}
 
         Token getToken();
-        
-        void setProgram(std::string &file);
+        TokenCoord getCoord();
 
+        void setProgram(std::string &file);
         Token lookAhead(unsigned num);
         void registerKeyword(const std::string &str, unsigned tok);
 
@@ -125,7 +129,7 @@ namespace script
         void whiteSpace();
         void readComments();
 
-        char escapeChar(char c);
+        char escapeChar( char c);
 
         Token readToken();
         Token readChar();
@@ -137,7 +141,8 @@ namespace script
     private:
         std::ifstream file_;
         TokenCoord coord_;
-
+        TokenCoord previousCoord_;
+        DiagnosisConsumer &diag_;
         std::string fileName_;
 
         KeywordsKind keywords_;

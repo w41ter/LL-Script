@@ -1,66 +1,62 @@
-#ifndef __CFG_H__
-#define __CFG_H__
+#pragma once
 
-#include <cassert>
-#include <map>
 #include <vector>
 #include <list>
 #include <memory>
-
-#include "Quad.h"
+#include <string>
 
 namespace script
 {
-    class QuadContext;
-
+namespace ir
+{
+    class Instruction;
+}
     // 一个基本块
     class BasicBlock
     {
-        friend class DumpCFG;
-        friend class CodeGenerator;
+        friend class ir::Instruction;
     public:
-        BasicBlock(int id) : ID_(id), head_(nullptr), end_(nullptr) {}
+        BasicBlock(int id, std::string name) 
+            : ID_(id), head_(nullptr), end_(nullptr), name_(name)
+        {}
+
         void addPrecursor(BasicBlock *block);
         void addSuccessor(BasicBlock *block);
         size_t numOfPrecursors() const { return precursors_.size(); }
         size_t numOfSuccessors() const { return successors_.size(); }
-        void set(Quad *head, Quad *end) { head_ = head; end_ = end; }
-        Quad *begin() { return head_; }
-        Quad *end() { return end_; }
-        unsigned getID() const { return ID_; }
 
+        const ir::Instruction *begin() const { return head_; }
+        const ir::Instruction *end() const { return end_; }
+        unsigned getID() const { return ID_; }
+        const std::string &getName() const { return name_; }
+
+        void push(ir::Instruction *instr);
         void unique();
 
-    private:
+    protected:
         unsigned ID_;
-        Quad *head_, *end_;
-        std::list<Quad*> phis_; 
+        std::string name_;
+        ir::Instruction *head_, *end_;
         std::list<BasicBlock*> precursors_;   // 记录该基本块所有前驱
         std::list<BasicBlock*> successors_;  // 后继基本块
     };
 
     class CFG
     {
-        friend class DumpCFG;
-        friend class CodeGenerator;
+        friend class DumpIR;
     public:
         CFG();
         ~CFG();
 
-        static std::unique_ptr<CFG> buildCFG(QuadContext *context);
-        static void buildTarget(QuadContext *context, CFG *cfg);
-        static void removeDeadBlock(CFG *cfg);
-
-        BasicBlock *createBlock();
-
-    private:
+        BasicBlock *createBasicBlock(std::string name);
+        void setEntry(BasicBlock *entry);
+        void setEnd(BasicBlock *end);
+    protected:
         unsigned numBlockIDs_;
         BasicBlock *start_; // 起始基本块
         BasicBlock *end_;
         std::list<BasicBlock*> blocks_;
-        std::map<Quad*, Quad*> labelTarget_;
     };
 }
 
-#endif // !__CFG_H__
 
