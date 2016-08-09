@@ -17,9 +17,12 @@ namespace script
 
         void bindParent(SymbolTable *parent);
         void bindValue(std::string &str, ir::Value *value);
+
         void insertDefines(std::string &str, Token &token);
         void insertVariables(std::string &str, Token &token);
+
         unsigned findName(std::string &str) const;
+
         Token getToken(std::string &str) const;
         ir::Value *getValue(std::string &str);
         SymbolTable *getParent() { return parent_; }

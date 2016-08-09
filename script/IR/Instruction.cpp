@@ -20,6 +20,15 @@ namespace ir
             value_->killUse(*this);
     }
 
+    void Use::replaceValue(Value * value)
+    {
+        if (value)
+            value->addUse(*this);
+        if (value_)
+            value_->killUse(*this);
+        value_ = value;
+    }
+
     Constant::Constant()
         : type_(Null)
     {
@@ -153,6 +162,28 @@ namespace ir
         end->push(this);
     }
 
+    void Instruction::eraseFromParent()
+    {
+        if (this->prev_ == nullptr)
+        {
+            if (this->next_ == nullptr)
+                this->parent_->head_ = this->parent_->end_ = nullptr;
+            else
+                this->parent_->head_ = this->next_;
+        }
+        else if (this->next_ == nullptr)
+        {
+            this->prev_->next_ = nullptr;
+            this->parent_->end_ = this->prev_;
+        }
+        else
+        {
+            this->prev_->next_ = this->next_;
+            this->next_->prev_ = this->prev_;
+        }
+        this->parent_ = nullptr;
+    }
+
     void Assign::init(Value * value)
     {
         operands_.reserve(1);
@@ -163,6 +194,26 @@ namespace ir
     {
         block->addPrecursor(this->parent_);
         this->parent_->addSuccessor(block);
+    }
+
+    void Phi::appendOperand(Value * value)
+    {
+        operands_.push_back(Use(value, this));
+    }
+
+    void Phi::replaceBy(Value * val)
+    {
+        for (auto i : this->uses_)
+        {
+            for (auto iter = i.getUser()->op_begin();
+                iter != i.getUser()->op_end();
+                ++iter)
+            {
+                auto &use = *iter;
+                if (use.getValue() == val)
+                    use.replaceValue(val);
+            }
+        }
     }
 
 }

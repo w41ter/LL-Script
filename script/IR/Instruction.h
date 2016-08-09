@@ -58,6 +58,7 @@ namespace ir
 
         Value *getValue() const { return value_; }
         User *getUser() const { return user_; }
+        void replaceValue(Value *value);
 
         bool operator == (const Use &rhs)
         {
@@ -76,10 +77,13 @@ namespace ir
         virtual ~Value() = default;
 
         // addUse/killUse - These two methods should only used by the Use class.
+        typedef std::list<Use>::iterator use_iterator;
         void addUse(Use &u) { uses_.push_back(u); }
         void killUse(Use &u) { uses_.remove(u); }
         User *use_back() { return uses_.back().getUser(); }
-    
+        use_iterator use_begin() { uses_.begin(); }
+        use_iterator use_end() { uses_.end(); }
+        bool use_empty() { return uses_.size() == 0; }
         virtual Instructions instance() const = 0;
 
     protected:
@@ -125,11 +129,12 @@ namespace ir
         std::vector<Use> operands_;
     public:
         virtual ~User() = default;
-        typedef std::vector<Use>::const_iterator op_iterator;
+        typedef std::vector<Use>::iterator op_iterator;
         unsigned getNumOperands() const { return operands_.size(); }
         void op_reserve(unsigned NumElements) { operands_.reserve(NumElements); }
-        op_iterator op_begin() const { return operands_.begin(); }
-        op_iterator op_end() const { return operands_.end(); }
+        op_iterator op_begin() { return operands_.begin(); }
+        op_iterator op_end() { return operands_.end(); }
+        Use getOperand(size_t idx) { return operands_[idx]; }
     };
 
     class Instruction : public User 
@@ -142,9 +147,12 @@ namespace ir
         Instruction(const std::string &name, Instruction *before);
         Instruction(const std::string &name, BasicBlock *end);
 
-        const Instruction *prev() const { return prev_; }
-        const Instruction *next() const { return next_; }
+        void eraseFromParent();
+
+        Instruction *prev() { return prev_; }
+        Instruction *next() { return next_; }
         const std::string &name() const { return name_; }
+        BasicBlock *getParent() { return parent_; }
     protected:    
         BasicBlock *parent_;
         Instruction *prev_, *next_;
@@ -509,7 +517,14 @@ namespace ir
         {
             init(params);
         }
-        
+
+        Phi(std::string &name, Instruction *insertBefore)
+            : Instruction(name, insertBefore)
+        {}
+
+        void appendOperand(Value *value);
+        void replaceBy(Value *val);
+
         virtual ~Phi() = default;
 
         virtual Instructions instance() const { return Instructions::IR_Phi; }
