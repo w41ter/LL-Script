@@ -17,6 +17,7 @@ namespace ir
     enum class Instructions
     {
         IR_Value,
+        IR_Variable,
         IR_Alloca,
         IR_Load,
         IR_Store,
@@ -81,8 +82,8 @@ namespace ir
         void addUse(Use &u) { uses_.push_back(u); }
         void killUse(Use &u) { uses_.remove(u); }
         User *use_back() { return uses_.back().getUser(); }
-        use_iterator use_begin() { uses_.begin(); }
-        use_iterator use_end() { uses_.end(); }
+        use_iterator use_begin() { return uses_.begin(); }
+        use_iterator use_end() { return uses_.end(); }
         bool use_empty() { return uses_.size() == 0; }
         virtual Instructions instance() const = 0;
 
@@ -134,6 +135,9 @@ namespace ir
         void op_reserve(unsigned NumElements) { operands_.reserve(NumElements); }
         op_iterator op_begin() { return operands_.begin(); }
         op_iterator op_end() { return operands_.end(); }
+        typedef std::vector<Use>::const_iterator const_op_iterator;
+        const_op_iterator op_begin() const { return operands_.cbegin(); }
+        const_op_iterator op_end() const { return operands_.cend(); }
         Use getOperand(size_t idx) { return operands_[idx]; }
     };
 
@@ -151,6 +155,8 @@ namespace ir
 
         Instruction *prev() { return prev_; }
         Instruction *next() { return next_; }
+        const Instruction *prev() const { return prev_; }
+        const Instruction *next() const { return next_; }
         const std::string &name() const { return name_; }
         BasicBlock *getParent() { return parent_; }
     protected:    
@@ -159,6 +165,15 @@ namespace ir
         // ...
 
         std::string name_;
+    };
+
+    class Undef : public Instruction
+    {
+    public:
+        Undef() : Instruction("undef", (BasicBlock*)nullptr) {}
+        virtual ~Undef() = default;
+        
+        virtual Instructions instance() const { return Instructions::IR_Variable; }
     };
 
     class Alloca : public Instruction
@@ -520,6 +535,10 @@ namespace ir
 
         Phi(std::string &name, Instruction *insertBefore)
             : Instruction(name, insertBefore)
+        {}
+
+        Phi(std::string &name, BasicBlock *insertAtEnd)
+            : Instruction(name, insertAtEnd)
         {}
 
         void appendOperand(Value *value);

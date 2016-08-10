@@ -44,14 +44,22 @@ namespace script
         return context_;
     }
 
-    void CFG::sealBlock(BasicBlock * block)
+    void CFG::sealOthersBlock()
     {
-        auto &block2Phi = incompletePhis_[block];
-        for (auto &b2p : block2Phi)
-        {
-            addPhiOperands(b2p.first, (Phi*)b2p.second);
-        }
-        sealedBlock_.insert(block);
+        for (auto *block : blocks_)
+            sealBlock(block);
+    }
+
+    void CFG::sealBlock(BasicBlock * block)
+    {   
+        //if (sealedBlock_.count(block) != 0)
+        //    return;
+        //auto &block2Phi = incompletePhis_[block];
+        //for (auto &b2p : block2Phi)
+        //{
+        //    addPhiOperands(b2p.first, (Phi*)b2p.second);
+        //}
+        //sealedBlock_.insert(block);
     }
 
     void CFG::saveVariableDef(std::string name, BasicBlock * block, ir::Value * value)
@@ -80,13 +88,15 @@ namespace script
         else if (block->numOfPrecursors() == 1)
         {
             // Optimize the common case of one predecessor, no Phi needed.
-            val = readVariableDef(name, block->precursor[0]);
+            val = readVariableDef(name, block->precursor(0));
         }
         else
         {
             // Break potential cycles with operandless Phi
-            assert(block->begin() != nullptr);
-            val = context_->create<Phi>(name, block->begin());
+            //assert(block->begin() != nullptr);
+            val = block->begin() == nullptr
+                ? context_->create<Phi>(name, block)
+                : context_->create<Phi>(name, block->begin());
             saveVariableDef(name, block, val);
             val = addPhiOperands(name, (Phi*)val);
         }
@@ -118,6 +128,8 @@ namespace script
                 return phi;
             same = op;
         }
+        if (same == nullptr)
+            same = context_->create<Undef>();
         // try all users except the phi itself.
         // Try to recursively remove all phi users, 
         // which might have become trivial

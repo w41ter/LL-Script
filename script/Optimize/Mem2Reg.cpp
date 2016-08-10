@@ -111,52 +111,5 @@ namespace script
     void PromoteMem2Reg::run()
     {
         AllocaInfo info;
-        for (unsigned num = 0; num != allocas_.size(); num++)
-        {
-            ir::Alloca *alloca = allocas_[num];
-
-            // removeLifetimeIntrinsicUsers(AI);
-
-            if (alloca->use_empty()) {
-                // If there are no uses of the alloca, just delete it now.
-                alloca->eraseFromParent();
-
-                // Remove the alloca from the Allocas list, since it has been processed
-                //RemoveFromAllocasList(AllocaNum);
-                //++NumDeadAlloca;
-                continue;
-            }
-
-            // Calculate the set of read and write-locations for each alloca.  This is
-            // analogous to finding the 'uses' and 'definitions' of each variable.
-            info.AnalyzeAlloca(alloca);
-
-            // If there is only a single store to this value, replace any loads of
-            // it that are directly dominated by the definition with the value stored.
-            if (info.DefiningBlocks.size() == 1) {
-                rewriteSingleStoreAlloca();
-            }
-
-            // If the alloca is only read and written in one basic block, just perform a
-            // linear sweep over the block to eliminate it.
-            if (info.OnlyUsedInOneBlock) {
-                promoteSingleBlockAlloca()
-            }
-
-           
-            IDF.setLiveInBlocks(LiveInBlocks);
-            IDF.setDefiningBlocks(DefBlocks);
-            SmallVector<BasicBlock *, 32> PHIBlocks;
-            IDF.calculate(PHIBlocks);
-            if (PHIBlocks.size() > 1)
-                std::sort(PHIBlocks.begin(), PHIBlocks.end(),
-                    [this](BasicBlock *A, BasicBlock *B) {
-                return BBNumbers.lookup(A) < BBNumbers.lookup(B);
-            });
-
-            unsigned CurrentVersion = 0;
-            for (unsigned i = 0, e = PHIBlocks.size(); i != e; ++i)
-                QueuePhiNode(PHIBlocks[i], AllocaNum, CurrentVersion);
-        }
     }
 }

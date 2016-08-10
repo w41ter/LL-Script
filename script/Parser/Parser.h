@@ -86,7 +86,8 @@ namespace script
 
         bool isRelational(unsigned tok);
 
-        Value *findID(std::string &name);
+        bool tryToCatchID(std::string &name);
+        //std::string &findID(std::string &name);
     private:
         Lexer &lexer_;
         Token token_;

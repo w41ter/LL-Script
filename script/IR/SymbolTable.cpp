@@ -16,10 +16,10 @@ namespace script
         parent_ = parent;
     }
 
-    void SymbolTable::bindValue(std::string & str, ir::Value * value)
-    {
-        values_[str] = value;
-    }
+    //void SymbolTable::bindValue(std::string & str, ir::Value * value)
+    //{
+    //    values_[str] = value;
+    //}
 
     void SymbolTable::insertDefines(std::string & str, Token & token)
     {
@@ -52,10 +52,10 @@ namespace script
         return Token();
     }
 
-    ir::Value * SymbolTable::getValue(std::string & str)
-    {
-        return values_[str];
-    }
+    //ir::Value * SymbolTable::getValue(std::string & str)
+    //{
+    //    return values_[str];
+    //}
 
     void SymbolTable::catchedName(std::string & str)
     {

@@ -38,6 +38,10 @@ namespace ir
 
         ir::Instruction *begin() { return head_; }
         ir::Instruction *end() { return end_; }
+
+        const ir::Instruction *begin() const { return head_; }
+        const ir::Instruction *end() const { return end_; }
+
         unsigned getID() const { return ID_; }
         const std::string &getName() const { return name_; }
 
@@ -68,6 +72,7 @@ namespace ir
         IRContext *getContext();
 
         // SSA form construction.
+        void sealOthersBlock();
         void sealBlock(BasicBlock *block);
         void saveVariableDef(std::string name, BasicBlock *block, ir::Value *value);
         ir::Value *readVariableDef(std::string name, BasicBlock *block);

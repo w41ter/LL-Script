@@ -63,39 +63,39 @@ namespace
         for (auto &i : params)
         {
             table->insertVariables(i.first, i.second);
-            Value *value = context->create<ir::Alloca>(i.first, allocBlock);
-            table->bindValue(i.first, value);
+            //Value *value = context->create<ir::Alloca>(i.first, allocBlock);
+            //table->bindValue(i.first, value);
         }
     }
 }
 
-    Value *Parser::findID(std::string &name)
+    bool Parser::tryToCatchID(std::string &name)
     {
         SymbolTable *table = table_;
         if (table_->findName(name) != SymbolTable::None)
-            return table_->getValue(name);
+            return true;
         table = table->getParent();
         while (table != nullptr)
         {
             if (table->findName(name) != SymbolTable::None)
             {
                 table->catchedName(name);
-                Value *result = context_->create<ir::Catch>(
-                    table->getValue(name), name, allocaBlock_);
+                //Value *result = context_->create<ir::Catch>(
+                //    table->getValue(name), name, allocaBlock_);
                 auto kind = table->findName(name);
                 if (kind == SymbolTable::Define)
                     table_->insertDefines(name, token_);
                 else
                     table_->insertVariables(name, token_);
-                table_->bindValue(name, result);
-                return result;
+                //table_->bindValue(name, result);
+                return true;
             }
             table = table->getParent();
         }
         Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
         diag << "Using undefine identifier : " << name;
         diag_.diag(diag);
-        return nullptr;
+        return false;
     }
 
     bool Parser::isRelational(unsigned tok)
@@ -165,17 +165,22 @@ namespace
             string name = token_.value_;
             advance();
 
-            Value *value = findID(name);
-            if (value == nullptr)
-                return nullptr;
+            tryToCatchID(name);
+            //Value *value = findID(name);
+            //if (value == nullptr)
+            //    return nullptr;
             auto kind = table_->findName(name);
             if (token_.kind_ == TK_Assign)
             {
                 advance();
                 if (kind == SymbolTable::Let)
                 {
-                    return context_->create<ir::Store>(
-                        expression(), table_->getValue(name), block_);
+                    Value *variable = context_->create<ir::Assign>(
+                        expression(), name, block_);
+                    cfg_->saveVariableDef(name, block_, variable);
+                    return variable;
+                    //return context_->create<ir::Store>(
+                    //    expression(), table_->getValue(name), block_);
                 }
                 else
                 {
@@ -187,8 +192,9 @@ namespace
             }
             else
             {
-                return context_->create<ir::Load>(
-                    table_->getValue(name), getTmpName(), block_);
+                return cfg_->readVariableDef(name, block_);//context_->create<ir::Variable>(name);
+                //return context_->create<ir::Load>(
+                //    table_->getValue(name), getTmpName(), block_);
             }
         }
         case TK_LParen:
@@ -460,6 +466,8 @@ namespace
 
         context_->create<ir::Goto>(breaks_.top(), block_);
 
+        cfg_->sealBlock(block_);
+
         // 尽管后面部分为落空语句，但是仍然为他建立一个block
         block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
     }
@@ -479,6 +487,8 @@ namespace
 
         context_->create<ir::Goto>(continues_.top(), block_);
         
+        cfg_->sealBlock(block_);
+
         // 尽管后面部分为落空语句，但是仍然为他建立一个block
         block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
     }
@@ -498,7 +508,8 @@ namespace
 
         match(TK_Semicolon);
         BasicBlock *succBlock = cfg_->createBasicBlock("return_succ_");
-        context_->create<ir::Goto>(succBlock, block_);
+        //context_->create<ir::Goto>(succBlock, block_);
+        cfg_->sealBlock(block_);
         block_ = succBlock;
     }
 
@@ -511,6 +522,7 @@ namespace
             *endBlock = cfg_->createBasicBlock(getTmpName("end_while_"));
 
         context_->create<ir::Goto>(condBlock, tmpBlock);
+        cfg_->sealBlock(tmpBlock);
 
         block_ = condBlock;
         match(TK_LParen);
@@ -524,6 +536,10 @@ namespace
         block_ = thenBlock;
         statement();
         context_->create<ir::Goto>(condBlock, /*thenBlock==*/block_);
+        
+        cfg_->sealBlock(thenBlock);
+        cfg_->sealBlock(block_);
+        cfg_->sealBlock(condBlock);
 
         block_ = endBlock;
         breaks_.pop();
@@ -537,12 +553,16 @@ namespace
         Value *expr = expression();
         match(TK_RParen);
 
+        cfg_->sealBlock(block_);
+
         BasicBlock *tmpBlock = block_,
             *thenBlock = cfg_->createBasicBlock(getTmpName("if_then_"));
 
         block_ = thenBlock;
         statement();
         BasicBlock *thenEndBlock = block_, *endBlock = nullptr;
+
+        cfg_->sealBlock(block_);
 
         if (token_.kind_ == TK_Else)
         {
@@ -554,6 +574,9 @@ namespace
             block_ = elseBlock;
             statement();
 
+            cfg_->sealBlock(elseBlock);
+            cfg_->sealBlock(block_);
+
             endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
             context_->create<ir::Goto>(endBlock, /*elseBlock==*/block_);
         }
@@ -562,6 +585,8 @@ namespace
             endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
             context_->create<ir::Branch>(expr, thenBlock, endBlock, tmpBlock);
         }
+
+        cfg_->sealBlock(thenBlock);
 
         context_->create<ir::Goto>(endBlock, thenEndBlock);
         block_ = endBlock;
@@ -657,11 +682,12 @@ namespace
         std::string name = getTmpName("lambda_");
         table_->insertDefines(name, token_);
         IRFunction *function = module_.createFunction(name);
-        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
+        //Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
         Value *invoke = context_->create<ir::Invoke>(
             name, std::vector<Value*>(), getTmpName(), block_);
-        context_->create<ir::Store>(invoke, define, block_);
-        table_->bindValue(name, define);
+        cfg_->saveVariableDef(name, block_, invoke);
+        //context_->create<ir::Store>(invoke, define, block_);
+        //table_->bindValue(name, define);
 
         auto params = std::move(readParams());
         function->setParams(params);
@@ -688,6 +714,9 @@ namespace
         function->setEnd(block_);
 
         context_->create<ir::Goto>(save, allocaBlock_);
+
+        cfg_->sealOthersBlock();
+
         allocaBlock_ = alloca;
         block_ = oldBlock;
         cfg_ = cfg;
@@ -767,11 +796,12 @@ namespace
         }
         else
         {
-            Value *id = findID(name);
+            tryToCatchID(name);
+            Value *id = cfg_->readVariableDef(name, block_);//findID(name);
             Value *cons = context_->create<ir::Constant>(-1);
             cons = context_->create<ir::Assign>(cons, getTmpName(), block_);
-            Value *tmp = context_->create<ir::Load>(id, getTmpName(), block_);
-            context_->create<ir::SetIndex>(table, cons, tmp, block_);
+            //Value *tmp = context_->create<ir::Load>(id, getTmpName(), block_);
+            context_->create<ir::SetIndex>(table, cons, id, block_);
         }
     }
 
@@ -805,11 +835,12 @@ namespace
         }
         table_->insertDefines(name, token_);
         IRFunction *function = module_.createFunction(name);
-        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
+        //Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
         Value *invoke = context_->create<ir::Invoke>(
             name, std::vector<Value*>(), getTmpName(), block_);
-        context_->create<ir::Store>(invoke, define, block_);
-        table_->bindValue(name, define);
+        cfg_->saveVariableDef(name, block_, invoke);
+        //context_->create<ir::Store>(invoke, define, block_);
+        //table_->bindValue(name, define);
 
         auto params = std::move(readParams());
         function->setParams(params);
@@ -836,6 +867,9 @@ namespace
         function->setEnd(block_);
         
         context_->create<ir::Goto>(save, allocaBlock_);
+        
+        cfg_->sealOthersBlock();
+        
         allocaBlock_ = alloca;
         block_ = oldBlock;
         cfg_ = cfg;
@@ -854,12 +888,14 @@ namespace
             diag_.diag(diag);
         }
         table_->insertVariables(name, token_);
-        Value *let = context_->create<ir::Alloca>(name, allocaBlock_);
-        table_->bindValue(name, let);
+        //Value *let = context_->create<ir::Alloca>(name, allocaBlock_);
+        //table_->bindValue(name, let);
 
         match(TK_Assign);
         Value *expr = expression();
-        context_->create<ir::Store>(expr, let, block_);
+        Value *let = context_->create<ir::Assign>(expr, name, block_);
+        cfg_->saveVariableDef(name, block_, let);
+        //context_->create<ir::Store>(expr, let, block_);
         match(TK_Semicolon);
     }
 
@@ -876,12 +912,14 @@ namespace
 
         table_->insertDefines(name, token_);
         // insert Alloca instr.
-        Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
-        table_->bindValue(name, define);
+        //Value *define = context_->create<ir::Alloca>(name, allocaBlock_);
+        //table_->bindValue(name, define);
 
         match(TK_Assign);
         Value *expr = expression();
-        context_->create<ir::Store>(expr, define, block_);
+        Value *define = context_->create<ir::Assign>(expr, name, block_);
+        cfg_->saveVariableDef(name, block_, define);
+        //context_->create<ir::Store>(expr, define, block_);
         match(TK_Semicolon);
     }
 
@@ -923,6 +961,7 @@ namespace
         module_.setEnd(block_);
 
         context_->create<ir::Goto>(entry, allocaBlock_);
+        cfg_->sealOthersBlock();
     }
 
     Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 

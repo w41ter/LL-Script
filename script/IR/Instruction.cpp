@@ -142,7 +142,11 @@ namespace ir
     }
 
     Instruction::Instruction(const std::string & name, Instruction * before)
+        : prev_ (nullptr), next_(nullptr)
     {
+        if (before == nullptr)
+            return;
+
         if (before->prev_ != nullptr)
         {
             before->prev_->next_ = this;
@@ -156,7 +160,10 @@ namespace ir
     }
 
     Instruction::Instruction(const std::string & name, BasicBlock * end)
+        : prev_(nullptr), next_(nullptr)
     {
+        if (end == nullptr)
+            return;
         name_ = name;
         this->parent_ = end;
         end->push(this);
