@@ -66,9 +66,9 @@ namespace script
         Value *mulAndDivExpr();
         Value *negativeExpr();
         Value *notExpr();
-        Value *factorSuffix();
-        Value *indexExpr();
-        Value *factor();
+        Value *value();
+        Value *variableSuffix();
+        Value *variable();
 
         void block();
         void statement();
