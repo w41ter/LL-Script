@@ -7,7 +7,6 @@ keyword_constant:
 variable:
     ID 
     | "(" expression ")"
-    | table_decl
     | lambda_decl
 
 variable_suffix:
@@ -18,6 +17,7 @@ value:
     | CHAR_CONST
     | STRING_CONST
     | keyword_constant
+    | table_decl
     | variable_suffix
 
 not_expr:

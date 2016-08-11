@@ -142,10 +142,6 @@ namespace
             match(TK_RParen);
             return result;
         }
-        case TK_LSquareBrace:
-        {
-            return tableDecl();
-        }
         case TK_Lambda:
         {
             return lambdaDecl();
@@ -255,6 +251,11 @@ namespace
             advance();
             Value *val = context_->create<Constant>();
             return context_->create<Assign>(val, getTmpName(), block_);
+        }
+        case TK_LSquareBrace:
+        {
+            // let b = [a][a] or ['a' = 1 ].a is wrong.
+            return tableDecl();
         }
         default:
             return variableSuffix();
