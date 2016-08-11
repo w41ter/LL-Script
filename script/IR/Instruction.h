@@ -16,10 +16,9 @@ namespace ir
 
     enum class Instructions
     {
-        IR_Value,
-        IR_Variable,
-        IR_Alloca,
-        IR_Load,
+        IR_Constant,
+        IR_Table,
+        IR_Undef,
         IR_Store,
         IR_Invoke,
         IR_Branch,
@@ -32,7 +31,6 @@ namespace ir
         IR_Index,
         IR_SetIndex,
         IR_Phi,
-        IR_Catch,
     };
 
     enum class BinaryOps
@@ -51,6 +49,7 @@ namespace ir
         BO_NotEqual,
     };
 
+    // Relation between User and Value.
     class Use
     {
     public:
@@ -78,18 +77,18 @@ namespace ir
         virtual ~Value() = default;
 
         // addUse/killUse - These two methods should only used by the Use class.
-        typedef std::list<Use>::iterator use_iterator;
         void addUse(Use &u) { uses_.push_back(u); }
         void killUse(Use &u) { uses_.remove(u); }
-        User *use_back() { return uses_.back().getUser(); }
+
+        typedef std::list<Use>::iterator use_iterator;
         use_iterator use_begin() { return uses_.begin(); }
         use_iterator use_end() { return uses_.end(); }
-        bool use_empty() { return uses_.size() == 0; }
+        size_t use_size() const { return uses_.size(); }
+
         virtual Instructions instance() const = 0;
 
     protected:
         std::list<Use> uses_;
-        std::string name_;
     };
 
     class Constant : public Value
@@ -113,7 +112,7 @@ namespace ir
         bool getBoolean() const { return bool_; }
         const std::string &getString() const { return str_; }
 
-        virtual Instructions instance() const { return Instructions::IR_Value; }
+        virtual Instructions instance() const { return Instructions::IR_Constant; }
     protected:
         unsigned type_;
         int num_;
@@ -121,6 +120,13 @@ namespace ir
         char c_;
         float fnum_;
         std::string str_;
+    };
+
+    class Table : public Value
+    {
+    public:
+        virtual ~Table() = default;
+        virtual Instructions instance() const { return Instructions::IR_Table; }
     };
 
     class User : public Value 
@@ -131,38 +137,29 @@ namespace ir
     public:
         virtual ~User() = default;
         typedef std::vector<Use>::iterator op_iterator;
-        unsigned getNumOperands() const { return operands_.size(); }
-        void op_reserve(unsigned NumElements) { operands_.reserve(NumElements); }
         op_iterator op_begin() { return operands_.begin(); }
         op_iterator op_end() { return operands_.end(); }
-        typedef std::vector<Use>::const_iterator const_op_iterator;
-        const_op_iterator op_begin() const { return operands_.cbegin(); }
-        const_op_iterator op_end() const { return operands_.cend(); }
+        unsigned getNumOperands() const { return operands_.size(); }
+        void op_reserve(unsigned NumElements) { operands_.reserve(NumElements); }
         Use getOperand(size_t idx) { return operands_[idx]; }
     };
 
     class Instruction : public User 
     {
-        friend class BasicBlock;
     public:
         virtual ~Instruction() = default;
         virtual Instructions instance() const = 0;
 
-        Instruction(const std::string &name, Instruction *before);
-        Instruction(const std::string &name, BasicBlock *end);
+        Instruction(const std::string &name);
 
+        void setParent(BasicBlock *parent);
         void eraseFromParent();
+        void replaceBy(Value *val);
 
-        Instruction *prev() { return prev_; }
-        Instruction *next() { return next_; }
-        const Instruction *prev() const { return prev_; }
-        const Instruction *next() const { return next_; }
         const std::string &name() const { return name_; }
         BasicBlock *getParent() { return parent_; }
     protected:    
         BasicBlock *parent_;
-        Instruction *prev_, *next_;
-        // ...
 
         std::string name_;
     };
@@ -170,86 +167,34 @@ namespace ir
     class Undef : public Instruction
     {
     public:
-        Undef() : Instruction("undef", (BasicBlock*)nullptr) {}
+        Undef(std::string &name) : Instruction(name) {}
         virtual ~Undef() = default;
         
-        virtual Instructions instance() const { return Instructions::IR_Variable; }
-    };
-
-    class Alloca : public Instruction
-    {
-    public:
-        Alloca(const std::string &name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-        { }
-
-        Alloca(const std::string &name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
-        { }
-
-        virtual ~Alloca() = default;
-        virtual Instructions instance() const { return Instructions::IR_Alloca; }
-    };
-
-    class Load : public Instruction
-    {
-    public:
-        Load(Value *from, const std::string &name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-        {
-            init(from);
-        }
-
-        Load(Value *from, const std::string &name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
-        { 
-            init(from);
-        }
-
-        virtual ~Load() = default;
-        virtual Instructions instance() const { return Instructions::IR_Load; }
-
-    protected:
-        void init(Value *from);
+        virtual Instructions instance() const { return Instructions::IR_Undef; }
     };
 
     class Store : public Instruction
     {
     public:
-        Store(Value *value, Value *addr, Instruction *insertBefore)
-            : Instruction("", insertBefore)
-        { 
-            init(value, addr);
-        }
-
-        Store(Value *value, Value *addr, BasicBlock *insertAtEnd)
-            : Instruction("", insertAtEnd)
-        { 
-            init(value, addr);
+        Store(Value *value, const std::string &name)
+            : Instruction(name)
+        {
+            init(value);
         }
 
         virtual ~Store() = default;
         virtual Instructions instance() const { return Instructions::IR_Store; }
 
     protected:
-        void init(Value *value, Value *addr);
+        void init(Value *value);
     };
 
     class Invoke : public Instruction
     {
     public:
         Invoke(const std::string functionName, const std::vector<Value*> &args,
-            const std::string name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-            , functionName_(functionName)
-            , callByName_(true)
-        {
-            init(functionName, args);
-        }
-
-        Invoke(const std::string functionName, const std::vector<Value*> &args,
-            const std::string name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
+            const std::string name)
+            : Instruction(name)
             , functionName_(functionName)
             , callByName_(true)
         {
@@ -257,17 +202,8 @@ namespace ir
         }
 
         Invoke(Value *function, const std::vector<Value*> &args,
-            const std::string name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-            , functionName_("")
-            , callByName_(false)
-        {
-            init(function, args);
-        }
-
-        Invoke(Value *function, const std::vector<Value*> &args,
-            const std::string name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
+            const std::string name)
+            : Instruction(name)
             , functionName_("")
             , callByName_(false)
         {
@@ -282,6 +218,7 @@ namespace ir
     protected:
         void init(const std::string functionName, const std::vector<Value*> &args);
         void init(Value *function, const std::vector<Value*> &args);
+
     protected:
         std::string functionName_;
         bool callByName_;
@@ -290,45 +227,22 @@ namespace ir
     class Branch : public Instruction
     {
     public:
-        Branch(Value *cond, BasicBlock *then, BasicBlock *_else,
-            Instruction *insertBefore)
-            : Instruction("", insertBefore), then_(then), else_(_else)
+        Branch(BasicBlock *parent, Value *cond, BasicBlock *then, BasicBlock *_else)
+            : Instruction(""), then_(then), else_(_else)
         {
+            setParent(parent);
             init(cond);
             init(then, _else);
-        }
-
-        Branch(Value *cond, BasicBlock *then, BasicBlock *_else,
-            BasicBlock *insertAtEnd)
-            : Instruction("", insertAtEnd), then_(then), else_(_else)
-        {
-            init(then, _else);
-            init(cond);
-        }
-
-        Branch(Value *cond, BasicBlock *then, Instruction *insertBefore)
-            : Instruction("", insertBefore), then_(then), else_(nullptr)
-        {
-            init(cond);
-            init(then);
-        }
-
-        Branch(Value *cond, BasicBlock *then, BasicBlock *insertAtEnd)
-            : Instruction("", insertAtEnd), then_(then), else_(nullptr)
-        {
-            init(then);
-            init(cond);
         }
 
         virtual ~Branch() = default;
         virtual Instructions instance() const { return Instructions::IR_Branch; }
 
-        bool hasElseBlock() const { return else_ != nullptr; }
-        const BasicBlock *then() const { return then_; }
-        const BasicBlock *_else() const { return else_; }
+        BasicBlock *then() { return then_; }
+        BasicBlock *_else() { return else_; }
     protected:
         void init(Value *cond);
-        void init(BasicBlock *then, BasicBlock *_else = nullptr);
+        void init(BasicBlock *then, BasicBlock *_else);
 
     protected:
         BasicBlock *then_;
@@ -338,15 +252,10 @@ namespace ir
     class Goto : public Instruction
     {
     public:
-        Goto(BasicBlock *block, BasicBlock *insertAtEnd) 
-            : Instruction("", insertAtEnd), block_(block)
+        Goto(BasicBlock *parent, BasicBlock *block) 
+            : Instruction(""), block_(block)
         {
-            init(block);
-        }
-
-        Goto(BasicBlock *block, Instruction *insertBefore)
-            : Instruction("", insertBefore)
-        {
+            setParent(parent);
             init(block);
         }
 
@@ -361,18 +270,12 @@ namespace ir
         BasicBlock *block_;
     };
 
-    // TODO: 这个函数有待确认是否需要
+
     class Assign : public Instruction
     {
     public:
-        Assign(Value *value, const std::string &name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-        {
-            init(value);
-        }
-
-        Assign(Value *value, const std::string &name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
+        Assign(Value *value, const std::string &name)
+            : Instruction(name)
         {
             init(value);
         }
@@ -387,14 +290,8 @@ namespace ir
     class NotOp : public Instruction
     {
     public:
-        NotOp(Value *value, const std::string &name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-        {
-            init(value);
-        }
-
-        NotOp(Value *value, const std::string &name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
+        NotOp(Value *value, const std::string &name)
+            : Instruction(name)
         {
             init(value);
         }
@@ -409,14 +306,8 @@ namespace ir
     class Return : public Instruction
     {
     public:
-        Return(Value *value, Instruction *insertBefore)
-            : Instruction("", insertBefore)
-        {
-            init(value);
-        }
-
-        Return(Value *value, BasicBlock *insertAtEnd)
-            : Instruction("", insertAtEnd)
+        Return(Value *value)
+            : Instruction("")
         {
             init(value);
         }
@@ -431,12 +322,8 @@ namespace ir
     class ReturnVoid : public Instruction
     {
     public:
-        ReturnVoid(Instruction *insertBefore)
-            : Instruction("", insertBefore)
-        {}
-
-        ReturnVoid(BasicBlock *insertAtEnd)
-            : Instruction("", insertAtEnd)
+        ReturnVoid()
+            : Instruction("")
         {}
 
         virtual ~ReturnVoid() = default;
@@ -446,19 +333,12 @@ namespace ir
     class BinaryOperator : public Instruction 
     {
     public:
-        BinaryOperator(BinaryOps bop, Value *lhs, Value *rhs,
-            const std::string &name, Instruction *insertBefore)
-            : Instruction(name, insertBefore) 
+        BinaryOperator(BinaryOps bop, Value *lhs, Value *rhs, std::string &name)
+            : Instruction(name) 
         {
             init(bop, lhs, rhs);
         }
-        BinaryOperator(BinaryOps bop, Value *lhs, Value *rhs,
-            const std::string &name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd) 
-        {
-            init(bop, lhs, rhs);
-        }
-        
+
         virtual ~BinaryOperator() = default;
         virtual Instructions instance() const { return Instructions::IR_BinaryOps; }
 
@@ -473,16 +353,8 @@ namespace ir
     class Index : public Instruction
     {
     public:
-        Index(Value *table, Value *index, const std::string &name, 
-            Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-        {
-            init(table, index);
-        }
-
-        Index(Value *table, Value *index, const std::string &name,
-            BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
+        Index(Value *table, Value *index, std::string &name)
+            : Instruction(name)
         {
             init(table, index);
         }
@@ -490,6 +362,8 @@ namespace ir
         virtual ~Index() = default;
         virtual Instructions instance() const { return Instructions::IR_Index; }
 
+        Value *table() { return operands_[0].getValue(); }
+        Value *index() { return operands_[1].getValue(); }
     protected:
         void init(Value *table, Value *index);
     };
@@ -497,14 +371,8 @@ namespace ir
     class SetIndex : public Instruction
     {
     public:
-        SetIndex(Value *table, Value *index, Value *to, Instruction *insertBefore)
-            : Instruction("", insertBefore)
-        {
-            init(table, index, to);
-        }
-
-        SetIndex(Value *table, Value *index, Value *to, BasicBlock *insertAtEnd)
-            : Instruction("", insertAtEnd)
+        SetIndex(Value *table, Value *index, Value *to)
+            : Instruction("")
         {
             init(table, index, to);
         }
@@ -519,30 +387,19 @@ namespace ir
     class Phi : public Instruction
     {
     public:
-        Phi(std::string &name, BasicBlock *insertAtEnd,
-            std::initializer_list<Value*> &params)
-            : Instruction(name, insertAtEnd)
+        Phi(std::string &name)
+            : Instruction(name)
+        {
+
+        }
+
+        Phi(std::string &name, std::initializer_list<Value*> &params)
+            : Instruction(name)
         {
             init(params);
         }
-
-        Phi(std::string &name, Instruction *insertBefore,
-            std::initializer_list<Value*> &params)
-            : Instruction(name, insertBefore)
-        {
-            init(params);
-        }
-
-        Phi(std::string &name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-        {}
-
-        Phi(std::string &name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
-        {}
 
         void appendOperand(Value *value);
-        void replaceBy(Value *val);
 
         virtual ~Phi() = default;
 
@@ -558,25 +415,5 @@ namespace ir
         }
     };
 
-    class Catch : public Instruction
-    {
-    public:
-        Catch(Value *value, std::string &name, BasicBlock *insertAtEnd)
-            : Instruction(name, insertAtEnd)
-        {
-            operands_.reserve(1);
-            operands_.push_back(Use(value, this));
-        }
-
-        Catch(Value *value, std::string &name, Instruction *insertBefore)
-            : Instruction(name, insertBefore)
-        {
-            operands_.reserve(1);
-            operands_.push_back(Use(value, this));
-        }
-
-        virtual ~Catch() = default;
-        virtual Instructions instance() const { return Instructions::IR_Catch; }
-    };
 }
 }

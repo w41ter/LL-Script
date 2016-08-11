@@ -1,6 +1,8 @@
 #include "Instruction.h"
 #include "CFG.h"
 
+#include <cassert>
+
 using std::string;
 
 namespace script
@@ -16,12 +18,13 @@ namespace ir
 
     Use::~Use()
     {
-        if (value_)
-            value_->killUse(*this);
+        //if (value_)
+        //    value_->killUse(*this);
     }
 
     void Use::replaceValue(Value * value)
     {
+        assert(value != nullptr);
         if (value)
             value->addUse(*this);
         if (value_)
@@ -54,20 +57,6 @@ namespace ir
     Constant::Constant(string str)
         : type_(String), str_(str)
     {}
-
-    void Load::init(Value * from)
-    {
-        operands_.reserve(1);
-        operands_.push_back(Use(from, this));
-    }
-
-    void Store::init(Value * value, Value * addr)
-    {
-        // TODO: check param 2 is addr.
-        operands_.reserve(2);
-        operands_.push_back(Use(value, this));
-        operands_.push_back(Use(addr, this));
-    }
 
     void Invoke::init(const std::string functionName, const std::vector<Value*>& args)
     {
@@ -141,54 +130,20 @@ namespace ir
         operands_.push_back(Use(to, this));
     }
 
-    Instruction::Instruction(const std::string & name, Instruction * before)
-        : prev_ (nullptr), next_(nullptr)
+    Instruction::Instruction(const std::string & name)
+        : name_(name), parent_(nullptr)
     {
-        if (before == nullptr)
-            return;
-
-        if (before->prev_ != nullptr)
-        {
-            before->prev_->next_ = this;
-            this->prev_ = before->prev_;
-        }
-        before->prev_ = this;
-        this->next_ = before;
-
-        name_ = name;
-        this->parent_ = before->parent_;
     }
 
-    Instruction::Instruction(const std::string & name, BasicBlock * end)
-        : prev_(nullptr), next_(nullptr)
+    void Instruction::setParent(BasicBlock * parent)
     {
-        if (end == nullptr)
-            return;
-        name_ = name;
-        this->parent_ = end;
-        end->push(this);
+        assert(parent != nullptr);
+        parent_ = parent;
     }
 
     void Instruction::eraseFromParent()
     {
-        if (this->prev_ == nullptr)
-        {
-            if (this->next_ == nullptr)
-                this->parent_->head_ = this->parent_->end_ = nullptr;
-            else
-                this->parent_->head_ = this->next_;
-        }
-        else if (this->next_ == nullptr)
-        {
-            this->prev_->next_ = nullptr;
-            this->parent_->end_ = this->prev_;
-        }
-        else
-        {
-            this->prev_->next_ = this->next_;
-            this->next_->prev_ = this->prev_;
-        }
-        this->parent_ = nullptr;
+        this->parent_->erase(this);
     }
 
     void Assign::init(Value * value)
@@ -208,7 +163,7 @@ namespace ir
         operands_.push_back(Use(value, this));
     }
 
-    void Phi::replaceBy(Value * val)
+    void Instruction::replaceBy(Value * val)
     {
         for (auto i : this->uses_)
         {
@@ -221,7 +176,13 @@ namespace ir
                     use.replaceValue(val);
             }
         }
+        eraseFromParent();
     }
 
+    void Store::init(Value * value)
+    {
+        op_reserve(1);
+        operands_.push_back(Use(value, this));
+    }
 }
 }
