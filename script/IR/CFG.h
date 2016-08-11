@@ -1,11 +1,10 @@
 #pragma once
 
-#include <vector>
 #include <list>
-#include <memory>
 #include <string>
 #include <map>
 #include <set>
+#include <vector>
 
 namespace script
 {
@@ -21,10 +20,10 @@ namespace ir
     // 一个基本块
     class BasicBlock
     {
-        friend class ir::Instruction;
+        using Instruction = ir::Instruction;
     public:
         BasicBlock(int id, std::string name) 
-            : ID_(id), head_(nullptr), end_(nullptr), name_(name)
+            : ID_(id), name_(name)
         {}
 
         void addPrecursor(BasicBlock *block);
@@ -33,25 +32,29 @@ namespace ir
         size_t numOfSuccessors() const { return successors_.size(); }
         BasicBlock *precursor(int idx);
         BasicBlock *successor(int idx);
-        std::vector<BasicBlock*> &precursors() { return precursors_; }
-        std::vector<BasicBlock*> &successors() { return successors_; }
 
-        ir::Instruction *begin() { return head_; }
-        ir::Instruction *end() { return end_; }
-
-        const ir::Instruction *begin() const { return head_; }
-        const ir::Instruction *end() const { return end_; }
+        typedef std::vector<BasicBlock*>::iterator precursor_iterator;
+        typedef std::vector<BasicBlock*>::iterator successor_iterator;
+        precursor_iterator precursor_begin() { return precursors_.begin(); }
+        precursor_iterator precursor_end() { return precursors_.end(); }
+        successor_iterator successor_begin() { return successors_.begin(); }
+        successor_iterator successor_end() { return successors_.end(); }
+        
+        typedef std::list<Instruction*>::iterator instr_iterator;
+        instr_iterator instr_begin() { return instrs_.begin(); }
+        instr_iterator instr_end() { return instrs_.end(); }
+        size_t numOfInstrs() const { return instrs_.size(); }
+        void push_back(Instruction *instr);
+        void push_front(Instruction *instr);
+        void pop_back();
+        void pop_front();
 
         unsigned getID() const { return ID_; }
         const std::string &getName() const { return name_; }
-
-        void push(ir::Instruction *instr);
-        void unique();
-
     protected:
         unsigned ID_;
         std::string name_;
-        ir::Instruction *head_, *end_;
+        std::list<Instruction*> instrs_;
         std::vector<BasicBlock*> precursors_;   // 记录该基本块所有前驱
         std::vector<BasicBlock*> successors_;  // 后继基本块
     };
@@ -59,26 +62,34 @@ namespace ir
     class CFG
     {
         friend class DumpIR;
+        using Value = ir::Value;
     public:
         CFG();
         ~CFG();
 
-        BasicBlock *createBasicBlock(std::string name);
+        BasicBlock *createBasicBlock(const std::string &name);
         void setEntry(BasicBlock *entry);
         void setEnd(BasicBlock *end);
         BasicBlock *getEntryBlock();
-        std::list<BasicBlock*> &blocks();
+        
+        typedef std::list<BasicBlock*>::iterator block_iterator;
+        block_iterator begin() { return blocks_.begin(); }
+        block_iterator end() { return blocks_.end(); }
 
         IRContext *getContext();
 
         // SSA form construction.
         void sealOthersBlock();
         void sealBlock(BasicBlock *block);
-        void saveVariableDef(std::string name, BasicBlock *block, ir::Value *value);
-        ir::Value *readVariableDef(std::string name, BasicBlock *block);
-        ir::Value *readVariableRecurisive(std::string name, BasicBlock *block);
-        ir::Value *addPhiOperands(std::string name, ir::Phi *phi);
-        ir::Value *tryRemoveTrivialPhi(ir::Phi *phi);
+        void saveVariableDef(std::string name, BasicBlock *block, Value *value);
+        Value *readVariableDef(std::string name, BasicBlock *block);
+
+    protected:
+        // SSA
+        Value *readVariableRecurisive(std::string name, BasicBlock *block);
+        Value *addPhiOperands(std::string name, ir::Phi *phi);
+        Value *tryRemoveTrivialPhi(ir::Phi *phi);
+
     protected:
         unsigned numBlockIDs_;
         BasicBlock *start_; // 起始基本块
@@ -87,11 +98,13 @@ namespace ir
 
         IRContext *context_;
 
-        typedef std::map<std::string, std::map<BasicBlock*, ir::Value*>> Definition;
+        typedef std::map<BasicBlock*, Value*> Block2Value;
+        typedef std::map<std::string, Value*> String2Value;
+        typedef std::map<std::string, Block2Value> Definition;
+        typedef std::map<BasicBlock*, String2Value> IncompletePhis;
         Definition currentDef_;
-        std::set<BasicBlock*> sealedBlock_;
-        typedef std::map<BasicBlock*, std::map<std::string, ir::Value*>> IncompletePhis;
         IncompletePhis incompletePhis_;
+        std::set<BasicBlock*> sealedBlock_;
     };
 }
 

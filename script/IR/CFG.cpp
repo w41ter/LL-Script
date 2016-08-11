@@ -10,9 +10,10 @@
 #include <cassert>
 
 using namespace script::ir;
+
 namespace script
 {
-    BasicBlock * CFG::createBasicBlock(std::string name)
+    BasicBlock * CFG::createBasicBlock(const std::string &name)
     {
         BasicBlock *temp = new BasicBlock(numBlockIDs_++, name);
         blocks_.push_back(temp);
@@ -21,22 +22,19 @@ namespace script
 
     void CFG::setEntry(BasicBlock * entry)
     {
+        assert(entry != nullptr);
         start_ = entry;
     }
 
     void CFG::setEnd(BasicBlock * end)
     {
+        assert(end != nullptr);
         end_ = end;
     }
 
     BasicBlock * CFG::getEntryBlock()
     {
         return start_;
-    }
-
-    std::list<BasicBlock*>& CFG::blocks()
-    {
-        return blocks_;
     }
 
     IRContext * CFG::getContext()
@@ -52,37 +50,41 @@ namespace script
 
     void CFG::sealBlock(BasicBlock * block)
     {   
-        //if (sealedBlock_.count(block) != 0)
-        //    return;
-        //auto &block2Phi = incompletePhis_[block];
-        //for (auto &b2p : block2Phi)
-        //{
-        //    addPhiOperands(b2p.first, (Phi*)b2p.second);
-        //}
-        //sealedBlock_.insert(block);
+        assert(block != nullptr);
+        if (sealedBlock_.count(block) != 0)
+            return;
+        
+        auto &block2Phi = incompletePhis_[block];
+        for (auto &b2p : block2Phi)
+        {
+            addPhiOperands(b2p.first, (Phi*)b2p.second);
+        }
+        sealedBlock_.insert(block);
     }
 
-    void CFG::saveVariableDef(std::string name, BasicBlock * block, ir::Value * value)
+    void CFG::saveVariableDef(std::string name, BasicBlock * block, Value * value)
     {
+        assert(block != nullptr && value != nullptr);
         currentDef_[name][block] = value;
     }
 
-    ir::Value * CFG::readVariableDef(std::string name, BasicBlock * block)
+    Value * CFG::readVariableDef(std::string name, BasicBlock * block)
     {
+        assert(block != nullptr);
         auto &def = currentDef_[name];
         if (def.find(block) != def.end())
             return def[block];
         return readVariableRecurisive(name, block);
     }
 
-    ir::Value * CFG::readVariableRecurisive(std::string name, BasicBlock * block)
+    Value * CFG::readVariableRecurisive(std::string name, BasicBlock * block)
     {
+        assert(block != nullptr);
         Value *val = nullptr;
         if (sealedBlock_.find(block) != sealedBlock_.end())
         {
             // incomplete CFGs.
-            assert(block->begin() != nullptr);
-            val = context_->create<Phi>(name, block->begin());
+            val = context_->createAtBegin<Phi>(block, name);
             incompletePhis_[block][name] = val;
         }
         else if (block->numOfPrecursors() == 1)
@@ -93,10 +95,7 @@ namespace script
         else
         {
             // Break potential cycles with operandless Phi
-            //assert(block->begin() != nullptr);
-            val = block->begin() == nullptr
-                ? context_->create<Phi>(name, block)
-                : context_->create<Phi>(name, block->begin());
+            val = context_->createAtBegin<Phi>(block, name);
             saveVariableDef(name, block, val);
             val = addPhiOperands(name, (Phi*)val);
         }
@@ -107,9 +106,12 @@ namespace script
     ir::Value * CFG::addPhiOperands(std::string name, ir::Phi * phi)
     {
         // Determine operands from predecessors
-        for (auto *pred : phi->getParent()->precursors())
+        BasicBlock *phiParent = phi->getParent();
+        for (auto i = phiParent->precursor_begin(),
+            e = phiParent->precursor_end();
+            i != e; ++i)
         {
-            phi->appendOperand(readVariableDef(name, pred));
+            phi->appendOperand(readVariableDef(name, *i));
         }
         return tryRemoveTrivialPhi(phi);
     }
@@ -148,7 +150,8 @@ namespace script
     }
 
     CFG::CFG()
-        : context_(new IRContext()), numBlockIDs_(0), start_(nullptr), end_(nullptr)
+        : context_(new IRContext()), numBlockIDs_(0)
+        , start_(nullptr), end_(nullptr)
     {
     }
 
@@ -188,30 +191,26 @@ namespace script
         return nullptr;
     }
 
-    void BasicBlock::push(Instruction * instr)
+    void BasicBlock::push_back(Instruction * instr)
     {
-        if (head_ == nullptr)
-        {
-            end_ = head_ = instr;
-        }
-        else
-        {
-            end_->next_ = instr;
-            instr->prev_ = end_;
-            instr->next_ = nullptr;
-            end_ = instr;
-        }
+        assert(instr != nullptr);
+        instrs_.push_back(instr);
     }
 
-    void BasicBlock::unique()
+    void BasicBlock::push_front(Instruction * instr)
     {
-        //precursors_.sort();
-        //auto end_unique = std::unique(precursors_.begin(), precursors_.end());
-        //precursors_.erase(end_unique, precursors_.end());
-        //
-        //successors_.sort();
-        //end_unique = std::unique(successors_.begin(), successors_.end());
-        //precursors_.erase(end_unique, successors_.end());
+        assert(instr != nullptr);
+        instrs_.push_front(instr);
+    }
+
+    void BasicBlock::pop_back()
+    {
+        instrs_.pop_back();
+    }
+
+    void BasicBlock::pop_front()
+    {
+        instrs_.pop_front();
     }
 }
 
