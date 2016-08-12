@@ -70,6 +70,8 @@ namespace script
         Value *variableSuffix();
         Value *variable();
 
+        std::string LHS(std::list<Value*> &lhs);
+
         void block();
         void statement();
         void ifStat();
@@ -96,7 +98,6 @@ namespace script
         DiagnosisConsumer &diag_;
 
         // Parse 时需要用的全局变量
-        BasicBlock *allocaBlock_ = nullptr;
         BasicBlock *block_ = nullptr;
         SymbolTable *table_ = nullptr;
         IRContext *context_ = nullptr;

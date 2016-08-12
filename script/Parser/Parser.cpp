@@ -87,9 +87,8 @@ namespace
             }
             table = table->getParent();
         }
-        Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-        diag << "Using undefine identifier : " << name;
-        diag_.diag(diag);
+
+        diag_.undefineID(name, lexer_.getCoord());
         return false;
     }
 
@@ -123,6 +122,71 @@ namespace
         }
     }
 
+    std::string Parser::LHS(std::list<Value*> &lhs)
+    {
+        string name = exceptIdentifier();
+        Value *val = nullptr;
+        while (true)
+        {
+            switch (token_.kind_)
+            {
+            case TK_LCurlyBrace:
+            {
+                if (val == nullptr)
+                    val = cfg_->readVariableDef(name, block_);
+                
+                advance();
+                std::vector<Value*> params;
+                if (token_.kind_ != TK_RParen)
+                {
+                    params.push_back(orExpr());
+                    while (token_.kind_ == TK_Comma)
+                    {
+                        advance();
+                        params.push_back(orExpr());
+                    }
+                }
+
+                match(TK_RParen);
+                val = context_->create<Invoke>(
+                    val, params, getTmpName());
+                lhs.push_back(val);
+                break;
+            }
+            case TK_LSquareBrace:
+            {
+                if (val == nullptr)
+                    val = cfg_->readVariableDef(name, block_);
+
+                advance();
+                Value *expr = orExpr();
+                match(TK_RSquareBrace);
+                // 默认生成 Index, 在 Assign 部分处理成为 SetIndex
+                val = context_->create<Index>(
+                    val, expr, getTmpName());
+                lhs.push_back(val);
+                break;
+            }
+            case TK_Period:
+            {
+                if (val == nullptr)
+                    val = cfg_->readVariableDef(name, block_);
+
+                advance();
+                string name = exceptIdentifier();
+                Value *rhs = context_->create<Constant>(name);
+                rhs = context_->create<Assign>(rhs, getTmpName());
+                val = context_->create<Index>(val, rhs, getTmpName());
+                lhs.push_back(val);
+                break;
+            }
+            default:
+                return name;
+            }
+        }
+        return name;
+    }
+
     Value *Parser::variable()
     {
         switch (token_.kind_)
@@ -138,7 +202,7 @@ namespace
         case TK_LParen:
         {
             advance();
-            Value * result = expression();
+            Value * result = orExpr();
             match(TK_RParen);
             return result;
         }
@@ -147,6 +211,7 @@ namespace
             return lambdaDecl();
         }
         default:
+            diag_.unexceptedToken(token_.kind_, lexer_.getCoord());
             break;
         }
     }
@@ -161,38 +226,37 @@ namespace
             case TK_LSquareBrace:
             {
                 advance();
-                Value *expr = expression();
+                Value *expr = orExpr();
                 match(TK_RSquareBrace);
-                // 默认生成 Index, 在 Assign 部分处理成为 SetIndex
-                result = context_->create<Index>(
-                    result, expr, getTmpName(), block_);
+                result = context_->createAtEnd<Index>(
+                    block_, result, expr, getTmpName());
             }
-            case TK_LCurlyBrace:
+            case TK_LParen:
             {
                 advance();
                 std::vector<Value*> params;
                 if (token_.kind_ != TK_RParen)
                 {
-                    params.push_back(expression());
+                    params.push_back(orExpr());
                     while (token_.kind_ == TK_Comma)
                     {
                         advance();
-                        params.push_back(expression());
+                        params.push_back(orExpr());
                     }
                 }
 
                 match(TK_RParen);
-                result = context_->create<Invoke>(
-                    result, params, getTmpName(), block_);
+                result = context_->createAtEnd<Invoke>(
+                    block_, result, params, getTmpName());
             }
             case TK_Period:
             {
                 advance();
                 string name = exceptIdentifier();
                 Value *rhs = context_->create<Constant>(name);
-                rhs = context_->create<Assign>(rhs, getTmpName(), block_);
-                result = context_->create<Index>(
-                    result, rhs, getTmpName(), block_);
+                rhs = context_->createAtEnd<Assign>(block_, rhs, getTmpName());
+                result = context_->createAtEnd<Index>(
+                    block_, result, rhs, getTmpName());
             }
             default:
                 goto END;
@@ -211,50 +275,50 @@ namespace
             float value = token_.fnum_;
             advance();
             Value *val = context_->create<Constant>(value);
-            return context_->create<Assign>(val, getTmpName(), block_);
+            return context_->createAtEnd<Assign>(block_, val, getTmpName());
         }
         case TK_LitString:
         {
             string str = token_.value_;
             advance();
             Value *val = context_->create<Constant>(str);
-            return context_->create<Assign>(val, getTmpName(), block_);
+            return context_->createAtEnd<Assign>(block_, val, getTmpName());
         }
         case TK_LitInteger:
         {
             int integer = token_.num_;
             advance();
             Value *val = context_->create<Constant>(integer);
-            return context_->create<Assign>(val, getTmpName(), block_);
+            return context_->createAtEnd<Assign>(block_, val, getTmpName());
         }
         case TK_LitCharacter:
         {
             char c = token_.value_[0];
             advance();
             Value *val = context_->create<Constant>(c);
-            return context_->create<Assign>(val, getTmpName(), block_);
+            return context_->createAtEnd<Assign>(block_, val, getTmpName());
         }
         case TK_True:
         {
             advance();
             Value *val = context_->create<Constant>(true);
-            return context_->create<Assign>(val, getTmpName(), block_);
+            return context_->createAtEnd<Assign>(block_, val, getTmpName());
         }
         case TK_False:
         {
             advance();
             Value *val = context_->create<Constant>(false);
-            return context_->create<Assign>(val, getTmpName(), block_);
+            return context_->createAtEnd<Assign>(block_, val, getTmpName());
         }
         case TK_Null:
         {
             advance();
             Value *val = context_->create<Constant>();
-            return context_->create<Assign>(val, getTmpName(), block_);
+            return context_->createAtEnd<Assign>(block_, val, getTmpName());
         }
         case TK_LSquareBrace:
         {
-            // let b = [a][a] or ['a' = 1 ].a is wrong.
+            // let b = [a][a] or ['a' = 1].a is wrong.
             return tableDecl();
         }
         default:
@@ -269,7 +333,7 @@ namespace
             return value();
         }
         advance();
-        return context_->create<NotOp>(value(), getTmpName(), block_);
+        return context_->createAtEnd<NotOp>(block_, value(), getTmpName());
     }
 
     Value *Parser::negativeExpr()
@@ -280,8 +344,8 @@ namespace
         }
         advance();
         Value *zero = context_->create<Constant>(0);
-        return context_->create<BinaryOperator>(
-            BinaryOps::BO_Sub, zero, notExpr(), getTmpName(), block_);
+        return context_->createAtEnd<BinaryOperator>(
+            block_, BinaryOps::BO_Sub, zero, notExpr(), getTmpName());
     }
 
     Value *Parser::mulAndDivExpr()
@@ -292,8 +356,8 @@ namespace
             auto op = token_.kind_ == TK_Mul 
                 ? BinaryOps::BO_Mul : BinaryOps::BO_Div;
             advance();
-            result = context_->create<BinaryOperator>(
-                BinaryOps(op), result, negativeExpr(), getTmpName(), block_);
+            result = context_->createAtEnd<BinaryOperator>(
+                block_, BinaryOps(op), result, negativeExpr(), getTmpName());
         }
         return result;
     }
@@ -306,8 +370,8 @@ namespace
             auto op = token_.kind_ == TK_Plus
                 ? BinaryOps::BO_Add : BinaryOps::BO_Sub;
             advance();
-            result = context_->create<BinaryOperator>(
-                BinaryOps(op), result, mulAndDivExpr(), getTmpName(), block_);
+            result = context_->createAtEnd<BinaryOperator>(
+                block_, BinaryOps(op), result, mulAndDivExpr(), getTmpName());
         }
         return result;
     }
@@ -319,8 +383,8 @@ namespace
         {
             auto op = TranslateRelationalToBinaryOps(token_.kind_);
             advance();
-            result = context_->create<BinaryOperator>(
-                BinaryOps(op), result, addAndSubExpr(), getTmpName(), block_);
+            result = context_->createAtEnd<BinaryOperator>(
+                block_, BinaryOps(op), result, addAndSubExpr(), getTmpName());
         }
         return result;
     }
@@ -335,27 +399,27 @@ namespace
             *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
             *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
 
-        context_->create<Branch>(result, falseBlock, trueBlock, tmpBlock);
+        context_->createBranchAtEnd(tmpBlock, result, falseBlock, trueBlock);
         while (token_.kind_ == TK_And)
         {
             advance();
             block_ = trueBlock;
             Value *expr = relationalExpr();
             trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_"));
-            context_->create<Branch>(result, falseBlock, trueBlock, block_);
+            context_->createBranchAtEnd(block_, result, falseBlock, trueBlock);
         }
 
         Value *true_ = context_->create<Constant>(true);
         Value *false_ = context_->create<Constant>(false);
-        Value *trueVal = context_->create<Assign>(true_, getTmpName(), trueBlock);
-        Value *falseVal = context_->create<Assign>(false_, getTmpName(), falseBlock);
+        Value *trueVal = context_->createAtEnd<Assign>(trueBlock, true_, getTmpName());
+        Value *falseVal = context_->createAtEnd<Assign>(falseBlock, false_, getTmpName());
 
         BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
-        context_->create<Goto>(endBlock, trueBlock);
-        context_->create<Goto>(endBlock, falseBlock);
+        context_->createGotoAtEnd(trueBlock, endBlock);
+        context_->createGotoAtEnd(falseBlock, endBlock);
         block_ = endBlock;
         auto params = { trueVal, falseVal };
-        return context_->create<Phi>(getTmpName(), block_, params);
+        return context_->createAtEnd<Phi>(block_, getTmpName(), params);
     }
 
     Value *Parser::orExpr()
@@ -368,46 +432,70 @@ namespace
             *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
             *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
 
-        context_->create<Branch>(result, trueBlock, falseBlock, tmpBlock);
+        context_->createBranchAtEnd(tmpBlock, result, trueBlock, falseBlock);
         while (token_.kind_ == TK_Or)
         {
             advance();
             block_ = falseBlock;
             Value *expr = andExpr();
             falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
-            context_->create<Branch>(result, trueBlock, falseBlock, block_);
+            context_->createBranchAtEnd(block_, result, trueBlock, falseBlock);
         }
 
         Value *true_ = context_->create<Constant>(true);
         Value *false_ = context_->create<Constant>(false);
-        Value *trueVal = context_->create<Assign>(true_, getTmpName(), trueBlock);
-        Value *falseVal = context_->create<Assign>(false_, getTmpName(), falseBlock);
+        Value *trueVal = context_->createAtEnd<Assign>(trueBlock, true_, getTmpName());
+        Value *falseVal = context_->createAtEnd<Assign>(falseBlock, false_, getTmpName());
 
         BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
-        context_->create<Goto>(endBlock, trueBlock);
-        context_->create<Goto>(endBlock, falseBlock);
+        context_->createGotoAtEnd(trueBlock, endBlock);
+        context_->createGotoAtEnd(falseBlock, endBlock);
         block_ = endBlock;
         auto params = { trueVal, falseVal };
-        return context_->create<Phi>(getTmpName(), block_, params);
+        return context_->createAtEnd<Phi>(block_, getTmpName(), params);
     }
 
     Value *Parser::expression()
     {
         auto coord = lexer_.getCoord();
-        Value *result = orExpr();
+        std::list<Value*> lhs;
+        
+        // get left val.
+        std::string name = LHS(lhs);
         if (token_.kind_ == TK_Assign)
         {
             advance();
-            Value *rhs = expression();
-
-                Diagnosis diag(DiagType::DT_Error, coord);
-                diag << "不能对右值赋值";
-                diag_.diag(diag);
+            Value *rhs = orExpr();
             
-
-            result = rhs;
+            if (lhs.size() != 0)
+            {
+                Value *lastL = lhs.back();
+                if (lastL->instance() == Instructions::IR_Index)
+                {
+                    Index *si = (Index*)lastL;
+                    lhs.pop_back();
+                    lhs.push_back(context_->create<SetIndex>(
+                        si->table(), si->index(), rhs));
+                }
+            }
+            else 
+            {
+                Value *result = context_->create<Store>(rhs, cfg_->phiName(name));
+                cfg_->saveVariableDef(name, block_, result);
+                lhs.push_back(result);
+            }
+            
+            for (auto *i : lhs)
+            {
+                Instruction *instr = (Instruction*)i;
+                block_->push_back(instr);
+                instr->setParent(block_);
+            }
         }
-        return result;
+        if (lhs.size() > 0)
+            return lhs.back();
+        else
+            return cfg_->readVariableDef(name, block_);
     }
 
     void Parser::breakStat()
@@ -417,13 +505,11 @@ namespace
 
         if (breaks_.size() <= 0)
         {
-            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-            diag << "Break 外层需要 while statement";
-            diag_.diag(diag);
+            diag_.outOfScopeBreakOrContinue(lexer_.getCoord());
             return;
         }
 
-        context_->create<Goto>(breaks_.top(), block_);
+        context_->createGotoAtEnd(block_, breaks_.top());
 
         cfg_->sealBlock(block_);
 
@@ -438,13 +524,11 @@ namespace
         
         if (continues_.size() <= 0)
         {
-            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-            diag << "Continue 外层需要 while statement";
-            diag_.diag(diag);
+            diag_.outOfScopeBreakOrContinue(lexer_.getCoord());
             return;
         }
 
-        context_->create<Goto>(continues_.top(), block_);
+        context_->createGotoAtEnd(block_, continues_.top());
         
         cfg_->sealBlock(block_);
 
@@ -457,12 +541,12 @@ namespace
         advance();
         if (token_.kind_ != TK_Semicolon)
         {
-            Value *expr = expression();
-            context_->create<Return>(expr, block_);
+            Value *expr = orExpr();
+            context_->createAtEnd<Return>(block_, expr);
         }
         else
         {
-            context_->create<ReturnVoid>(block_);
+            context_->createAtEnd<ReturnVoid>(block_);
         }
 
         match(TK_Semicolon);
@@ -479,21 +563,21 @@ namespace
             *thenBlock = cfg_->createBasicBlock(getTmpName("while_then_")),
             *endBlock = cfg_->createBasicBlock(getTmpName("end_while_"));
 
-        context_->create<Goto>(condBlock, tmpBlock);
+        context_->createGotoAtEnd(tmpBlock, condBlock);
         cfg_->sealBlock(tmpBlock);
 
         block_ = condBlock;
         match(TK_LParen);
-        Value *expr = expression();
+        Value *expr = orExpr();
         match(TK_RParen);
-        context_->create<Branch>(expr, thenBlock, endBlock, /*condBlock==*/block_);
+        context_->createBranchAtEnd(block_, expr, thenBlock, endBlock);
 
         breaks_.push(endBlock);
         continues_.push(condBlock);
 
         block_ = thenBlock;
         statement();
-        context_->create<Goto>(condBlock, /*thenBlock==*/block_);
+        context_->createGotoAtEnd(/*thenBlock==*/block_, condBlock);
         
         cfg_->sealBlock(thenBlock);
         cfg_->sealBlock(block_);
@@ -508,7 +592,7 @@ namespace
     {
         advance();
         match(TK_LParen);
-        Value *expr = expression();
+        Value *expr = orExpr();
         match(TK_RParen);
 
         cfg_->sealBlock(block_);
@@ -520,14 +604,12 @@ namespace
         statement();
         BasicBlock *thenEndBlock = block_, *endBlock = nullptr;
 
-        cfg_->sealBlock(block_);
-
         if (token_.kind_ == TK_Else)
         {
             advance();
 
             BasicBlock *elseBlock = cfg_->createBasicBlock(getTmpName("if_else_"));
-            context_->create<Branch>(expr, thenBlock, elseBlock, tmpBlock);
+            context_->createBranchAtEnd(tmpBlock, expr, thenBlock, elseBlock);
 
             block_ = elseBlock;
             statement();
@@ -536,17 +618,18 @@ namespace
             cfg_->sealBlock(block_);
 
             endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
-            context_->create<Goto>(endBlock, /*elseBlock==*/block_);
+            context_->createGotoAtEnd(/*elseBlock==*/block_, endBlock);
         }
         else
         {
             endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
-            context_->create<Branch>(expr, thenBlock, endBlock, tmpBlock);
+            context_->createBranchAtEnd(tmpBlock, expr, thenBlock, endBlock);
         }
 
         cfg_->sealBlock(thenBlock);
+        cfg_->sealBlock(thenEndBlock);
 
-        context_->create<Goto>(endBlock, thenEndBlock);
+        context_->createGotoAtEnd(thenEndBlock, endBlock);
         block_ = endBlock;
     }
 
@@ -570,6 +653,8 @@ namespace
             return letDecl();
         case TK_Define:
             return defineDecl();
+        case TK_Semicolon:
+            return statement();
         default:
             expression();
             match(TK_Semicolon);
@@ -612,26 +697,6 @@ namespace
         return std::move(params);
     }
 
-    Value *Parser::keywordConstant()
-    {
-        Value *result = nullptr;
-        if (token_.kind_ == TK_True)
-            result = context_->create<Constant>(true);
-        else if (token_.kind_ == TK_False)
-            result = context_->create<Constant>(false);
-        else if (token_.kind_ == TK_Null)
-            result = context_->create<Constant>();
-        else
-        {
-            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-            diag << "Unrecorded token" << Diagnosis::TokenToStirng(token_.kind_);
-            diag_.diag(diag);
-        }
-        advance();
-        result = context_->create<Assign>(result, getTmpName(), block_);
-        return result;
-    }
-
     Value *Parser::lambdaDecl()
     {
         match(TK_Lambda);
@@ -639,8 +704,8 @@ namespace
         table_->insertDefines(name, token_);
 
         IRFunction *function = module_.createFunction(name);
-        Value *invoke = context_->create<Invoke>(
-            name, std::vector<Value*>(), name, block_);
+        Value *invoke = context_->createAtEnd<Invoke>(
+            block_, name, std::vector<Value*>(), name);
         cfg_->saveVariableDef(name, block_, invoke);
 
         auto params = std::move(readParams());
@@ -658,20 +723,15 @@ namespace
         cfg_ = function;
         table_->bindParent(table);
 
-        BasicBlock *alloca = allocaBlock_;
-        allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
-        BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
+        BasicBlock *functionEntry = block_ = cfg_->createBasicBlock(name + "_entry");
 
-        LoadParamsIntoTable(table_, function->getContext(), allocaBlock_, params);
+        LoadParamsIntoTable(table_, function->getContext(), block_, params);
         function->setEntry(block_);
         block();
         function->setEnd(block_);
 
-        context_->create<Goto>(save, allocaBlock_);
-
         cfg_->sealOthersBlock();
 
-        allocaBlock_ = alloca;
         block_ = oldBlock;
         cfg_ = cfg;
         context_ = context;
@@ -700,9 +760,7 @@ namespace
         }
         else
         {
-            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-            diag << "Unknow table declare!";
-            diag_.diag(diag);
+            diag_.unknowTableDecl(lexer_.getCoord());
             advance();
             return;
         }
@@ -711,8 +769,8 @@ namespace
         if (token_.kind_ == TK_Assign)
         {
             advance();
-            Value *expr = expression();
-            if (cons->instance() == Instructions::IR_Value)
+            Value *expr = orExpr();
+            if (cons->instance() == Instructions::IR_Constant)
             {
                 Constant *innerCons =
                     static_cast<Constant*>(cons);
@@ -724,15 +782,15 @@ namespace
                     diag_.diag(diag);
                 }
             }
-            cons = context_->create<Assign>(cons, getTmpName(), block_);
-            context_->create<SetIndex>(table, cons, expr, block_);
+            cons = context_->createAtEnd<Assign>(block_, cons, getTmpName());
+            context_->createAtEnd<SetIndex>(block_, table, cons, expr);
         }
         else
         {
             Value *tmp = context_->create<Constant>(-1);
-            tmp = context_->create<Assign>(tmp, getTmpName(), block_);
-            cons = context_->create<Assign>(cons, getTmpName(), block_);
-            context_->create<SetIndex>(table, tmp, cons, block_);
+            tmp = context_->createAtEnd<Assign>(block_, tmp, getTmpName());
+            cons = context_->createAtEnd<Assign>(block_, cons, getTmpName());
+            context_->createAtEnd<SetIndex>(block_, table, tmp, cons);
         }
     }
 
@@ -743,25 +801,26 @@ namespace
         {
             // name = lambda ... == "name" = lambda
             advance();
-            Value *expr = expression();
+            Value *expr = orExpr();
             Value *str = context_->create<Constant>(name);
-            str = context_->create<Assign>(str, getTmpName(), block_);
-            context_->create<SetIndex>(table, str, expr, block_);
+            str = context_->createAtEnd<Assign>(block_, str, getTmpName());
+            context_->createAtEnd<SetIndex>(block_, table, str, expr);
         }
         else
         {
             tryToCatchID(name);
-            Value *id = cfg_->readVariableDef(name, block_);//findID(name);
+            Value *id = cfg_->readVariableDef(name, block_);
             Value *cons = context_->create<Constant>(-1);
-            cons = context_->create<Assign>(cons, getTmpName(), block_);
-            //Value *tmp = context_->create<Load>(id, getTmpName(), block_);
-            context_->create<SetIndex>(table, cons, id, block_);
+            cons = context_->createAtEnd<Assign>(block_, cons, getTmpName());
+            context_->createAtEnd<SetIndex>(block_, table, cons, id);
         }
     }
 
     Value *Parser::tableDecl()
     {
-        Value *table = context_->create<Alloca>(getTmpName("table_"), allocaBlock_);
+        Value *table = context_->create<Table>();
+        table = context_->createAtEnd<Assign>(
+            block_, table, getTmpName("Table_"));
         do {
             advance();
             if (token_.kind_ == TK_Identifier)
@@ -791,8 +850,8 @@ namespace
 
         // create function and generate parallel invoke.
         IRFunction *function = module_.createFunction(name);
-        Value *invoke = context_->create<Invoke>(
-            name, std::vector<Value*>(), name, block_);
+        Value *invoke = context_->createAtEnd<Invoke>(
+            block_, name, std::vector<Value*>(), name);
         cfg_->saveVariableDef(name, block_, invoke);
 
         // match params
@@ -811,20 +870,15 @@ namespace
         cfg_ = function;
         table_->bindParent(table);
 
-        BasicBlock *alloca = allocaBlock_;
-        allocaBlock_ = cfg_->createBasicBlock(name + "_alloca");
         BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
 
-        LoadParamsIntoTable(table_, function->getContext(), allocaBlock_, params);
+        LoadParamsIntoTable(table_, function->getContext(), block_, params);
         function->setEntry(block_);
         block();
         function->setEnd(block_);
-        
-        context_->create<Goto>(save, allocaBlock_);
-        
+
         cfg_->sealOthersBlock();
         
-        allocaBlock_ = alloca;
         block_ = oldBlock;
         cfg_ = cfg;
         context_ = context;
@@ -844,8 +898,9 @@ namespace
         table_->insertVariables(name, token_);
         match(TK_Assign);
 
-        Value *expr = expression();
-        Value *let = context_->create<Assign>(expr, name, block_);
+        Value *expr = orExpr();
+        Value *let = context_->createAtEnd<Store>(
+            block_, expr, cfg_->phiName(name));
         cfg_->saveVariableDef(name, block_, let);
         match(TK_Semicolon);
     }
@@ -866,8 +921,9 @@ namespace
         match(TK_Assign);
 
         // match expression and save variable def.
-        Value *expr = expression();
-        Value *define = context_->create<Assign>(expr, name, block_);
+        Value *expr = orExpr();
+        Value *define = context_->createAtEnd<Store>(
+            block_, expr, cfg_->phiName(name));
         cfg_->saveVariableDef(name, block_, define);
         match(TK_Semicolon);
     }
@@ -887,7 +943,6 @@ namespace
 
     void Parser::parse()
     {
-        allocaBlock_ = module_.createBasicBlock("global_alloca");
         BasicBlock *entry = module_.createBasicBlock("entry");
 
         block_ = entry;
@@ -895,7 +950,7 @@ namespace
         context_ = module_.getContext();
         cfg_ = &module_;
 
-        module_.setEntry(allocaBlock_);
+        module_.setEntry(entry);
 
         advance();
         while (token_.kind_ != TK_EOF)
@@ -909,7 +964,6 @@ namespace
 
         module_.setEnd(block_);
 
-        context_->create<Goto>(entry, allocaBlock_);
         cfg_->sealOthersBlock();
     }
 
