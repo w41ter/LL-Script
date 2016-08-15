@@ -8,6 +8,7 @@
 #include <functional>
 #include <algorithm>
 #include <cassert>
+#include <sstream>
 
 using namespace script::ir;
 
@@ -77,14 +78,23 @@ namespace script
         return readVariableRecurisive(name, block);
     }
 
+    std::string CFG::phiName(std::string & name)
+    {
+        std::stringstream stream;
+        stream << name << '.' << phiCounts_[name]++;
+        std::string tmp;
+        stream >> tmp;
+        return tmp;
+    }
+
     Value * CFG::readVariableRecurisive(std::string name, BasicBlock * block)
     {
         assert(block != nullptr);
         Value *val = nullptr;
-        if (sealedBlock_.find(block) != sealedBlock_.end())
+        if (sealedBlock_.find(block) == sealedBlock_.end())
         {
             // incomplete CFGs.
-            val = context_->createAtBegin<Phi>(block, name);
+            val = context_->createAtBegin<Phi>(block, phiName(name));
             incompletePhis_[block][name] = val;
         }
         else if (block->numOfPrecursors() == 1)
@@ -95,7 +105,7 @@ namespace script
         else
         {
             // Break potential cycles with operandless Phi
-            val = context_->createAtBegin<Phi>(block, name);
+            val = context_->createAtBegin<Phi>(block, phiName(name));
             saveVariableDef(name, block, val);
             val = addPhiOperands(name, (Phi*)val);
         }
@@ -131,7 +141,7 @@ namespace script
             same = op;
         }
         if (same == nullptr)
-            same = context_->create<Undef>();
+            same = context_->create<Undef>(phi->name());
         // try all users except the phi itself.
         // Try to recursively remove all phi users, 
         // which might have become trivial
@@ -211,6 +221,11 @@ namespace script
     void BasicBlock::pop_front()
     {
         instrs_.pop_front();
+    }
+
+    void BasicBlock::erase(Instruction * instr)
+    {
+        instrs_.remove(instr);
     }
 }
 

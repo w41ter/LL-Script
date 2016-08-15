@@ -48,6 +48,7 @@ namespace ir
         void push_front(Instruction *instr);
         void pop_back();
         void pop_front();
+        void erase(Instruction *instr);
 
         unsigned getID() const { return ID_; }
         const std::string &getName() const { return name_; }
@@ -84,6 +85,8 @@ namespace ir
         void saveVariableDef(std::string name, BasicBlock *block, Value *value);
         Value *readVariableDef(std::string name, BasicBlock *block);
 
+        std::string phiName(std::string &name);
+
     protected:
         // SSA
         Value *readVariableRecurisive(std::string name, BasicBlock *block);
@@ -105,6 +108,8 @@ namespace ir
         Definition currentDef_;
         IncompletePhis incompletePhis_;
         std::set<BasicBlock*> sealedBlock_;
+
+        std::map<std::string, int> phiCounts_;
     };
 }
 
