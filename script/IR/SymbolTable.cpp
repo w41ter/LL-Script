@@ -16,50 +16,29 @@ namespace script
         parent_ = parent;
     }
 
-    //void SymbolTable::bindValue(std::string & str, ir::Value * value)
-    //{
-    //    values_[str] = value;
-    //}
-
-    void SymbolTable::insertDefines(std::string & str, Token & token)
+    void SymbolTable::insert(std::string & name, Symbol & symbol)
     {
-        defines_[str] = token;
+        table_[name] = symbol;
     }
 
-    void SymbolTable::insertVariables(std::string & str, Token & token)
+    unsigned SymbolTable::find(std::string & name, Symbol & symbol)
     {
-        variables_[str] = token;
+        auto sym = table_.find(name);
+        if (sym != table_.end())
+        {
+            symbol = sym->second;
+            return sym->second.type_;
+        }
+        return Symbol::None;
     }
 
-    unsigned SymbolTable::findName(std::string & str) const
+    void SymbolTable::setCatched(std::string & name)
     {
-        if (variables_.count(str) != 0)
-            return SymbolTable::Let;
-        else if (defines_.count(str) != 0)
-            return SymbolTable::Define;
-        else
-            return SymbolTable::None;
-    }
-
-    Token SymbolTable::getToken(std::string & str) const
-    {
-        auto result = defines_.find(str);
-        if (result != defines_.end())
-            return result->second;
-        result = variables_.find(str);
-        if (result != variables_.end())
-            return result->second;
-        return Token();
-    }
-
-    //ir::Value * SymbolTable::getValue(std::string & str)
-    //{
-    //    return values_[str];
-    //}
-
-    void SymbolTable::catchedName(std::string & str)
-    {
-        catched_.insert(str);
+        auto symbol = table_.find(name);
+        if (symbol != table_.end())
+        {
+            symbol->second.beCaught_ = true;
+        }
     }
 
 }
