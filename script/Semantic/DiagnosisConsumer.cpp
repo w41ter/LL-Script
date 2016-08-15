@@ -61,4 +61,27 @@ namespace script
         this->diag(diag);
     }
 
+    void DiagnosisConsumer::indexLessThanZero(TokenCoord coord)
+    {
+        Diagnosis diag(DiagType::DT_Error, coord);
+        diag << "table index can't be less than zero";
+        this->diag(diag);
+    }
+
+    void DiagnosisConsumer::redefineAs(std::string & name, TokenCoord coord)
+    {
+        Diagnosis diag(DiagType::DT_Error, coord);
+        diag << "redefined \"" << name << "\" as " << name;
+        this->diag(diag);
+    }
+
+    void DiagnosisConsumer::except(unsigned tok1, unsigned tok2, TokenCoord coord)
+    {
+        Diagnosis diag(DiagType::DT_Error, coord);
+        diag << Diagnosis::TokenToStirng(tok1)
+            << " except in file but find "
+            << Diagnosis::TokenToStirng(tok2);
+        this->diag(diag);
+    }
+
 }

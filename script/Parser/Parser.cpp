@@ -62,7 +62,10 @@ namespace
     {
         for (auto &i : params)
         {
-            table->insertVariables(i.first, i.second);
+            Symbol symbol;
+            symbol.type_ = Symbol::Let;
+            symbol.tok_ = i.second;
+            table->insert(i.first, symbol);
         }
     }
 }
@@ -70,19 +73,21 @@ namespace
     bool Parser::tryToCatchID(std::string &name)
     {
         SymbolTable *table = table_;
-        if (table_->findName(name) != SymbolTable::None)
+        Symbol symbol;
+        if (table_->find(name, symbol) != Symbol::None)
             return true;
         table = table->getParent();
         while (table != nullptr)
         {
-            if (table->findName(name) != SymbolTable::None)
+            unsigned kind = table->find(name, symbol);
+            if (kind != Symbol::None)
             {
-                table->catchedName(name);
-                auto kind = table->findName(name);
-                if (kind == SymbolTable::Define)
-                    table_->insertDefines(name, token_);
-                else
-                    table_->insertVariables(name, token_);
+                table->setCatched(name);
+                symbol.param_ = false;
+                symbol.beCaught_ = false;
+                symbol.caught_ = true;
+                symbol.type_ = kind;
+                table_->insert(name, symbol);
                 return true;
             }
             table = table->getParent();
@@ -701,7 +706,13 @@ namespace
     {
         match(TK_Lambda);
         std::string name = getTmpName("lambda_");
-        table_->insertDefines(name, token_);
+        Symbol symbol;
+        symbol.type_ = Symbol::Define;
+        symbol.beCaught_ = false;
+        symbol.caught_ = false;
+        symbol.tok_ = token_;
+        symbol.param_ = false;
+        table_->insert(name, symbol);
 
         IRFunction *function = module_.createFunction(name);
         Value *invoke = context_->createAtEnd<Invoke>(
@@ -777,9 +788,7 @@ namespace
                 if (innerCons->type() == Constant::Integer
                     && innerCons->getInteger() < 0)
                 {
-                    Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-                    diag << "table index can't be less than zero";
-                    diag_.diag(diag);
+                    diag_.indexLessThanZero(lexer_.getCoord());
                 }
             }
             cons = context_->createAtEnd<Assign>(block_, cons, getTmpName());
@@ -840,13 +849,17 @@ namespace
         match(TK_Function);
         string name = exceptIdentifier();
 
-        if (table_->findName(name) != SymbolTable::None)
+        Symbol symbol;
+        if (table_->find(name, symbol) != Symbol::None)
         {
-            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-            diag << "redefined \"" << name << "\" as define function";
-            diag_.diag(diag);
+            diag_.redefineAs(std::string("function"), lexer_.getCoord());
         }
-        table_->insertDefines(name, token_);
+        symbol.beCaught_ = false;
+        symbol.caught_ = false;
+        symbol.param_ = false;
+        symbol.tok_ = token_;
+        symbol.type_ = Symbol::Define;
+        table_->insert(name, symbol);
 
         // create function and generate parallel invoke.
         IRFunction *function = module_.createFunction(name);
@@ -889,13 +902,17 @@ namespace
     {
         match(TK_Let);
         string name = exceptIdentifier();
-        if (table_->findName(name) != SymbolTable::None)
+        Symbol symbol;
+        if (table_->find(name, symbol) != Symbol::None)
         {
-            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-            diag << "redefined \"" << name << "\" as let binding";
-            diag_.diag(diag);
+            diag_.redefineAs(std::string("binding"), lexer_.getCoord());
         }
-        table_->insertVariables(name, token_);
+        symbol.beCaught_ = false;
+        symbol.caught_ = false;
+        symbol.param_ = false;
+        symbol.tok_ = token_;
+        symbol.type_ = Symbol::Let;
+        table_->insert(name, symbol);
         match(TK_Assign);
 
         Value *expr = orExpr();
@@ -909,14 +926,17 @@ namespace
     {
         match(TK_Define);
         string name = exceptIdentifier();
-        if (table_->findName(name) != SymbolTable::None)
+        Symbol symbol;
+        if (table_->find(name, symbol) != Symbol::None)
         {
-            Diagnosis diag(DiagType::DT_Error, lexer_.getCoord());
-            diag << "redefined \"" << name << "\" as define constant";
-            diag_.diag(diag);
+            diag_.redefineAs(std::string("constant"), lexer_.getCoord());
         }
-
-        table_->insertDefines(name, token_);
+        symbol.beCaught_ = false;
+        symbol.caught_ = false;
+        symbol.param_ = false;
+        symbol.tok_ = token_;
+        symbol.type_ = Symbol::Define;
+        table_->insert(name, symbol);
 
         match(TK_Assign);
 
@@ -982,11 +1002,7 @@ namespace
     {
         if (token_.kind_ != tok)
         {
-            Diagnosis diag(DiagType::DT_Error, token_.coord_);
-            diag << Diagnosis::TokenToStirng(tok)
-                << " except in file but find "
-                << Diagnosis::TokenToStirng(token_.kind_);
-            diag_.diag(diag);
+            diag_.except(tok, token_.kind_, lexer_.getCoord());
         }
         advance();
     }
@@ -995,11 +1011,7 @@ namespace
     {
         if (token_.kind_ != TK_Identifier)
         {
-            Diagnosis diag(DiagType::DT_Error, token_.coord_);
-            diag << Diagnosis::TokenToStirng(TK_Identifier)
-                << " except in file but find "
-                << Diagnosis::TokenToStirng(token_.kind_);
-            diag_.diag(diag);
+            diag_.except(TK_Identifier, token_.kind_, lexer_.getCoord());
         }
         string value = std::move(token_.value_);
         advance();
