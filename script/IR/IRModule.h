@@ -30,7 +30,10 @@ namespace script
 
         std::string &getName();
         void setParams(std::vector<std::pair<std::string, Token>> &params);
-        std::vector<std::string> &getParams();
+        
+        typedef std::vector<std::pair<std::string, Token>>::iterator param_iterator;
+        param_iterator param_begin() { return params_.begin(); }
+        param_iterator param_end() { return params_.end(); }
 
     protected:
         std::string name_;
@@ -46,6 +49,10 @@ namespace script
 
         IRFunction *createFunction(std::string &name);
         IRFunction *getFunction(std::string &name);
+
+        typedef std::map<std::string, IRFunction*>::iterator func_iterator;
+        func_iterator begin() { return functions_.begin(); }
+        func_iterator end() { return functions_.end(); }
 
     private:
         void destory();

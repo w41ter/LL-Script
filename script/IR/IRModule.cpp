@@ -22,6 +22,11 @@ namespace script
         
     }
 
+    std::string & IRFunction::getName()
+    {
+        return name_;
+    }
+
     void IRFunction::setParams(std::vector<std::pair<std::string, Token>> &params)
     {
         params_ = params;
