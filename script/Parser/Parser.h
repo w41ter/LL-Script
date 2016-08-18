@@ -66,9 +66,11 @@ namespace script
         Value *mulAndDivExpr();
         Value *negativeExpr();
         Value *notExpr();
-        Value *factorSuffix();
-        Value *indexExpr();
-        Value *factor();
+        Value *value();
+        Value *variableSuffix();
+        Value *variable();
+
+        std::string LHS(std::list<Value*> &lhs);
 
         void block();
         void statement();
@@ -86,7 +88,8 @@ namespace script
 
         bool isRelational(unsigned tok);
 
-        Value *findID(std::string &name);
+        bool tryToCatchID(std::string &name);
+        //std::string &findID(std::string &name);
     private:
         Lexer &lexer_;
         Token token_;
@@ -95,7 +98,6 @@ namespace script
         DiagnosisConsumer &diag_;
 
         // Parse 时需要用的全局变量
-        BasicBlock *allocaBlock_ = nullptr;
         BasicBlock *block_ = nullptr;
         SymbolTable *table_ = nullptr;
         IRContext *context_ = nullptr;

@@ -1,6 +1,8 @@
 #include "Instruction.h"
 #include "CFG.h"
 
+#include <cassert>
+
 using std::string;
 
 namespace script
@@ -16,8 +18,18 @@ namespace ir
 
     Use::~Use()
     {
+        //if (value_)
+        //    value_->killUse(*this);
+    }
+
+    void Use::replaceValue(Value * value)
+    {
+        assert(value != nullptr);
+        if (value)
+            value->addUse(*this);
         if (value_)
             value_->killUse(*this);
+        value_ = value;
     }
 
     Constant::Constant()
@@ -45,20 +57,6 @@ namespace ir
     Constant::Constant(string str)
         : type_(String), str_(str)
     {}
-
-    void Load::init(Value * from)
-    {
-        operands_.reserve(1);
-        operands_.push_back(Use(from, this));
-    }
-
-    void Store::init(Value * value, Value * addr)
-    {
-        // TODO: check param 2 is addr.
-        operands_.reserve(2);
-        operands_.push_back(Use(value, this));
-        operands_.push_back(Use(addr, this));
-    }
 
     void Invoke::init(const std::string functionName, const std::vector<Value*>& args)
     {
@@ -132,25 +130,20 @@ namespace ir
         operands_.push_back(Use(to, this));
     }
 
-    Instruction::Instruction(const std::string & name, Instruction * before)
+    Instruction::Instruction(const std::string & name)
+        : name_(name), parent_(nullptr)
     {
-        if (before->prev_ != nullptr)
-        {
-            before->prev_->next_ = this;
-            this->prev_ = before->prev_;
-        }
-        before->prev_ = this;
-        this->next_ = before;
-
-        name_ = name;
-        this->parent_ = before->parent_;
     }
 
-    Instruction::Instruction(const std::string & name, BasicBlock * end)
+    void Instruction::setParent(BasicBlock * parent)
     {
-        name_ = name;
-        this->parent_ = end;
-        end->push(this);
+        assert(parent != nullptr);
+        parent_ = parent;
+    }
+
+    void Instruction::eraseFromParent()
+    {
+        this->parent_->erase(this);
     }
 
     void Assign::init(Value * value)
@@ -165,5 +158,31 @@ namespace ir
         this->parent_->addSuccessor(block);
     }
 
+    void Phi::appendOperand(Value * value)
+    {
+        operands_.push_back(Use(value, this));
+    }
+
+    void Instruction::replaceBy(Value * val)
+    {
+        for (auto i : this->uses_)
+        {
+            for (auto iter = i.getUser()->op_begin();
+                iter != i.getUser()->op_end();
+                ++iter)
+            {
+                auto &use = *iter;
+                if (use.getValue() == val)
+                    use.replaceValue(val);
+            }
+        }
+        eraseFromParent();
+    }
+
+    void Store::init(Value * value)
+    {
+        op_reserve(1);
+        operands_.push_back(Use(value, this));
+    }
 }
 }

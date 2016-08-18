@@ -196,9 +196,11 @@ namespace script
     void DumpIR::dumpAssign(const Instruction &instr)
     {
         const Assign *assign = (Assign*)&instr;
-        const Constant *from = (Constant*)assign->op_begin()->getValue();
         file_ << "    " << assign->name() << " = ";
-        dumpValue(from);
+        if (assign->instance() == Instructions::IR_Value)
+            dumpValue((Constant*)assign->op_begin()->getValue());
+        else
+            dumpInstr(*(Instruction*)assign->op_begin()->getValue());
         file_ << endl;
     }
 

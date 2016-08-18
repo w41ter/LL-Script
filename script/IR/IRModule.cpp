@@ -5,28 +5,26 @@
 
 namespace script
 {
-    IRCode::IRCode() : context_(new IRContext()), table_(new SymbolTable())
+    IRCode::IRCode() : table_(new SymbolTable())
     {
 
     }
 
     IRCode::~IRCode()
     {
-        if (context_ != nullptr)
-            delete context_;
         if (table_ != nullptr)
             delete table_;
-    }
-
-    IRContext *IRCode::getContext()
-    {
-        return context_;
     }
 
     IRFunction::IRFunction(std::string name)
         : name_(name)
     {
         
+    }
+
+    std::string & IRFunction::getName()
+    {
+        return name_;
     }
 
     void IRFunction::setParams(std::vector<std::pair<std::string, Token>> &params)

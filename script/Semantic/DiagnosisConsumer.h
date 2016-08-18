@@ -15,6 +15,15 @@ namespace script
         void show();
         int errors() const { return errors_; }
         int warnings() const { return warnings_; }
+
+        // helper
+        void undefineID(std::string &name, TokenCoord coord);
+        void unexceptedToken(unsigned token, TokenCoord coord);
+        void outOfScopeBreakOrContinue(TokenCoord coord);
+        void unknowTableDecl(TokenCoord coord);
+        void indexLessThanZero(TokenCoord coord);
+        void redefineAs(std::string &name, TokenCoord coord);
+        void except(unsigned tok1, unsigned tok2, TokenCoord coord);
     private:
         int errors_;
         int warnings_;

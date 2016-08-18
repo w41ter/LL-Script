@@ -3,46 +3,46 @@ keyword_constant:
     true
     | false
     | null
-    
-factor:
+
+variable:
+    ID 
+    | "(" expression ")"
+    | lambda_decl
+
+variable_suffix:
+    variable { ( "[" expression "]" | "(" expression_list ")" | "." ID )}
+
+value:
     INT_CONST
     | CHAR_CONST
     | STRING_CONST
     | keyword_constant
-    | ID 
-    | "(" expression ")"
-    | "[" expression_list "]"
-    | function_decl
+    | table_decl
+    | variable_suffix
 
-positive_factor:
-    factor { ( [ "[" expression "]" ] | [ "(" expression_list ")" ] ) }
-    
-not_factor:
-    [ "!" ] positive_factor
+not_expr:
+    [ "!" ] value
 
-term:
-    [ "-" ] not_factor
+neg_expr:
+    [ "-" ] not_expr
 
-additive_expression:
-    term { ( "*" | "/" ) term }
+mul_and_div_expr:
+    neg_expr { ( "*" | "/" ) neg_expr }
 
-relational_expression:
-    additive_expression { ( "+" | "-" ) additive_expression }
+add_and_sub_expr:
+    mul_and_div_expr { ( "+" | "-" ) mul_and_div_expr }
 
-and_expression:
-    relational_expression [ ( "<" | ">" | ">=" | "<=" | "==" | "!=" ) relational_expression ]
+real_expr:
+    add_and_sub_expr [add_and_sub_expr ]
 
-or_expression:
-    and_expression { "&&" and_expression } 
+and_expr:
+    real_expr {  ( "<" | ">" | ">=" | "<=" | "==" | "!=" )  real_expr } 
+
+or_expr:
+    and_expr { "&" and_expr } 
 
 expression:
-    or_expression { "||" or_expression } 
-
-assign_expression:
-    expression { "=" expression }
-
-var_decl:
-    "let" ID "=" assign_expression ";" 
+    or_expr { "|" or_expr }
 
 expression_list:
     expression { "," expression }
@@ -54,8 +54,8 @@ statement:
     | "return" [ assign_expression ] ";"
     | "break" ";"
     | "continue" ";"
-    | assign_expression ";"
-    | var_decl
+    | expression ";"
+    | decl
 
 block:
     "{" { statement } "}"
@@ -66,9 +66,20 @@ param_list:
 function_decl:
     "function" "(" [ param_list ] ")" block
 
+variable_decl:
+    define_decl
+    | let_decl
+
 define_decl:
     "define" ID "=" expression 
     
+let_decl:
+    "let" ID "=" expression
+
+decl:
+    variable_decl
+    | function_decl
+
 program: 
-    { ( define_decl | statement ) }
+    { ( decl | expression ) }
 ```
