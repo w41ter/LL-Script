@@ -24,29 +24,27 @@ namespace ir
         DumpIR(std::string &filename);
         ~DumpIR();
 
-        void dump(const IRModule *module);
-        void dump(const IRCode *code);
-        void dump(const IRFunction *function);
+        void dump(IRModule *module);
+        void dump(IRCode *code);
+        void dump(IRFunction *function);
         
     protected:
-        void dumpBlock(const BasicBlock &block);
-        void dumpInstr(const Instruction &instr);
-        void dumpValue(const Constant *instr);
-        void dumpAlloca(const Instruction &instr);
-        void dumpLoad(const Instruction &instr);
-        void dumpStore(const Instruction &instr);
-        void dumpInvoke(const Instruction &instr);
-        void dumpBranch(const Instruction &instr);
-        void dumpGoto(const Instruction &instr);
-        void dumpAssign(const Instruction &instr);
-        void dumpNotOp(const Instruction &instr);
-        void dumpReturn(const Instruction &instr);
-        void dumpReturnVoid(const Instruction &instr);
-        void dumpBinaryOps(const Instruction &instr);
-        void dumpIndex(const Instruction &instr);
-        void dumpSetIndex(const Instruction &instr);
-        void dumpPhi(const Instruction &instr);
-        void dumpCatch(const Instruction &instr);
+        void dumpBlock(BasicBlock *block);
+        void dumpInstr(Instruction *instr);
+        void dumpValue(Constant *instr);
+        void dumpAlloca(Instruction *instr);
+        void dumpInvoke(Instruction *instr);
+        void dumpBranch(Instruction *instr);
+        void dumpGoto(Instruction *instr);
+        void dumpAssign(Instruction *instr);
+        void dumpNotOp(Instruction *instr);
+        void dumpReturn(Instruction *instr);
+        void dumpReturnVoid(Instruction *instr);
+        void dumpBinaryOps(Instruction *instr);
+        void dumpIndex(Instruction *instr);
+        void dumpSetIndex(Instruction *instr);
+        void dumpPhi(Instruction *instr);
+        void dumpStore(Instruction *instr);
 
     protected:
         std::string filename_;
