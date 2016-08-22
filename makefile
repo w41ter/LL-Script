@@ -1,5 +1,5 @@
-cc = clang-3.8
-cxx = clang++-3.8
+cc = gcc
+cxx = g++
 cflags = -std=c11
 cxxflags = -std=c++11
 
@@ -15,12 +15,9 @@ objects_c = $(files_c:%.c=$(dir_target)/%.o)
 objects_cxx = $(files_cxx:%.cpp=$(dir_target)/%.o)
 
 all : $(dir_target)/main
-	@echo $(src_cxx)
-	@echo $(files_cxx)
-	@echo $(objects_cxx)
 
 $(dir_target)/main : $(objects_c) $(objects_cxx)
-	$(cc) -o $@ $^
+	$(cxx) -o $@ $^
 
 $(dir_target)/%.o : $(dir_src)/%.c
 	$(cc) $(cflags) -c $^ -o $@
