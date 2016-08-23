@@ -6,7 +6,8 @@
 #include <set>
 #include <map>
 #include <stack>
-
+#include <unordered_set>
+#include <unordered_map>
 #include "lexer.h"
 #include "Instruction.h"
 
@@ -15,6 +16,7 @@ namespace script
     class CFG;
     class IRContext;
     class SymbolTable;
+    class IRFunction;
     class IRModule;
 
     enum KeywordsIDs 
@@ -50,6 +52,7 @@ namespace script
         void defineDecl();
         void letDecl();
         void functionDecl();
+        void functionBody(IRFunction *function);
 
         void tableIdent(Value *table);
         void tableOthers(Value *table);
@@ -57,7 +60,8 @@ namespace script
         Value *lambdaDecl();
         Value *keywordConstant();
 
-        Value *expression();
+        Value *assignExpr();
+        Value *rightHandExpr();
         Value *orExpr();
         Value *andExpr();
         Value *relationalExpr();
@@ -71,6 +75,7 @@ namespace script
 
         std::string LHS(std::list<Value*> &lhs);
 
+        void expression();
         void block();
         void statement();
         void ifStat();
@@ -79,7 +84,10 @@ namespace script
         void continueStat();
         void returnStat();
 
-        std::vector<std::pair<std::string, Token>> readParams();
+        typedef std::vector<std::string> Strings;
+        Value *createClosureForFunction(const std::string &name);
+        Strings readParams();
+        void getFunctionPrototype(Strings &prototype, const Strings &params);
 
         void advance();
         void match(unsigned tok);
@@ -87,7 +95,27 @@ namespace script
 
         bool isRelational(unsigned tok);
 
+        struct FunctionScope {
+            enum { None, Define, Let };
+            typedef std::unordered_map<std::string, unsigned> Symbols;
+            Symbols symbolTable;
+            Symbols upperTable;
+            std::unordered_set<std::string> captures;
+        };
+
+        typedef std::list<FunctionScope>::reverse_iterator scope_iterator;
         bool tryToCatchID(std::string &name);
+        bool tryToCatchID(scope_iterator iter, std::string &name);
+
+        void pushFunctionScope();
+        void popFunctionScope();
+        void defineIntoScope(const std::string &str, unsigned type);
+        void insertIntoScope(const std::string &str, unsigned type);
+        bool isDefineInScope(const std::string &str);
+        bool isExistsInScope(const std::string &str);
+
+        void clear();
+
     private:
         Lexer &lexer_;
         Token token_;
@@ -96,13 +124,14 @@ namespace script
         DiagnosisConsumer &diag_;
 
         BasicBlock *block_ = nullptr;
-        SymbolTable *table_ = nullptr;
         IRContext *context_ = nullptr;
         CFG *cfg_ = nullptr;
 
         // Stack for break / continue.
         std::stack<BasicBlock*> breaks_;
         std::stack<BasicBlock*> continues_;
+
+        std::list<FunctionScope> functionStack;
     };
 }
 

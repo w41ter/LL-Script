@@ -116,7 +116,7 @@ namespace script
         Token getToken();
         TokenCoord getCoord();
 
-        void setProgram(std::string &file);
+        void setProgram(const std::string &file);
         Token lookAhead(unsigned num);
         void registerKeyword(const std::string &str, unsigned tok);
 

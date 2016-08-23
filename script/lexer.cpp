@@ -1,6 +1,6 @@
 ﻿#include "lexer.h"
 
-#include "../Semantic/DiagnosisConsumer.h"
+#include "DiagnosisConsumer.h"
 #include <iostream>
 #include <cctype>
 
@@ -270,7 +270,7 @@ namespace script
         return previousCoord_;
     }
 
-    void Lexer::setProgram(std::string & file)
+    void Lexer::setProgram(const std::string & file)
     {
         if (file_)
             file_.close();

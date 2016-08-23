@@ -7,7 +7,6 @@
 #include "Value.h"
 #include "IRContext.h"
 #include "IRModule.h"
-#include "SymbolTable.h"
 #include "Instruction.h"
 #include "Diagnosis.h"
 #include "DiagnosisConsumer.h"
@@ -19,7 +18,6 @@ using std::vector;
 
 namespace script
 {
-
 namespace
 {
     std::string getTmpName(std::string name = "Tmp_")
@@ -49,51 +47,37 @@ namespace
         case TK_EqualThan:
             return BinaryOperator::Equal;
         default:
-            break;
-        }
-    }
-
-    void LoadParamsIntoTable(
-        SymbolTable *table, 
-        IRContext *context,
-        BasicBlock *allocBlock,
-        std::vector<std::pair<std::string, Token>> &params)
-    {
-        for (auto &i : params)
-        {
-            Symbol symbol;
-            symbol.type_ = Symbol::Let;
-            symbol.tok_ = i.second;
-            table->insert(i.first, symbol);
+            assert(0);
+            return 0;
         }
     }
 }
 
+    bool Parser::tryToCatchID(scope_iterator iter, std::string &name)
+    {
+        if (functionStack.rend() == iter) {
+            return false;
+        }
+        if (iter->symbolTable.count(name)) {
+            return true;
+        }
+        // insert into symbol table and capture it.
+        iter->captures.insert(name);
+        iter->symbolTable.insert(std::pair<std::string, 
+            unsigned>{name, FunctionScope::Let});
+        return tryToCatchID(++iter, name);
+    }
+
     bool Parser::tryToCatchID(std::string &name)
     {
-        SymbolTable *table = table_;
-        Symbol symbol;
-        if (table_->find(name, symbol) != Symbol::None)
+        if (isExistsInScope(name))
             return true;
-        table = table->getParent();
-        while (table != nullptr)
-        {
-            unsigned kind = table->find(name, symbol);
-            if (kind != Symbol::None)
-            {
-                table->setCatched(name);
-                symbol.param_ = false;
-                symbol.beCaught_ = false;
-                symbol.caught_ = true;
-                symbol.type_ = kind;
-                table_->insert(name, symbol);
-                return true;
-            }
-            table = table->getParent();
+        
+        if (!tryToCatchID(functionStack.rbegin(), name)) {
+            diag_.undefineID(name, lexer_.getCoord());
+            return false;
         }
-
-        diag_.undefineID(name, lexer_.getCoord());
-        return false;
+        return true;
     }
 
     bool Parser::isRelational(unsigned tok)
@@ -129,25 +113,23 @@ namespace
     std::string Parser::LHS(std::list<Value*> &lhs)
     {
         string name = exceptIdentifier();
-        Value *val = nullptr;
+        tryToCatchID(name);
+        Value *val = cfg_->readVariableDef(name, block_);
         while (true)
         {
             switch (token_.kind_)
             {
-            case TK_LCurlyBrace:
+            case TK_LParen:
             {
-                if (val == nullptr)
-                    val = cfg_->readVariableDef(name, block_);
-                
                 advance();
                 std::vector<Value*> params;
                 if (token_.kind_ != TK_RParen)
                 {
-                    params.push_back(orExpr());
+                    params.push_back(rightHandExpr());
                     while (token_.kind_ == TK_Comma)
                     {
                         advance();
-                        params.push_back(orExpr());
+                        params.push_back(rightHandExpr());
                     }
                 }
 
@@ -157,13 +139,10 @@ namespace
                 lhs.push_back(val);
                 break;
             }
-            case TK_LSquareBrace:
+            case TK_RParen:
             {
-                if (val == nullptr)
-                    val = cfg_->readVariableDef(name, block_);
-
                 advance();
-                Value *expr = orExpr();
+                Value *expr = rightHandExpr();
                 match(TK_RSquareBrace);
                 // merge Index and Assign to SetIndex
                 val = context_->create<Index>(
@@ -173,9 +152,6 @@ namespace
             }
             case TK_Period:
             {
-                if (val == nullptr)
-                    val = cfg_->readVariableDef(name, block_);
-
                 advance();
                 string name = exceptIdentifier();
                 Value *rhs = context_->create<Constant>(name);
@@ -198,15 +174,14 @@ namespace
         case TK_Identifier:
         {  
             string name = token_.value_;
-            advance();
-
             tryToCatchID(name);
+            advance();
             return cfg_->readVariableDef(name, block_);
         }
         case TK_LParen:
         {
             advance();
-            Value * result = orExpr();
+            Value * result = rightHandExpr();
             match(TK_RParen);
             return result;
         }
@@ -216,7 +191,8 @@ namespace
         }
         default:
             diag_.unexceptedToken(token_.kind_, lexer_.getCoord());
-            break;
+            advance();
+            return nullptr;
         }
     }
 
@@ -230,10 +206,11 @@ namespace
             case TK_LSquareBrace:
             {
                 advance();
-                Value *expr = orExpr();
+                Value *expr = rightHandExpr();
                 match(TK_RSquareBrace);
                 result = context_->createAtEnd<Index>(
                     block_, result, expr, getTmpName());
+				break;
             }
             case TK_LParen:
             {
@@ -241,17 +218,18 @@ namespace
                 std::vector<Value*> params;
                 if (token_.kind_ != TK_RParen)
                 {
-                    params.push_back(orExpr());
+                    params.push_back(rightHandExpr());
                     while (token_.kind_ == TK_Comma)
                     {
                         advance();
-                        params.push_back(orExpr());
+                        params.push_back(rightHandExpr());
                     }
                 }
 
                 match(TK_RParen);
                 result = context_->createAtEnd<Invoke>(
                     block_, result, params, getTmpName());
+				break;
             }
             case TK_Period:
             {
@@ -261,6 +239,7 @@ namespace
                 rhs = context_->createAtEnd<Assign>(block_, rhs, getTmpName());
                 result = context_->createAtEnd<Index>(
                     block_, result, rhs, getTmpName());
+				break;
             }
             default:
                 goto END;
@@ -459,7 +438,12 @@ namespace
         return context_->createAtEnd<Phi>(block_, getTmpName(), params);
     }
 
-    Value *Parser::expression()
+    Value *Parser::rightHandExpr() 
+    {
+        return orExpr();
+    }
+
+    Value *Parser::assignExpr()
     {
         auto coord = lexer_.getCoord();
         std::list<Value*> lhs;
@@ -469,7 +453,7 @@ namespace
         if (token_.kind_ == TK_Assign)
         {
             advance();
-            Value *rhs = orExpr();
+            Value *rhs = rightHandExpr();
             
             if (lhs.size() != 0)
             {
@@ -504,6 +488,12 @@ namespace
             return lhs.back();
         else
             return cfg_->readVariableDef(name, block_);
+    }
+
+    void Parser::expression()
+    {
+        assignExpr();
+        match(TK_Semicolon);
     }
 
     void Parser::breakStat()
@@ -547,7 +537,7 @@ namespace
         advance();
         if (token_.kind_ != TK_Semicolon)
         {
-            Value *expr = orExpr();
+            Value *expr = rightHandExpr();
             context_->createAtEnd<Return>(block_, expr);
         }
         else
@@ -574,7 +564,7 @@ namespace
 
         block_ = condBlock;
         match(TK_LParen);
-        Value *expr = orExpr();
+        Value *expr = rightHandExpr();
         match(TK_RParen);
         context_->createBranchAtEnd(block_, expr, thenBlock, endBlock);
 
@@ -598,7 +588,7 @@ namespace
     {
         advance();
         match(TK_LParen);
-        Value *expr = orExpr();
+        Value *expr = rightHandExpr();
         match(TK_RParen);
 
         cfg_->sealBlock(block_);
@@ -643,8 +633,6 @@ namespace
     {
         switch (token_.kind_)
         {
-        case TK_LCurlyBrace:
-            return block();
         case TK_If:
             return ifStat();
         case TK_While:
@@ -663,7 +651,6 @@ namespace
             return statement();
         default:
             expression();
-            match(TK_Semicolon);
             return ;
         }
     }
@@ -681,74 +668,52 @@ namespace
     //
     // "("[param_list] ")"
     // 
-    std::vector<std::pair<string, Token>> Parser::readParams()
+    Parser::Strings Parser::readParams()
     {
         match(TK_LParen);
 
-        std::vector<std::pair<string, Token>> params;
+        Strings params;
         if (token_.kind_ == TK_Identifier)
         {
-            params.push_back(std::pair<string, Token>(token_.value_, token_));
+            params.push_back(token_.value_);
             advance();
             while (token_.kind_ == TK_Comma)
             {
                 advance();
-                Token token = token_;
-                params.push_back(std::pair<string, Token>(exceptIdentifier(), token));
+                params.push_back(exceptIdentifier());
             }
         }
 
         match(TK_RParen);
 
-        return std::move(params);
+        return params;
     }
 
     Value *Parser::lambdaDecl()
     {
         match(TK_Lambda);
         std::string name = getTmpName("lambda_");
-        Symbol symbol;
-        symbol.type_ = Symbol::Define;
-        symbol.beCaught_ = false;
-        symbol.caught_ = false;
-        symbol.tok_ = token_;
-        symbol.param_ = false;
-        table_->insert(name, symbol);
+        defineIntoScope(name, FunctionScope::Define);
 
+        // create function and generate parallel invoke.
         IRFunction *function = module_.createFunction(name);
-        Value *funcval = context_->create<Function>(name);
-        Value *invoke = context_->createAtEnd<Invoke>(
-            block_, funcval, std::vector<Value*>(), name);
-        cfg_->saveVariableDef(name, block_, invoke);
+        pushFunctionScope();
 
-        auto params = std::move(readParams());
-        function->setParams(params);
+        // match params
+        auto params = readParams();
+        for (auto &str : params) 
+            defineIntoScope(str, FunctionScope::Let);
+        
+        functionBody(function);
 
-        // Saving some old containter.
-        // Creating new containter.
-        SymbolTable *table = table_;
-        BasicBlock *oldBlock = block_;
-        CFG *cfg = cfg_;
-        IRContext *context = context_;
+        // save current captures.
+        std::vector<std::string> prototype;
+        getFunctionPrototype(prototype, params);
+        function->setParams(std::move(prototype));
 
-        table_ = function->getTable();
-        context_ = function->getContext();
-        cfg_ = function;
-        table_->bindParent(table);
-
-        BasicBlock *functionEntry = block_ = cfg_->createBasicBlock(name + "_entry");
-
-        LoadParamsIntoTable(table_, function->getContext(), block_, params);
-        function->setEntry(block_);
-        block();
-        function->setEnd(block_);
-
-        cfg_->sealOthersBlock();
-
-        block_ = oldBlock;
-        cfg_ = cfg;
-        context_ = context;
-        table_ = table;
+        // create closure for function.
+        Value *invoke = createClosureForFunction(name);
+        popFunctionScope();
         return invoke;
     }
 
@@ -782,7 +747,7 @@ namespace
         if (token_.kind_ == TK_Assign)
         {
             advance();
-            Value *expr = orExpr();
+            Value *expr = rightHandExpr();
             if (cons->get_subclass_id() == Value::ConstantVal)
             {
                 Constant *innerCons =
@@ -812,7 +777,7 @@ namespace
         {
             // name = lambda ... == "name" = lambda
             advance();
-            Value *expr = orExpr();
+            Value *expr = rightHandExpr();
             Value *str = context_->create<Constant>(name);
             str = context_->createAtEnd<Assign>(block_, str, getTmpName());
             context_->createAtEnd<SetIndex>(block_, table, str, expr);
@@ -846,49 +811,18 @@ namespace
         return table;
     }
 
-    void Parser::functionDecl()
+    void Parser::functionBody(IRFunction *function)
     {
-        match(TK_Function);
-        string name = exceptIdentifier();
-
-        Symbol symbol;
-        if (table_->find(name, symbol) != Symbol::None)
-        {
-            diag_.redefineAs(std::string("function"), lexer_.getCoord());
-        }
-        symbol.beCaught_ = false;
-        symbol.caught_ = false;
-        symbol.param_ = false;
-        symbol.tok_ = token_;
-        symbol.type_ = Symbol::Define;
-        table_->insert(name, symbol);
-
-        // create function and generate parallel invoke.
-        IRFunction *function = module_.createFunction(name);
-        Value *funcval = context_->create<Function>(name);
-        Value *invoke = context_->createAtEnd<Invoke>(
-            block_, funcval, std::vector<Value*>(), name);
-        cfg_->saveVariableDef(name, block_, invoke);
-
-        // match params
-        auto params = std::move(readParams());
-        function->setParams(params);
-
         // Saving some old containter.
-        // Creating new containter.
-        SymbolTable *table = table_;
         BasicBlock *oldBlock = block_;
         CFG *cfg = cfg_;
         IRContext *context = context_;
 
-        table_ = function->getTable();
+        // Creating new containter.
         context_ = function->getContext();
         cfg_ = function;
-        table_->bindParent(table);
+        block_ = cfg_->createBasicBlock(function->getName() + "_entry");
 
-        BasicBlock *save = block_ = cfg_->createBasicBlock(name + "_entry");
-
-        LoadParamsIntoTable(table_, function->getContext(), block_, params);
         function->setEntry(block_);
         block();
         function->setEnd(block_);
@@ -898,27 +832,78 @@ namespace
         block_ = oldBlock;
         cfg_ = cfg;
         context_ = context;
-        table_ = table;
+    }
+
+    void Parser::getFunctionPrototype(
+        Strings &prototype, const Strings &params)
+    {
+        auto &captures = functionStack.back().captures;
+        prototype.clear();
+        prototype.reserve(captures.size() + params.size());
+        for (auto &str : captures) {
+            prototype.push_back(str);
+        }
+        
+        for (auto &str : params) 
+            prototype.push_back(str);
+    }
+
+    Value *Parser::createClosureForFunction(const std::string &name)
+    {
+        auto &captures = functionStack.back().captures;
+        std::vector<Value*> paramsVals;
+        for (auto &str : captures) {
+            paramsVals.push_back(cfg_->readVariableDef(str, block_));
+        }
+        
+        Value *funcval = context_->create<Function>(name);
+        Value *invoke = context_->createAtEnd<Invoke>(
+            block_, funcval, paramsVals, name);
+        cfg_->saveVariableDef(name, block_, invoke);
+        return invoke;
+    }
+
+    void Parser::functionDecl()
+    {
+        match(TK_Function);
+        string name = exceptIdentifier();
+        if (isExistsInScope(name)) {
+            diag_.redefineAs(std::string("function"), lexer_.getCoord());
+        }
+        defineIntoScope(name, FunctionScope::Define);
+
+        // create function and generate parallel invoke.
+        IRFunction *function = module_.createFunction(name);
+        pushFunctionScope();
+
+        // match params
+        auto params = readParams();
+        for (auto &str : params) 
+            defineIntoScope(str, FunctionScope::Let);
+        
+        functionBody(function);
+
+        // save current captures.
+        std::vector<std::string> prototype;
+        getFunctionPrototype(prototype, params);
+        function->setParams(std::move(prototype));
+
+        // create closure for function.
+        createClosureForFunction(name);
+        popFunctionScope();
     }
 
     void Parser::letDecl()
     {
         match(TK_Let);
         string name = exceptIdentifier();
-        Symbol symbol;
-        if (table_->find(name, symbol) != Symbol::None)
-        {
+        if (isExistsInScope(name)) {
             diag_.redefineAs(std::string("binding"), lexer_.getCoord());
         }
-        symbol.beCaught_ = false;
-        symbol.caught_ = false;
-        symbol.param_ = false;
-        symbol.tok_ = token_;
-        symbol.type_ = Symbol::Let;
-        table_->insert(name, symbol);
+        defineIntoScope(name, FunctionScope::Let);
         match(TK_Assign);
 
-        Value *expr = orExpr();
+        Value *expr = rightHandExpr();
         Value *let = context_->createAtEnd<Store>(
             block_, expr, cfg_->phiName(name));
         cfg_->saveVariableDef(name, block_, let);
@@ -929,22 +914,15 @@ namespace
     {
         match(TK_Define);
         string name = exceptIdentifier();
-        Symbol symbol;
-        if (table_->find(name, symbol) != Symbol::None)
-        {
-            diag_.redefineAs(std::string("constant"), lexer_.getCoord());
+        if (isExistsInScope(name)) {
+            diag_.redefineAs(std::string("binding"), lexer_.getCoord());
         }
-        symbol.beCaught_ = false;
-        symbol.caught_ = false;
-        symbol.param_ = false;
-        symbol.tok_ = token_;
-        symbol.type_ = Symbol::Define;
-        table_->insert(name, symbol);
+        defineIntoScope(name, FunctionScope::Define);
 
         match(TK_Assign);
 
         // match expression and save variable def.
-        Value *expr = orExpr();
+        Value *expr = rightHandExpr();
         Value *define = context_->createAtEnd<Store>(
             block_, expr, cfg_->phiName(name));
         cfg_->saveVariableDef(name, block_, define);
@@ -966,10 +944,10 @@ namespace
 
     void Parser::parse()
     {
+        clear();
         BasicBlock *entry = module_.createBasicBlock("entry");
 
         block_ = entry;
-        table_ = module_.getTable();
         context_ = module_.getContext();
         cfg_ = &module_;
 
@@ -981,7 +959,6 @@ namespace
             if (!topLevelDecl())
             {
                 expression();
-                match(TK_Semicolon);
             }
         }
 
@@ -1019,5 +996,59 @@ namespace
         string value = std::move(token_.value_);
         advance();
         return std::move(value);
+    }
+
+    void Parser::pushFunctionScope() 
+    {
+        functionStack.push_back(FunctionScope{});
+    }
+
+    void Parser::popFunctionScope() 
+    {
+        functionStack.pop_back();
+    }
+
+    void Parser::defineIntoScope(const std::string &str, unsigned type) 
+    {
+        FunctionScope &func = functionStack.back();
+        func.symbolTable.insert(std::pair<std::string, unsigned>{str, type});
+    }
+
+    void Parser::insertIntoScope(const std::string &str, unsigned type)
+    {
+        FunctionScope &func = functionStack.back();
+        func.upperTable.insert(std::pair<std::string, unsigned>{str, type});
+    }
+
+    bool Parser::isDefineInScope(const std::string &str)
+    {
+        FunctionScope &func = functionStack.back();
+        return func.symbolTable.count(str);
+    }
+
+    bool Parser::isExistsInScope(const std::string &str) 
+    {
+        return isDefineInScope(str);
+    }
+
+    void Parser::clear() 
+    {
+        block_ = nullptr;
+        context_ = nullptr;
+        cfg_ = nullptr;
+
+#define clear_stack(stack)          \
+    do {                            \
+        while (!(stack).empty()) {  \
+            (stack).pop();          \
+        }                           \
+    } while (0)
+        clear_stack(breaks_);
+        clear_stack(continues_);
+#undef clear_stack    
+
+        functionStack.clear();
+
+        pushFunctionScope();
     }
 }
