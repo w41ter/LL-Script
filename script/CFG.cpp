@@ -1,5 +1,6 @@
-﻿#include "CFG.h"
+#include "CFG.h"
 
+#include "Value.h"
 #include "Instruction.h"
 #include "IRContext.h"
 
@@ -10,13 +11,20 @@
 #include <cassert>
 #include <sstream>
 
-using namespace script::ir;
-
 namespace script
 {
+    BasicBlock::~BasicBlock()
+    {
+        for (auto *instr : instrs_)
+        {
+            delete instr;
+        }
+    }
+
     BasicBlock * CFG::createBasicBlock(const std::string &name)
     {
-        BasicBlock *temp = new BasicBlock(numBlockIDs_++, name);
+        numBlockIDs_++;
+        BasicBlock *temp = new BasicBlock(name);
         blocks_.push_back(temp);
         return temp;
     }
@@ -113,10 +121,10 @@ namespace script
         return val;
     }
 
-    ir::Value * CFG::addPhiOperands(std::string name, ir::Phi * phi)
+    Value * CFG::addPhiOperands(std::string name, Phi * phi)
     {
         // Determine operands from predecessors
-        BasicBlock *phiParent = phi->getParent();
+        BasicBlock *phiParent = phi->get_parent();
         for (auto i = phiParent->precursor_begin(),
             e = phiParent->precursor_end();
             i != e; ++i)
@@ -126,12 +134,12 @@ namespace script
         return tryRemoveTrivialPhi(phi);
     }
 
-    ir::Value * CFG::tryRemoveTrivialPhi(ir::Phi * phi)
+    Value * CFG::tryRemoveTrivialPhi(Phi * phi)
     {
         Value *same = nullptr;
         for (auto beg = phi->op_begin(); beg != phi->op_end(); beg++)
         {
-            Value *op = beg->getValue();
+            Value *op = beg->get_value();
             if (op == same || op == phi)
                 // Unique value or self−reference
                 continue;
@@ -141,21 +149,18 @@ namespace script
             same = op;
         }
         if (same == nullptr)
-            same = context_->create<Undef>(phi->name());
+            same = context_->create<Undef>();
         // try all users except the phi itself.
         // Try to recursively remove all phi users, 
         // which might have become trivial
         for (auto iter = phi->use_begin(); iter != phi->use_end(); ++iter)
-        {
-            if (iter->getUser() != phi)
-            {
-                Value *user = iter->getUser();
-                if (user->instance() == Instructions::IR_Phi)
-                    tryRemoveTrivialPhi((Phi*)user);
-            }
+        {   
+            Instruction *instr = (Instruction*)(*iter)->get_user();
+            if (instr != phi && instr->is_phi_node())
+                tryRemoveTrivialPhi((Phi*)instr);
         }
         // Reroute all uses of phi to same and remove phi
-        phi->replaceBy(same);
+        phi->replace_with((Instruction*)same);
         return same;
     }
 
@@ -205,12 +210,16 @@ namespace script
     {
         assert(instr != nullptr);
         instrs_.push_back(instr);
+        if (instr->is_phi_node()) 
+            phiNodes_.push_back((Phi*)instr);
     }
 
     void BasicBlock::push_front(Instruction * instr)
     {
         assert(instr != nullptr);
         instrs_.push_front(instr);
+        if (instr->is_phi_node()) 
+            phiNodes_.push_back((Phi*)instr);
     }
 
     void BasicBlock::pop_back()
@@ -223,9 +232,32 @@ namespace script
         instrs_.pop_front();
     }
 
+    bool BasicBlock::contains(Instruction *instr)
+    {
+        for (auto *I : instrs_)
+            if (I == instr)
+                return true;
+        return false;
+    }
+
     void BasicBlock::erase(Instruction * instr)
     {
         instrs_.remove(instr);
+        delete instr;
+    }
+
+    void BasicBlock::remove(Instruction * instr)
+    {
+        instrs_.remove(instr);
+    }
+
+    void BasicBlock::replaceInstrWith(Instruction *from, Instruction *to)
+    {
+        for (auto *& elem : instrs_)
+        {
+            if (elem == from)
+                elem = to;
+        }
     }
 }
 

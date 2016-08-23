@@ -8,7 +8,7 @@
 #include <stack>
 
 #include "lexer.h"
-#include "../IR/Instruction.h"
+#include "Instruction.h"
 
 namespace script
 {
@@ -38,7 +38,6 @@ namespace script
 
     class Parser
     {
-        using Value = ir::Value;
     public:
         Parser(Lexer &lexer, IRModule &context, DiagnosisConsumer &diag);
 
@@ -96,13 +95,12 @@ namespace script
         IRModule &module_;
         DiagnosisConsumer &diag_;
 
-        // Parse 时需要用的全局变量
         BasicBlock *block_ = nullptr;
         SymbolTable *table_ = nullptr;
         IRContext *context_ = nullptr;
         CFG *cfg_ = nullptr;
 
-        // 保存 Stack for break / continue.
+        // Stack for break / continue.
         std::stack<BasicBlock*> breaks_;
         std::stack<BasicBlock*> continues_;
     };

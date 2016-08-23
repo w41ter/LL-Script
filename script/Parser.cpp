@@ -3,15 +3,14 @@
 #include <iostream>
 #include <sstream>
 
-#include "../IR/CFG.h"
-#include "../IR/IRContext.h"
-#include "../IR/IRModule.h"
-#include "../IR/SymbolTable.h"
-#include "../IR/Instruction.h"
-#include "../Semantic/Diagnosis.h"
-#include "../Semantic/DiagnosisConsumer.h"
-
-using namespace script::ir;
+#include "CFG.h"
+#include "Value.h"
+#include "IRContext.h"
+#include "IRModule.h"
+#include "SymbolTable.h"
+#include "Instruction.h"
+#include "Diagnosis.h"
+#include "DiagnosisConsumer.h"
 
 using std::map;
 using std::set;
@@ -33,22 +32,22 @@ namespace
         return str;
     }
 
-    BinaryOps TranslateRelationalToBinaryOps(unsigned tok)
+    unsigned TranslateRelationalToBinaryOps(unsigned tok)
     {
         switch (tok)
         {
         case TK_Less:
-            return BinaryOps::BO_Less;
+            return BinaryOperator::Less;
         case TK_LessThan:
-            return BinaryOps::BO_NotGreat;
+            return BinaryOperator::NotGreat;
         case TK_Great:
-            return BinaryOps::BO_Great;
+            return BinaryOperator::Great;
         case TK_GreatThan:
-            return BinaryOps::BO_NotLess;
+            return BinaryOperator::NotLess;
         case TK_NotEqual:
-            return BinaryOps::BO_NotEqual;
+            return BinaryOperator::NotEqual;
         case TK_EqualThan:
-            return BinaryOps::BO_Equal;
+            return BinaryOperator::Equal;
         default:
             break;
         }
@@ -166,7 +165,7 @@ namespace
                 advance();
                 Value *expr = orExpr();
                 match(TK_RSquareBrace);
-                // 默认生成 Index, 在 Assign 部分处理成为 SetIndex
+                // merge Index and Assign to SetIndex
                 val = context_->create<Index>(
                     val, expr, getTmpName());
                 lhs.push_back(val);
@@ -350,7 +349,7 @@ namespace
         advance();
         Value *zero = context_->create<Constant>(0);
         return context_->createAtEnd<BinaryOperator>(
-            block_, BinaryOps::BO_Sub, zero, notExpr(), getTmpName());
+            block_, BinaryOperator::Sub, zero, notExpr(), getTmpName());
     }
 
     Value *Parser::mulAndDivExpr()
@@ -359,10 +358,10 @@ namespace
         while (token_.kind_ == TK_Mul || token_.kind_ == TK_Div)
         {
             auto op = token_.kind_ == TK_Mul 
-                ? BinaryOps::BO_Mul : BinaryOps::BO_Div;
+                ? BinaryOperator::Mul : BinaryOperator::Div;
             advance();
             result = context_->createAtEnd<BinaryOperator>(
-                block_, BinaryOps(op), result, negativeExpr(), getTmpName());
+                block_, op, result, negativeExpr(), getTmpName());
         }
         return result;
     }
@@ -373,10 +372,10 @@ namespace
         while (token_.kind_ == TK_Plus || token_.kind_ == TK_Sub)
         {
             auto op = token_.kind_ == TK_Plus
-                ? BinaryOps::BO_Add : BinaryOps::BO_Sub;
+                ? BinaryOperator::Add : BinaryOperator::Sub;
             advance();
             result = context_->createAtEnd<BinaryOperator>(
-                block_, BinaryOps(op), result, mulAndDivExpr(), getTmpName());
+                block_, op, result, mulAndDivExpr(), getTmpName());
         }
         return result;
     }
@@ -389,7 +388,7 @@ namespace
             auto op = TranslateRelationalToBinaryOps(token_.kind_);
             advance();
             result = context_->createAtEnd<BinaryOperator>(
-                block_, BinaryOps(op), result, addAndSubExpr(), getTmpName());
+                block_, op, result, addAndSubExpr(), getTmpName());
         }
         return result;
     }
@@ -475,12 +474,16 @@ namespace
             if (lhs.size() != 0)
             {
                 Value *lastL = lhs.back();
-                if (lastL->instance() == Instructions::IR_Index)
+                if (!lastL->is_value())
                 {
-                    Index *si = (Index*)lastL;
-                    lhs.pop_back();
-                    lhs.push_back(context_->create<SetIndex>(
-                        si->table(), si->index(), rhs));
+                    Instruction *instr = (Instruction*)lastL;
+                    if (instr->is_index())
+                    {
+                        Index *si = (Index*)lastL;
+                        lhs.pop_back();
+                        lhs.push_back(context_->create<SetIndex>(
+                            si->table(), si->index(), rhs));
+                    }
                 }
             }
             else 
@@ -494,7 +497,7 @@ namespace
             {
                 Instruction *instr = (Instruction*)i;
                 block_->push_back(instr);
-                instr->setParent(block_);
+                instr->set_parent(block_);
             }
         }
         if (lhs.size() > 0)
@@ -518,7 +521,6 @@ namespace
 
         cfg_->sealBlock(block_);
 
-        // 尽管后面部分为落空语句，但是仍然为他建立一个block
         block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
     }
 
@@ -537,7 +539,6 @@ namespace
         
         cfg_->sealBlock(block_);
 
-        // 尽管后面部分为落空语句，但是仍然为他建立一个block
         block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
     }
 
@@ -715,8 +716,9 @@ namespace
         table_->insert(name, symbol);
 
         IRFunction *function = module_.createFunction(name);
+        Value *funcval = context_->create<Function>(name);
         Value *invoke = context_->createAtEnd<Invoke>(
-            block_, name, std::vector<Value*>(), name);
+            block_, funcval, std::vector<Value*>(), name);
         cfg_->saveVariableDef(name, block_, invoke);
 
         auto params = std::move(readParams());
@@ -781,7 +783,7 @@ namespace
         {
             advance();
             Value *expr = orExpr();
-            if (cons->instance() == Instructions::IR_Constant)
+            if (cons->get_subclass_id() == Value::ConstantVal)
             {
                 Constant *innerCons =
                     static_cast<Constant*>(cons);
@@ -863,8 +865,9 @@ namespace
 
         // create function and generate parallel invoke.
         IRFunction *function = module_.createFunction(name);
+        Value *funcval = context_->create<Function>(name);
         Value *invoke = context_->createAtEnd<Invoke>(
-            block_, name, std::vector<Value*>(), name);
+            block_, funcval, std::vector<Value*>(), name);
         cfg_->saveVariableDef(name, block_, invoke);
 
         // match params

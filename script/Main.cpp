@@ -4,12 +4,12 @@
 #include <fstream>
 
 #include "driver.h"
-#include "Parser\lexer.h"
-#include "Parser\Parser.h"
-#include "Runtime\VM.h"
-#include "Runtime\opcode.h"
-#include "IR\IRModule.h"
-#include "IR\DumpIR.h"
+#include "lexer.h"
+#include "Parser.h"
+#include "IRModule.h"
+#include "DumpIR.h"
+#include "CodeGen.h"
+#include "OpcodeModule.h"
 #include "CompilerInstance.h"
 
 using namespace script;
@@ -52,6 +52,11 @@ int main(int argc, char* argv[])
         DumpIR dumpIR(filename += ".ir");
         dumpIR.dump(&module);
     }
+
+    OpcodeModule opcode;
+    CodeGen codegen(module);
+    codegen.genOpcode(opcode);
+
     // generate opcode
     //script::OpcodeContext opcode;
     //script::CodeGenerator codegen(opcode);

@@ -8,23 +8,18 @@
 
 namespace script
 {
-namespace ir
-{
     class Phi;
     class Value;
     class Instruction;
-}
-
     class IRContext;
     
-    // 一个基本块
     class BasicBlock
     {
-        using Instruction = ir::Instruction;
     public:
-        BasicBlock(int id, std::string name) 
-            : ID_(id), name_(name)
+        BasicBlock(std::string name) 
+            : ID_(-1), name_(name)
         {}
+        ~BasicBlock();
 
         void addPrecursor(BasicBlock *block);
         void addSuccessor(BasicBlock *block);
@@ -43,27 +38,42 @@ namespace ir
         typedef std::list<Instruction*>::iterator instr_iterator;
         instr_iterator instr_begin() { return instrs_.begin(); }
         instr_iterator instr_end() { return instrs_.end(); }
+        typedef std::list<Instruction*>::reverse_iterator instr_riterator;
+        instr_riterator instr_rbegin() { return instrs_.rbegin(); }
+        instr_riterator instr_rend() { return instrs_.rend(); }
         size_t numOfInstrs() const { return instrs_.size(); }
+
         void push_back(Instruction *instr);
         void push_front(Instruction *instr);
         void pop_back();
         void pop_front();
-        void erase(Instruction *instr);
 
+        bool contains(Instruction *instr);
+        void erase(Instruction *instr);
+        void remove(Instruction *instr);
+        void replaceInstrWith(Instruction *from, Instruction *to);
+        
+        void setID(unsigned ID) { ID_ = ID; }
         unsigned getID() const { return ID_; }
         const std::string &getName() const { return name_; }
+        
+        typedef std::list<Phi*>::iterator phi_iterator;
+        phi_iterator phi_begin() { return phiNodes_.begin(); }
+        phi_iterator phi_end() { return phiNodes_.end(); }
+        size_t phi_size() { return phiNodes_.size(); }
     protected:
+        // ID_ : use by liveIntervalAnalysis, default is -1.
         unsigned ID_;
         std::string name_;
+        std::list<Phi*> phiNodes_;
         std::list<Instruction*> instrs_;
-        std::vector<BasicBlock*> precursors_;   // 记录该基本块所有前驱
-        std::vector<BasicBlock*> successors_;  // 后继基本块
+        std::vector<BasicBlock*> precursors_;
+        std::vector<BasicBlock*> successors_; 
     };
 
     class CFG
     {
         friend class DumpIR;
-        using Value = ir::Value;
     public:
         CFG();
         ~CFG();
@@ -90,12 +100,12 @@ namespace ir
     protected:
         // SSA
         Value *readVariableRecurisive(std::string name, BasicBlock *block);
-        Value *addPhiOperands(std::string name, ir::Phi *phi);
-        Value *tryRemoveTrivialPhi(ir::Phi *phi);
+        Value *addPhiOperands(std::string name, Phi *phi);
+        Value *tryRemoveTrivialPhi(Phi *phi);
 
     protected:
         unsigned numBlockIDs_;
-        BasicBlock *start_; // 起始基本块
+        BasicBlock *start_; 
         BasicBlock *end_;
         std::list<BasicBlock*> blocks_;
 
