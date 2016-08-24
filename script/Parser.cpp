@@ -66,15 +66,16 @@ namespace
         iter->symbolTable.insert(std::pair<std::string, 
             unsigned>{name, FunctionScope::Let});
 		// save it to SSA form
-		Value *param = scope->context_->create<Param>(name);
-		scope->cfg_->saveVariableDef(
-			name, scope->cfg_->getEntryBlock(), param);
+		Value *param = iter->context_->create<Param>(name);
+		iter->cfg_->saveVariableDef(
+			name, iter->cfg_->getEntryBlock(), param);
         return tryToCatchID(++iter, name);
     }
 
     bool Parser::tryToCatchID(std::string &name)
     {
-        if (isExistsInScope(name))
+
+		if (isExistsInScope(name))
             return true;
         
         if (!tryToCatchID(functionStack.rbegin(), name)) {
