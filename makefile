@@ -1,5 +1,5 @@
-cc = gcc
-cxx = g++
+cc = clang-3.8
+cxx = clang++-3.8
 cflags = -std=c11
 cxxflags = -std=c++11
 

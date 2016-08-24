@@ -1,3 +1,6 @@
 .vscode
 target
 .vs
+LLScript.*
+Debug
+Release
