@@ -65,6 +65,10 @@ namespace
         iter->captures.insert(name);
         iter->symbolTable.insert(std::pair<std::string, 
             unsigned>{name, FunctionScope::Let});
+		// save it to SSA form
+		Value *param = scope->context_->create<Param>(name);
+		scope->cfg_->saveVariableDef(
+			name, scope->cfg_->getEntryBlock(), param);
         return tryToCatchID(++iter, name);
     }
 
@@ -114,7 +118,8 @@ namespace
     {
         string name = exceptIdentifier();
         tryToCatchID(name);
-        Value *val = cfg_->readVariableDef(name, block_);
+        Value *val = scope->cfg_->readVariableDef(
+			name, scope->block_);
         while (true)
         {
             switch (token_.kind_)
@@ -134,7 +139,7 @@ namespace
                 }
 
                 match(TK_RParen);
-                val = context_->create<Invoke>(
+                val = scope->context_->create<Invoke>(
                     val, params, getTmpName());
                 lhs.push_back(val);
                 break;
@@ -145,7 +150,7 @@ namespace
                 Value *expr = rightHandExpr();
                 match(TK_RSquareBrace);
                 // merge Index and Assign to SetIndex
-                val = context_->create<Index>(
+                val = scope->context_->create<Index>(
                     val, expr, getTmpName());
                 lhs.push_back(val);
                 break;
@@ -154,9 +159,9 @@ namespace
             {
                 advance();
                 string name = exceptIdentifier();
-                Value *rhs = context_->create<Constant>(name);
-                rhs = context_->create<Assign>(rhs, getTmpName());
-                val = context_->create<Index>(val, rhs, getTmpName());
+                Value *rhs = scope->context_->create<Constant>(name);
+                rhs = scope->context_->create<Assign>(rhs, getTmpName());
+                val = scope->context_->create<Index>(val, rhs, getTmpName());
                 lhs.push_back(val);
                 break;
             }
@@ -176,7 +181,8 @@ namespace
             string name = token_.value_;
             tryToCatchID(name);
             advance();
-            return cfg_->readVariableDef(name, block_);
+            return scope->cfg_->readVariableDef(
+				name, scope->block_);
         }
         case TK_LParen:
         {
@@ -208,8 +214,8 @@ namespace
                 advance();
                 Value *expr = rightHandExpr();
                 match(TK_RSquareBrace);
-                result = context_->createAtEnd<Index>(
-                    block_, result, expr, getTmpName());
+                result = scope->context_->createAtEnd<Index>(
+					scope->block_, result, expr, getTmpName());
 				break;
             }
             case TK_LParen:
@@ -227,18 +233,19 @@ namespace
                 }
 
                 match(TK_RParen);
-                result = context_->createAtEnd<Invoke>(
-                    block_, result, params, getTmpName());
+                result = scope->context_->createAtEnd<Invoke>(
+					scope->block_, result, params, getTmpName());
 				break;
             }
             case TK_Period:
             {
                 advance();
                 string name = exceptIdentifier();
-                Value *rhs = context_->create<Constant>(name);
-                rhs = context_->createAtEnd<Assign>(block_, rhs, getTmpName());
-                result = context_->createAtEnd<Index>(
-                    block_, result, rhs, getTmpName());
+                Value *rhs = scope->context_->create<Constant>(name);
+                rhs = scope->context_->createAtEnd<Assign>(
+					scope->block_, rhs, getTmpName());
+                result = scope->context_->createAtEnd<Index>(
+					scope->block_, result, rhs, getTmpName());
 				break;
             }
             default:
@@ -257,47 +264,54 @@ namespace
         {
             float value = token_.fnum_;
             advance();
-            Value *val = context_->create<Constant>(value);
-            return context_->createAtEnd<Assign>(block_, val, getTmpName());
+            Value *val = scope->context_->create<Constant>(value);
+            return scope->context_->createAtEnd<Assign>(
+				scope->block_, val, getTmpName());
         }
         case TK_LitString:
         {
             string str = token_.value_;
             advance();
-            Value *val = context_->create<Constant>(str);
-            return context_->createAtEnd<Assign>(block_, val, getTmpName());
+            Value *val = scope->context_->create<Constant>(str);
+            return scope->context_->createAtEnd<Assign>(
+				scope->block_, val, getTmpName());
         }
         case TK_LitInteger:
         {
             int integer = token_.num_;
             advance();
-            Value *val = context_->create<Constant>(integer);
-            return context_->createAtEnd<Assign>(block_, val, getTmpName());
+            Value *val = scope->context_->create<Constant>(integer);
+            return scope->context_->createAtEnd<Assign>(
+				scope->block_, val, getTmpName());
         }
         case TK_LitCharacter:
         {
             char c = token_.value_[0];
             advance();
-            Value *val = context_->create<Constant>(c);
-            return context_->createAtEnd<Assign>(block_, val, getTmpName());
+            Value *val = scope->context_->create<Constant>(c);
+            return scope->context_->createAtEnd<Assign>(
+				scope->block_, val, getTmpName());
         }
         case TK_True:
         {
             advance();
-            Value *val = context_->create<Constant>(true);
-            return context_->createAtEnd<Assign>(block_, val, getTmpName());
+            Value *val = scope->context_->create<Constant>(true);
+            return scope->context_->createAtEnd<Assign>(
+				scope->block_, val, getTmpName());
         }
         case TK_False:
         {
             advance();
-            Value *val = context_->create<Constant>(false);
-            return context_->createAtEnd<Assign>(block_, val, getTmpName());
+            Value *val = scope->context_->create<Constant>(false);
+            return scope->context_->createAtEnd<Assign>(
+				scope->block_, val, getTmpName());
         }
         case TK_Null:
         {
             advance();
-            Value *val = context_->create<Constant>();
-            return context_->createAtEnd<Assign>(block_, val, getTmpName());
+            Value *val = scope->context_->create<Constant>();
+            return scope->context_->createAtEnd<Assign>(
+				scope->block_, val, getTmpName());
         }
         case TK_LSquareBrace:
         {
@@ -316,7 +330,8 @@ namespace
             return value();
         }
         advance();
-        return context_->createAtEnd<NotOp>(block_, value(), getTmpName());
+        return scope->context_->createAtEnd<NotOp>(
+			scope->block_, value(), getTmpName());
     }
 
     Value *Parser::negativeExpr()
@@ -326,9 +341,9 @@ namespace
             return notExpr();
         }
         advance();
-        Value *zero = context_->create<Constant>(0);
-        return context_->createAtEnd<BinaryOperator>(
-            block_, BinaryOperator::Sub, zero, notExpr(), getTmpName());
+        Value *zero = scope->context_->create<Constant>(0);
+        return scope->context_->createAtEnd<BinaryOperator>(
+			scope->block_, BinaryOperator::Sub, zero, notExpr(), getTmpName());
     }
 
     Value *Parser::mulAndDivExpr()
@@ -339,8 +354,8 @@ namespace
             auto op = token_.kind_ == TK_Mul 
                 ? BinaryOperator::Mul : BinaryOperator::Div;
             advance();
-            result = context_->createAtEnd<BinaryOperator>(
-                block_, op, result, negativeExpr(), getTmpName());
+            result = scope->context_->createAtEnd<BinaryOperator>(
+				scope->block_, op, result, negativeExpr(), getTmpName());
         }
         return result;
     }
@@ -353,8 +368,8 @@ namespace
             auto op = token_.kind_ == TK_Plus
                 ? BinaryOperator::Add : BinaryOperator::Sub;
             advance();
-            result = context_->createAtEnd<BinaryOperator>(
-                block_, op, result, mulAndDivExpr(), getTmpName());
+            result = scope->context_->createAtEnd<BinaryOperator>(
+				scope->block_, op, result, mulAndDivExpr(), getTmpName());
         }
         return result;
     }
@@ -366,8 +381,8 @@ namespace
         {
             auto op = TranslateRelationalToBinaryOps(token_.kind_);
             advance();
-            result = context_->createAtEnd<BinaryOperator>(
-                block_, op, result, addAndSubExpr(), getTmpName());
+            result = scope->context_->createAtEnd<BinaryOperator>(
+				scope->block_, op, result, addAndSubExpr(), getTmpName());
         }
         return result;
     }
@@ -378,31 +393,33 @@ namespace
         if (token_.kind_ != TK_And)
             return result;
 
-        BasicBlock *tmpBlock = block_,
-            *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
-            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
+        BasicBlock *tmpBlock = scope->block_,
+            *trueBlock = scope->cfg_->createBasicBlock(getTmpName("true_expr_")),
+            *falseBlock = scope->cfg_->createBasicBlock(getTmpName("false_expr_"));
 
-        context_->createBranchAtEnd(tmpBlock, result, falseBlock, trueBlock);
+		scope->context_->createBranchAtEnd(tmpBlock, result, falseBlock, trueBlock);
         while (token_.kind_ == TK_And)
         {
             advance();
-            block_ = trueBlock;
+			scope->block_ = trueBlock;
             Value *expr = relationalExpr();
-            trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_"));
-            context_->createBranchAtEnd(block_, result, falseBlock, trueBlock);
+            trueBlock = scope->cfg_->createBasicBlock(getTmpName("true_expr_"));
+			scope->context_->createBranchAtEnd(
+				scope->block_, result, falseBlock, trueBlock);
         }
 
-        Value *true_ = context_->create<Constant>(true);
-        Value *false_ = context_->create<Constant>(false);
-        Value *trueVal = context_->createAtEnd<Assign>(trueBlock, true_, getTmpName());
-        Value *falseVal = context_->createAtEnd<Assign>(falseBlock, false_, getTmpName());
+        Value *true_ = scope->context_->create<Constant>(true);
+        Value *false_ = scope->context_->create<Constant>(false);
+        Value *trueVal = scope->context_->createAtEnd<Assign>(trueBlock, true_, getTmpName());
+        Value *falseVal = scope->context_->createAtEnd<Assign>(falseBlock, false_, getTmpName());
 
-        BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
-        context_->createGotoAtEnd(trueBlock, endBlock);
-        context_->createGotoAtEnd(falseBlock, endBlock);
-        block_ = endBlock;
+        BasicBlock *endBlock = scope->cfg_->createBasicBlock(getTmpName("end_expr_"));
+		scope->context_->createGotoAtEnd(trueBlock, endBlock);
+		scope->context_->createGotoAtEnd(falseBlock, endBlock);
+		scope->block_ = endBlock;
         auto params = { trueVal, falseVal };
-        return context_->createAtEnd<Phi>(block_, getTmpName(), params);
+        return scope->context_->createAtEnd<Phi>(
+			scope->block_, getTmpName(), params);
     }
 
     Value *Parser::orExpr()
@@ -411,31 +428,34 @@ namespace
         if (token_.kind_ != TK_Or)
             return result;
 
-        BasicBlock *tmpBlock = block_,
-            *trueBlock = cfg_->createBasicBlock(getTmpName("true_expr_")),
-            *falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
+        BasicBlock *tmpBlock = scope->block_,
+            *trueBlock = scope->cfg_->createBasicBlock(getTmpName("true_expr_")),
+            *falseBlock = scope->cfg_->createBasicBlock(getTmpName("false_expr_"));
 
-        context_->createBranchAtEnd(tmpBlock, result, trueBlock, falseBlock);
+		scope->context_->createBranchAtEnd(
+			tmpBlock, result, trueBlock, falseBlock);
         while (token_.kind_ == TK_Or)
         {
             advance();
-            block_ = falseBlock;
+			scope->block_ = falseBlock;
             Value *expr = andExpr();
-            falseBlock = cfg_->createBasicBlock(getTmpName("false_expr_"));
-            context_->createBranchAtEnd(block_, result, trueBlock, falseBlock);
+            falseBlock = scope->cfg_->createBasicBlock(getTmpName("false_expr_"));
+			scope->context_->createBranchAtEnd(
+				scope->block_, result, trueBlock, falseBlock);
         }
 
-        Value *true_ = context_->create<Constant>(true);
-        Value *false_ = context_->create<Constant>(false);
-        Value *trueVal = context_->createAtEnd<Assign>(trueBlock, true_, getTmpName());
-        Value *falseVal = context_->createAtEnd<Assign>(falseBlock, false_, getTmpName());
+        Value *true_ = scope->context_->create<Constant>(true);
+        Value *false_ = scope->context_->create<Constant>(false);
+        Value *trueVal = scope->context_->createAtEnd<Assign>(trueBlock, true_, getTmpName());
+        Value *falseVal = scope->context_->createAtEnd<Assign>(falseBlock, false_, getTmpName());
 
-        BasicBlock *endBlock = cfg_->createBasicBlock(getTmpName("end_expr_"));
-        context_->createGotoAtEnd(trueBlock, endBlock);
-        context_->createGotoAtEnd(falseBlock, endBlock);
-        block_ = endBlock;
+        BasicBlock *endBlock = scope->cfg_->createBasicBlock(getTmpName("end_expr_"));
+		scope->context_->createGotoAtEnd(trueBlock, endBlock);
+		scope->context_->createGotoAtEnd(falseBlock, endBlock);
+		scope->block_ = endBlock;
         auto params = { trueVal, falseVal };
-        return context_->createAtEnd<Phi>(block_, getTmpName(), params);
+        return scope->context_->createAtEnd<Phi>(
+			scope->block_, getTmpName(), params);
     }
 
     Value *Parser::rightHandExpr() 
@@ -465,29 +485,31 @@ namespace
                     {
                         Index *si = (Index*)lastL;
                         lhs.pop_back();
-                        lhs.push_back(context_->create<SetIndex>(
+                        lhs.push_back(scope->context_->create<SetIndex>(
                             si->table(), si->index(), rhs));
                     }
                 }
             }
             else 
             {
-                Value *result = context_->create<Store>(rhs, cfg_->phiName(name));
-                cfg_->saveVariableDef(name, block_, result);
+                Value *result = scope->context_->create<Store>(
+					rhs, scope->cfg_->phiName(name));
+				scope->cfg_->saveVariableDef(
+					name, scope->block_, result);
                 lhs.push_back(result);
             }
             
             for (auto *i : lhs)
             {
                 Instruction *instr = (Instruction*)i;
-                block_->push_back(instr);
-                instr->set_parent(block_);
+				scope->block_->push_back(instr);
+                instr->set_parent(scope->block_);
             }
         }
         if (lhs.size() > 0)
             return lhs.back();
         else
-            return cfg_->readVariableDef(name, block_);
+            return scope->cfg_->readVariableDef(name, scope->block_);
     }
 
     void Parser::expression()
@@ -507,11 +529,12 @@ namespace
             return;
         }
 
-        context_->createGotoAtEnd(block_, breaks_.top());
+		scope->context_->createGotoAtEnd(scope->block_, breaks_.top());
 
-        cfg_->sealBlock(block_);
+		scope->cfg_->sealBlock(scope->block_);
 
-        block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
+		scope->block_ = scope->cfg_->createBasicBlock(
+			getTmpName("full_throught_"));
     }
 
     void Parser::continueStat()
@@ -525,11 +548,12 @@ namespace
             return;
         }
 
-        context_->createGotoAtEnd(block_, continues_.top());
+		scope->context_->createGotoAtEnd(
+			scope->block_, continues_.top());
         
-        cfg_->sealBlock(block_);
+		scope->cfg_->sealBlock(scope->block_);
 
-        block_ = cfg_->createBasicBlock(getTmpName("full_throught_"));
+		scope->block_ = scope->cfg_->createBasicBlock(getTmpName("full_throught_"));
     }
 
     void Parser::returnStat()
@@ -538,48 +562,52 @@ namespace
         if (token_.kind_ != TK_Semicolon)
         {
             Value *expr = rightHandExpr();
-            context_->createAtEnd<Return>(block_, expr);
+			scope->context_->createAtEnd<Return>(
+				scope->block_, expr);
         }
         else
         {
-            context_->createAtEnd<ReturnVoid>(block_);
+			scope->context_->createAtEnd<ReturnVoid>(
+				scope->block_);
         }
 
         match(TK_Semicolon);
-        BasicBlock *succBlock = cfg_->createBasicBlock("return_succ_");
-        cfg_->sealBlock(block_);
-        block_ = succBlock;
+        BasicBlock *succBlock = scope->cfg_->createBasicBlock("return_succ_");
+		scope->cfg_->sealBlock(scope->block_);
+		scope->block_ = succBlock;
     }
 
     void Parser::whileStat()
     {
         advance();
-        BasicBlock *tmpBlock = block_,
-            *condBlock = cfg_->createBasicBlock(getTmpName("while_cond_")),
-            *thenBlock = cfg_->createBasicBlock(getTmpName("while_then_")),
-            *endBlock = cfg_->createBasicBlock(getTmpName("end_while_"));
+        BasicBlock *tmpBlock = scope->block_,
+            *condBlock = scope->cfg_->createBasicBlock(getTmpName("while_cond_")),
+            *thenBlock = scope->cfg_->createBasicBlock(getTmpName("while_then_")),
+            *endBlock = scope->cfg_->createBasicBlock(getTmpName("end_while_"));
 
-        context_->createGotoAtEnd(tmpBlock, condBlock);
-        cfg_->sealBlock(tmpBlock);
+		scope->context_->createGotoAtEnd(tmpBlock, condBlock);
+		scope->cfg_->sealBlock(tmpBlock);
 
-        block_ = condBlock;
+		scope->block_ = condBlock;
         match(TK_LParen);
         Value *expr = rightHandExpr();
         match(TK_RParen);
-        context_->createBranchAtEnd(block_, expr, thenBlock, endBlock);
+		scope->context_->createBranchAtEnd(
+			scope->block_, expr, thenBlock, endBlock);
 
         breaks_.push(endBlock);
         continues_.push(condBlock);
 
-        block_ = thenBlock;
+		scope->block_ = thenBlock;
         statement();
-        context_->createGotoAtEnd(/*thenBlock==*/block_, condBlock);
+		scope->context_->createGotoAtEnd(
+			/*thenBlock==*/scope->block_, condBlock);
         
-        cfg_->sealBlock(thenBlock);
-        cfg_->sealBlock(block_);
-        cfg_->sealBlock(condBlock);
+		scope->cfg_->sealBlock(thenBlock);
+		scope->cfg_->sealBlock(scope->block_);
+		scope->cfg_->sealBlock(condBlock);
 
-        block_ = endBlock;
+		scope->block_ = endBlock;
         breaks_.pop();
         continues_.pop();
     }
@@ -591,42 +619,46 @@ namespace
         Value *expr = rightHandExpr();
         match(TK_RParen);
 
-        cfg_->sealBlock(block_);
+		scope->cfg_->sealBlock(scope->block_);
 
-        BasicBlock *tmpBlock = block_,
-            *thenBlock = cfg_->createBasicBlock(getTmpName("if_then_"));
+        BasicBlock *tmpBlock = scope->block_,
+            *thenBlock = scope->cfg_->createBasicBlock(getTmpName("if_then_"));
 
-        block_ = thenBlock;
+		scope->block_ = thenBlock;
         statement();
-        BasicBlock *thenEndBlock = block_, *endBlock = nullptr;
+        BasicBlock *thenEndBlock = scope->block_, *endBlock = nullptr;
 
         if (token_.kind_ == TK_Else)
         {
             advance();
 
-            BasicBlock *elseBlock = cfg_->createBasicBlock(getTmpName("if_else_"));
-            context_->createBranchAtEnd(tmpBlock, expr, thenBlock, elseBlock);
+            BasicBlock *elseBlock = 
+				scope->cfg_->createBasicBlock(getTmpName("if_else_"));
+			scope->context_->createBranchAtEnd(
+				tmpBlock, expr, thenBlock, elseBlock);
 
-            block_ = elseBlock;
+			scope->block_ = elseBlock;
             statement();
 
-            cfg_->sealBlock(elseBlock);
-            cfg_->sealBlock(block_);
+			scope->cfg_->sealBlock(elseBlock);
+			scope->cfg_->sealBlock(scope->block_);
 
-            endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
-            context_->createGotoAtEnd(/*elseBlock==*/block_, endBlock);
+            endBlock = scope->cfg_->createBasicBlock(getTmpName("if_end_"));
+			scope->context_->createGotoAtEnd(
+				/*elseBlock==*/scope->block_, endBlock);
         }
         else
         {
-            endBlock = cfg_->createBasicBlock(getTmpName("if_end_"));
-            context_->createBranchAtEnd(tmpBlock, expr, thenBlock, endBlock);
+            endBlock = scope->cfg_->createBasicBlock(getTmpName("if_end_"));
+			scope->context_->createBranchAtEnd(
+				tmpBlock, expr, thenBlock, endBlock);
         }
 
-        cfg_->sealBlock(thenBlock);
-        cfg_->sealBlock(thenEndBlock);
+		scope->cfg_->sealBlock(thenBlock);
+		scope->cfg_->sealBlock(thenEndBlock);
 
-        context_->createGotoAtEnd(thenEndBlock, endBlock);
-        block_ = endBlock;
+		scope->context_->createGotoAtEnd(thenEndBlock, endBlock);
+		scope->block_ = endBlock;
     }
 
     void Parser::statement()
@@ -665,76 +697,24 @@ namespace
         advance();
     }
 
-    //
-    // "("[param_list] ")"
-    // 
-    Parser::Strings Parser::readParams()
-    {
-        match(TK_LParen);
-
-        Strings params;
-        if (token_.kind_ == TK_Identifier)
-        {
-            params.push_back(token_.value_);
-            advance();
-            while (token_.kind_ == TK_Comma)
-            {
-                advance();
-                params.push_back(exceptIdentifier());
-            }
-        }
-
-        match(TK_RParen);
-
-        return params;
-    }
-
-    Value *Parser::lambdaDecl()
-    {
-        match(TK_Lambda);
-        std::string name = getTmpName("lambda_");
-        defineIntoScope(name, FunctionScope::Define);
-
-        // create function and generate parallel invoke.
-        IRFunction *function = module_.createFunction(name);
-        pushFunctionScope();
-
-        // match params
-        auto params = readParams();
-        for (auto &str : params) 
-            defineIntoScope(str, FunctionScope::Let);
-        
-        functionBody(function);
-
-        // save current captures.
-        std::vector<std::string> prototype;
-        getFunctionPrototype(prototype, params);
-        function->setParams(std::move(prototype));
-
-        // create closure for function.
-        Value *invoke = createClosureForFunction(name);
-        popFunctionScope();
-        return invoke;
-    }
-
     void Parser::tableOthers(Value *table)
     {
         Value *cons = nullptr;
         if (token_.kind_ == TK_LitCharacter)
         {
-            cons = context_->create<Constant>(token_.value_[0]);
+            cons = scope->context_->create<Constant>(token_.value_[0]);
         }
         else if (token_.kind_ == TK_LitFloat)
         {
-            cons = context_->create<Constant>(token_.fnum_);
+            cons = scope->context_->create<Constant>(token_.fnum_);
         }
         else if (token_.kind_ == TK_LitInteger)
         {
-            cons = context_->create<Constant>(token_.num_);
+            cons = scope->context_->create<Constant>(token_.num_);
         }
         else if (token_.kind_ == TK_LitString)
         {
-            cons = context_->create<Constant>(token_.value_);
+            cons = scope->context_->create<Constant>(token_.value_);
         }
         else
         {
@@ -758,15 +738,20 @@ namespace
                     diag_.indexLessThanZero(lexer_.getCoord());
                 }
             }
-            cons = context_->createAtEnd<Assign>(block_, cons, getTmpName());
-            context_->createAtEnd<SetIndex>(block_, table, cons, expr);
+            cons = scope->context_->createAtEnd<Assign>(
+				scope->block_, cons, getTmpName());
+			scope->context_->createAtEnd<SetIndex>(
+				scope->block_, table, cons, expr);
         }
         else
         {
-            Value *tmp = context_->create<Constant>(-1);
-            tmp = context_->createAtEnd<Assign>(block_, tmp, getTmpName());
-            cons = context_->createAtEnd<Assign>(block_, cons, getTmpName());
-            context_->createAtEnd<SetIndex>(block_, table, tmp, cons);
+            Value *tmp = scope->context_->create<Constant>(-1);
+            tmp = scope->context_->createAtEnd<Assign>(
+				scope->block_, tmp, getTmpName());
+            cons = scope->context_->createAtEnd<Assign>(
+				scope->block_, cons, getTmpName());
+			scope->context_->createAtEnd<SetIndex>(
+				scope->block_, table, tmp, cons);
         }
     }
 
@@ -778,25 +763,29 @@ namespace
             // name = lambda ... == "name" = lambda
             advance();
             Value *expr = rightHandExpr();
-            Value *str = context_->create<Constant>(name);
-            str = context_->createAtEnd<Assign>(block_, str, getTmpName());
-            context_->createAtEnd<SetIndex>(block_, table, str, expr);
+            Value *str = scope->context_->create<Constant>(name);
+            str = scope->context_->createAtEnd<Assign>(
+				scope->block_, str, getTmpName());
+			scope->context_->createAtEnd<SetIndex>(
+				scope->block_, table, str, expr);
         }
         else
         {
             tryToCatchID(name);
-            Value *id = cfg_->readVariableDef(name, block_);
-            Value *cons = context_->create<Constant>(-1);
-            cons = context_->createAtEnd<Assign>(block_, cons, getTmpName());
-            context_->createAtEnd<SetIndex>(block_, table, cons, id);
+            Value *id = scope->cfg_->readVariableDef(name, scope->block_);
+            Value *cons = scope->context_->create<Constant>(-1);
+            cons = scope->context_->createAtEnd<Assign>(
+				scope->block_, cons, getTmpName());
+			scope->context_->createAtEnd<SetIndex>(
+				scope->block_, table, cons, id);
         }
     }
 
     Value *Parser::tableDecl()
     {
-        Value *table = context_->create<Table>();
-        table = context_->createAtEnd<Assign>(
-            block_, table, getTmpName("Table_"));
+        Value *table = scope->context_->create<Table>();
+        table = scope->context_->createAtEnd<Assign>(
+			scope->block_, table, getTmpName("Table_"));
         do {
             advance();
             if (token_.kind_ == TK_Identifier)
@@ -810,34 +799,56 @@ namespace
         match(TK_RSquareBrace);
         return table;
     }
+	//
+	// "("[param_list] ")"
+	// 
+	void Parser::readParams(Strings &params)
+	{
+		match(TK_LParen);
 
-    void Parser::functionBody(IRFunction *function)
+		if (token_.kind_ == TK_Identifier)
+		{
+			params.push_back(token_.value_);
+			advance();
+			while (token_.kind_ == TK_Comma)
+			{
+				advance();
+				params.push_back(exceptIdentifier());
+			}
+		}
+
+		match(TK_RParen);
+	}
+
+	Value *Parser::lambdaDecl()
+	{
+		match(TK_Lambda);
+		std::string name = getTmpName("lambda_");
+		defineIntoScope(name, FunctionScope::Define);
+
+		return functionCommon(name);
+	}
+
+    void Parser::functionParamsAndBody(
+		Strings &params, IRFunction *function)
     {
-        // Saving some old containter.
-        BasicBlock *oldBlock = block_;
-        CFG *cfg = cfg_;
-        IRContext *context = context_;
+		// match params
+		readParams(params);
+		for (auto &str : params) {
+			defineIntoScope(str, FunctionScope::Let);
+			Value *param = scope->context_->create<Param>(str);
+			scope->cfg_->saveVariableDef(str, scope->block_, param);
+		}
 
-        // Creating new containter.
-        context_ = function->getContext();
-        cfg_ = function;
-        block_ = cfg_->createBasicBlock(function->getName() + "_entry");
-
-        function->setEntry(block_);
         block();
-        function->setEnd(block_);
 
-        cfg_->sealOthersBlock();
-        
-        block_ = oldBlock;
-        cfg_ = cfg;
-        context_ = context;
+		scope->cfg_->sealOthersBlock();
     }
 
     void Parser::getFunctionPrototype(
         Strings &prototype, const Strings &params)
     {
-        auto &captures = functionStack.back().captures;
+        auto &captures = scope->captures;
         prototype.clear();
         prototype.reserve(captures.size() + params.size());
         for (auto &str : captures) {
@@ -848,20 +859,45 @@ namespace
             prototype.push_back(str);
     }
 
-    Value *Parser::createClosureForFunction(const std::string &name)
+	// Must be called after pop function scope.
+    Value *Parser::createClosureForFunction(
+		const std::string &name,
+		std::unordered_set<std::string> &captures)
     {
-        auto &captures = functionStack.back().captures;
         std::vector<Value*> paramsVals;
         for (auto &str : captures) {
-            paramsVals.push_back(cfg_->readVariableDef(str, block_));
+			Value *val = scope->cfg_->readVariableDef(str, scope->block_);
+            paramsVals.push_back(val);
         }
         
-        Value *funcval = context_->create<Function>(name);
-        Value *invoke = context_->createAtEnd<Invoke>(
-            block_, funcval, paramsVals, name);
-        cfg_->saveVariableDef(name, block_, invoke);
+        Value *funcval = scope->context_->create<Function>(name);
+        Value *invoke = scope->context_->createAtEnd<Invoke>(
+			scope->block_, funcval, paramsVals, name);
+		scope->cfg_->saveVariableDef(name, scope->block_, invoke);
         return invoke;
     }
+
+	Value *Parser::functionCommon(const std::string &name)
+	{
+		// create function and generate parallel invoke.
+		IRFunction *function = module_.createFunction(name);
+		pushFunctionScopeAndInit(function);
+
+		Strings params;
+		functionParamsAndBody(params, function);
+
+		// save current captures.
+		std::vector<std::string> prototype;
+		getFunctionPrototype(prototype, params);
+		function->setParams(std::move(prototype));
+
+		std::unordered_set<std::string> captures;
+		std::swap(captures, scope->captures);
+		popFunctionScope(function);
+
+		// create closure for function.
+		return createClosureForFunction(name, captures);
+	}
 
     void Parser::functionDecl()
     {
@@ -872,25 +908,7 @@ namespace
         }
         defineIntoScope(name, FunctionScope::Define);
 
-        // create function and generate parallel invoke.
-        IRFunction *function = module_.createFunction(name);
-        pushFunctionScope();
-
-        // match params
-        auto params = readParams();
-        for (auto &str : params) 
-            defineIntoScope(str, FunctionScope::Let);
-        
-        functionBody(function);
-
-        // save current captures.
-        std::vector<std::string> prototype;
-        getFunctionPrototype(prototype, params);
-        function->setParams(std::move(prototype));
-
-        // create closure for function.
-        createClosureForFunction(name);
-        popFunctionScope();
+		functionCommon(name);
     }
 
     void Parser::letDecl()
@@ -904,9 +922,9 @@ namespace
         match(TK_Assign);
 
         Value *expr = rightHandExpr();
-        Value *let = context_->createAtEnd<Store>(
-            block_, expr, cfg_->phiName(name));
-        cfg_->saveVariableDef(name, block_, let);
+        Value *let = scope->context_->createAtEnd<Store>(
+			scope->block_, expr, scope->cfg_->phiName(name));
+		scope->cfg_->saveVariableDef(name, scope->block_, let);
         match(TK_Semicolon);
     }
 
@@ -923,9 +941,9 @@ namespace
 
         // match expression and save variable def.
         Value *expr = rightHandExpr();
-        Value *define = context_->createAtEnd<Store>(
-            block_, expr, cfg_->phiName(name));
-        cfg_->saveVariableDef(name, block_, define);
+        Value *define = scope->context_->createAtEnd<Store>(
+			scope->block_, expr, scope->cfg_->phiName(name));
+		scope->cfg_->saveVariableDef(name, scope->block_, define);
         match(TK_Semicolon);
     }
 
@@ -947,9 +965,9 @@ namespace
         clear();
         BasicBlock *entry = module_.createBasicBlock("entry");
 
-        block_ = entry;
-        context_ = module_.getContext();
-        cfg_ = &module_;
+        scope->block_ = entry;
+		scope->context_ = module_.getContext();
+		scope->cfg_ = &module_;
 
         module_.setEntry(entry);
 
@@ -962,9 +980,9 @@ namespace
             }
         }
 
-        module_.setEnd(block_);
+        module_.setEnd(scope->block_);
 
-        cfg_->sealOthersBlock();
+		scope->cfg_->sealOthersBlock();
     }
 
     Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 
@@ -1001,29 +1019,46 @@ namespace
     void Parser::pushFunctionScope() 
     {
         functionStack.push_back(FunctionScope{});
+		scope = &functionStack.back();
     }
+
+	void Parser::pushFunctionScopeAndInit(IRFunction *func)
+	{
+		pushFunctionScope();
+		scope->context_ = func->getContext();
+		scope->cfg_ = func;
+		scope->block_ = scope->cfg_->createBasicBlock(
+			func->getName() + "_entry");
+		func->setEntry(scope->block_);
+	}
 
     void Parser::popFunctionScope() 
     {
         functionStack.pop_back();
+		scope = &functionStack.back();
     }
+
+	void Parser::popFunctionScope(IRFunction *func)
+	{
+		func->setEnd(scope->block_);
+		popFunctionScope();
+	}
 
     void Parser::defineIntoScope(const std::string &str, unsigned type) 
     {
-        FunctionScope &func = functionStack.back();
-        func.symbolTable.insert(std::pair<std::string, unsigned>{str, type});
+		scope->symbolTable.insert(
+			std::pair<std::string, unsigned>{str, type});
     }
 
     void Parser::insertIntoScope(const std::string &str, unsigned type)
     {
-        FunctionScope &func = functionStack.back();
-        func.upperTable.insert(std::pair<std::string, unsigned>{str, type});
+		scope->upperTable.insert(
+			std::pair<std::string, unsigned>{str, type});
     }
 
     bool Parser::isDefineInScope(const std::string &str)
     {
-        FunctionScope &func = functionStack.back();
-        return func.symbolTable.count(str);
+        return scope->symbolTable.count(str);
     }
 
     bool Parser::isExistsInScope(const std::string &str) 
@@ -1033,10 +1068,6 @@ namespace
 
     void Parser::clear() 
     {
-        block_ = nullptr;
-        context_ = nullptr;
-        cfg_ = nullptr;
-
 #define clear_stack(stack)          \
     do {                            \
         while (!(stack).empty()) {  \

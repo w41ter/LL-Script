@@ -52,13 +52,11 @@ namespace script
         void defineDecl();
         void letDecl();
         void functionDecl();
-        void functionBody(IRFunction *function);
 
         void tableIdent(Value *table);
         void tableOthers(Value *table);
         Value *tableDecl();
         Value *lambdaDecl();
-        Value *keywordConstant();
 
         Value *assignExpr();
         Value *rightHandExpr();
@@ -85,9 +83,13 @@ namespace script
         void returnStat();
 
         typedef std::vector<std::string> Strings;
-        Value *createClosureForFunction(const std::string &name);
-        Strings readParams();
+        Value *createClosureForFunction(
+			const std::string &name, 
+			std::unordered_set<std::string> &captures);
+        void readParams(Strings &params);
         void getFunctionPrototype(Strings &prototype, const Strings &params);
+		void functionParamsAndBody(Strings &params, IRFunction *function);
+		Value *functionCommon(const std::string &name);
 
         void advance();
         void match(unsigned tok);
@@ -97,7 +99,10 @@ namespace script
 
         struct FunctionScope {
             enum { None, Define, Let };
-            typedef std::unordered_map<std::string, unsigned> Symbols;
+			typedef std::unordered_map<std::string, unsigned> Symbols;
+			BasicBlock *block_ = nullptr;
+			IRContext *context_ = nullptr;
+			CFG *cfg_ = nullptr;
             Symbols symbolTable;
             Symbols upperTable;
             std::unordered_set<std::string> captures;
@@ -109,6 +114,8 @@ namespace script
 
         void pushFunctionScope();
         void popFunctionScope();
+		void pushFunctionScopeAndInit(IRFunction *func);
+		void popFunctionScope(IRFunction *func);
         void defineIntoScope(const std::string &str, unsigned type);
         void insertIntoScope(const std::string &str, unsigned type);
         bool isDefineInScope(const std::string &str);
@@ -123,14 +130,11 @@ namespace script
         IRModule &module_;
         DiagnosisConsumer &diag_;
 
-        BasicBlock *block_ = nullptr;
-        IRContext *context_ = nullptr;
-        CFG *cfg_ = nullptr;
-
         // Stack for break / continue.
         std::stack<BasicBlock*> breaks_;
         std::stack<BasicBlock*> continues_;
 
+		FunctionScope *scope = nullptr;
         std::list<FunctionScope> functionStack;
     };
 }
