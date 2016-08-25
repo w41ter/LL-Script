@@ -74,7 +74,6 @@ namespace
 
     bool Parser::tryToCatchID(std::string &name)
     {
-
 		if (isExistsInScope(name))
             return true;
         
@@ -113,6 +112,7 @@ namespace
         {
             lexer_.registerKeyword(i.first, i.second);
         }
+		clear();
     }
 
     std::string Parser::LHS(std::list<Value*> &lhs)
@@ -824,7 +824,7 @@ namespace
 	Value *Parser::lambdaDecl()
 	{
 		match(TK_Lambda);
-		std::string name = getTmpName("lambda_");
+		std::string name = getTmpName("$lambda_");
 		defineIntoScope(name, FunctionScope::Define);
 
 		return functionCommon(name);
@@ -964,13 +964,8 @@ namespace
     void Parser::parse()
     {
         clear();
-        BasicBlock *entry = module_.createBasicBlock("entry");
-
-        scope->block_ = entry;
-		scope->context_ = module_.getContext();
-		scope->cfg_ = &module_;
-
-        module_.setEntry(entry);
+		IRFunction *mainfunc = module_.createFunction("$main");
+		pushFunctionScopeAndInit(mainfunc);
 
         advance();
         while (token_.kind_ != TK_EOF)
@@ -981,9 +976,8 @@ namespace
             }
         }
 
-        module_.setEnd(scope->block_);
-
 		scope->cfg_->sealOthersBlock();
+		popFunctionScope(mainfunc);
     }
 
     Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 
@@ -1036,7 +1030,10 @@ namespace
     void Parser::popFunctionScope() 
     {
         functionStack.pop_back();
-		scope = &functionStack.back();
+		if (functionStack.size() == 0)
+			scope = nullptr;
+		else 
+			scope = &functionStack.back();
     }
 
 	void Parser::popFunctionScope(IRFunction *func)
@@ -1080,7 +1077,5 @@ namespace
 #undef clear_stack    
 
         functionStack.clear();
-
-        pushFunctionScope();
     }
 }
