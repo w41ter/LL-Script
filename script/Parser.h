@@ -2,20 +2,16 @@
 #define __PARSER_H__
 
 #include <string>
-#include <vector>
 #include <set>
-#include <map>
 #include <stack>
 #include <unordered_set>
 #include <unordered_map>
+
 #include "lexer.h"
-#include "Instruction.h"
 
 namespace script
 {
     class CFG;
-    class IRContext;
-    class SymbolTable;
     class IRFunction;
     class IRModule;
 
@@ -41,87 +37,99 @@ namespace script
     class Parser
     {
     public:
-        Parser(Lexer &lexer, IRModule &context, DiagnosisConsumer &diag);
+        Parser(Lexer &lexer, IRModule &context, 
+			DiagnosisConsumer &diag);
 
         void parse();
 
     private:
-        void initialize();
-
-        bool topLevelDecl();
-        void defineDecl();
-        void letDecl();
-        void functionDecl();
-
-        void tableIdent(Value *table);
-        void tableOthers(Value *table);
-        Value *tableDecl();
-        Value *lambdaDecl();
-
-        Value *assignExpr();
-        Value *rightHandExpr();
-        Value *orExpr();
-        Value *andExpr();
-        Value *relationalExpr();
-        Value *addAndSubExpr();
-        Value *mulAndDivExpr();
-        Value *negativeExpr();
-        Value *notExpr();
-        Value *value();
-        Value *variableSuffix();
-        Value *variable();
-
-        std::string LHS(std::list<Value*> &lhs);
-
-        void expression();
-        void block();
-        void statement();
-        void ifStat();
-        void whileStat();
-        void breakStat();
-        void continueStat();
-        void returnStat();
+        struct FunctionScope;
 
         typedef std::vector<std::string> Strings;
-        Value *createClosureForFunction(
-			const std::string &name, 
-			std::unordered_set<std::string> &captures);
-        void readParams(Strings &params);
-        void getFunctionPrototype(Strings &prototype, const Strings &params);
-		void functionParamsAndBody(Strings &params, IRFunction *function);
-		Value *functionCommon(const std::string &name);
-
-        void advance();
-        void match(unsigned tok);
-        std::string exceptIdentifier();
-
-        bool isRelational(unsigned tok);
-
+        typedef std::list<FunctionScope>::reverse_iterator scope_iterator;
+        
         struct FunctionScope {
+            typedef std::unordered_map<std::string, unsigned> Symbols;
+
             enum { None, Define, Let };
-			typedef std::unordered_map<std::string, unsigned> Symbols;
-			BasicBlock *block_ = nullptr;
-			IRContext *context_ = nullptr;
-			CFG *cfg_ = nullptr;
+
+            FunctionScope()
+                : cfg_(nullptr)
+                , block_(nullptr)
+            {}
+
+            CFG *cfg_;
             Symbols symbolTable;
-            Symbols upperTable;
+            Symbols upperTable; 
+            BasicBlock *block_;
             std::unordered_set<std::string> captures;
         };
 
-        typedef std::list<FunctionScope>::reverse_iterator scope_iterator;
-        bool tryToCatchID(std::string &name);
-        bool tryToCatchID(scope_iterator iter, std::string &name);
-
         void pushFunctionScope();
         void popFunctionScope();
-		void pushFunctionScopeAndInit(IRFunction *func);
-		void popFunctionScope(IRFunction *func);
+        void pushFunctionScopeAndInit(IRFunction *func);
+        void popFunctionScope(IRFunction *func);
         void defineIntoScope(const std::string &str, unsigned type);
         void insertIntoScope(const std::string &str, unsigned type);
         bool isDefineInScope(const std::string &str);
         bool isExistsInScope(const std::string &str);
 
-        void clear();
+        void advance();
+        void match(unsigned tok);
+        std::string exceptIdentifier();
+        bool isRelational(unsigned tok);
+        bool tryToCatchID(std::string &name);
+        bool tryToCatchID(scope_iterator iter, std::string &name);
+
+        void initialize();
+
+        void parseDefineDecl();
+        void parseLetDecl();
+		void parseLetDefineCommon(const std::string &name);
+
+		// createClosureForFunction - all callable is function.
+		Value *createClosureForFunction(
+			const std::string &name,
+			std::unordered_set<std::string> &captures);
+        Value *parseFunctionCommon(const std::string &name);
+		void parseParams(Strings &params);
+		void getFunctionPrototype(
+			Strings &prototype, 
+			const Strings &params
+        );
+		void getFunctionParamsAndBody(
+            Strings &params, 
+            IRFunction *function
+        );
+        void parseFunctionDecl();
+
+        void parseTableIdent(Value *table);
+        void parseTableOthers(Value *table);
+        Value *parseTableDecl();
+        Value *parseLambdaDecl();
+
+        Value *parseRightHandExpr();
+        Value *parseOrExpr();
+        Value *parseAndExpr();
+        Value *parseRelationalExpr();
+        Value *parseAddAndSubExpr();
+        Value *parseMulAndDivExpr();
+        Value *parseNegativeExpr();
+        Value *parseNotExpr();
+        Value *parseValue();
+        Value *parseVariableSuffix();
+        Value *parseVariable();
+        Value *parseSuffixCommon(Value *value);
+
+        void parseAssignExpr();
+        void parseExpression();
+        void parseBlock();
+        void parseStatement();
+        void parseIfStat();
+        void parseWhileStat();
+        void parseBreakStat();
+        void parseContinueStat();
+        void parseReturnStat();
 
     private:
         Lexer &lexer_;
@@ -134,7 +142,7 @@ namespace script
         std::stack<BasicBlock*> breaks_;
         std::stack<BasicBlock*> continues_;
 
-		FunctionScope *scope = nullptr;
+		FunctionScope *scope;
         std::list<FunctionScope> functionStack;
     };
 }
