@@ -4,14 +4,19 @@
 
 namespace script
 {
-    Use::Use(Value *value, User *user)
+	Use::Use(const Use & rhs)
+	{
+		init(rhs.value, rhs.user);
+	}
+
+	Use::Use(const Use && rhs)
+	{
+		init(rhs.value, rhs.user);
+	}
+
+	Use::Use(Value *value, User *user)
     {
-        this->value = value;
-        this->user = user;
-        if (this->value) 
-        {
-            this->value->add_use(this);
-        }
+		init(value, user);
     }
 
     Use::~Use() 
@@ -21,6 +26,22 @@ namespace script
             this->value->kill_use(this);
         }
     }
+
+	void Use::init(Value *value, User *user)
+	{
+		this->value = value;
+		this->user = user;
+		if (this->value)
+		{
+			this->value->add_use(this);
+		}
+	}
+
+	Use &Use::operator = (const Use &rhs) {
+		this->user = rhs.user;
+		set(rhs.value);
+		return *this;
+	}
 
     bool Use::operator == (const Use &rhs) 
     {
