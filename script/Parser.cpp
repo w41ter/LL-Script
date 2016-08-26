@@ -57,12 +57,14 @@ namespace
         }
         // insert into symbol table and capture it.
         iter->captures.insert(name);
-        iter->symbolTable.insert(std::pair<std::string, 
-            unsigned>{name, FunctionScope::Let});
+        iter->symbolTable.insert({name, FunctionScope::Let});
 		// save it to SSA form
 		Value *param = IRContext::create<Param>(name);
+        Value *assign = IRContext::createAtEnd<Assign>(
+            iter->cfg_->getEntryBlock(), param, 
+            iter->cfg_->phiName(name));
 		iter->cfg_->saveVariableDef(
-			name, iter->cfg_->getEntryBlock(), param);
+			name, iter->cfg_->getEntryBlock(), assign);
         return tryToCatchID(++iter, name);
     }
 
@@ -189,6 +191,13 @@ namespace
             }
         }
     }
+
+	bool Parser::isSuffixCommonFisrtFollowSet()
+	{
+		return token_.kind_ == TK_LSquareBrace
+			|| token_.kind_ == TK_LParen
+			|| token_.kind_ == TK_Period;
+	}
 
     Value *Parser::parseVariableSuffix()
     {
@@ -425,38 +434,39 @@ namespace
     {
         std::string name = exceptIdentifier();
         tryToCatchID(name);
-        Value *def = scope->cfg_->readVariableDef(
-            name, scope->block_);
-        Value *val = parseSuffixCommon(def);
 
-        // ensure a; is wrong.
-        if (val == def)
-            match(TK_Assign);
-        else if (token_.kind_ != TK_Assign)
-            return;
-        else
-            advance();
-
+		if (isSuffixCommonFisrtFollowSet()) {
+			Value *def = scope->cfg_->readVariableDef(
+				name, scope->block_);
+			Value *val = parseSuffixCommon(def);
+			if (token_.kind_ != TK_Assign)
+				return;
+			advance();
+			Value *RHS = parseRightHandExpr();
+			// if the last inst of left is Index,
+			// replace it with SetIndex.
+			if (val->is_instr())
+			{
+				Instruction *instr = static_cast<Instruction*>(val);
+				if (instr->is_index())
+				{
+					Index *index = static_cast<Index*>(instr);
+					SetIndex *SI = IRContext::create<SetIndex>(
+						index->table(), index->index(), RHS);
+					index->replace_with(SI);
+					return;
+				}
+			}
+			// TODO:
+			assert(0);
+		}
+        
+        match(TK_Assign);
         Value *RHS = parseRightHandExpr();
-
-        // if the last inst of left is Index,
-        // replace it with SetIndex.
-        if (val != def && val->is_instr())
-        {
-            Instruction *instr = static_cast<Instruction*>(val);
-            if (instr->is_index())
-            {
-                Index *index = static_cast<Index*>(instr);
-                SetIndex *SI = IRContext::create<SetIndex>(
-                    index->table(), index->index(), RHS);
-                index->replace_with(SI);
-                return;
-            }
-        }
-        Value *result = IRContext::createAtEnd<Assign>(
-            scope->block_, val, getTmpName());
-        scope->cfg_->saveVariableDef(
-            name, scope->block_, result);
+		Value *result = IRContext::createAtEnd<Assign>(
+			scope->block_, RHS, scope->cfg_->phiName(name));
+		scope->cfg_->saveVariableDef(
+			name, scope->block_, result);
     }
 
     void Parser::parseExpression()
@@ -789,7 +799,10 @@ namespace
 		parseParams(params);
 		for (auto &str : params) {
 			defineIntoScope(str, FunctionScope::Let);
-			Value *param = IRContext::create<Param>(str);
+			Value *param = IRContext::create<Param>(str); 
+            Value *assign = IRContext::createAtEnd<Assign>(
+                scope->cfg_->getEntryBlock(), param,
+                scope->cfg_->phiName(str));
 			scope->cfg_->saveVariableDef(str, scope->block_, param);
 		}
 
@@ -830,7 +843,7 @@ namespace
 			scope->block_, funcval, getTmpName());
         Value *invoke = IRContext::createAtEnd<Invoke>(
 			scope->block_, funcval, paramsVals, getTmpName());
-		Value *func = IRContext::createAtEnd<Store>(
+		Value *func = IRContext::createAtEnd<Assign>(
 			scope->block_, invoke, scope->cfg_->phiName(name));
 		scope->cfg_->saveVariableDef(name, scope->block_, func);
         return invoke;
@@ -916,7 +929,10 @@ namespace
         advance();
         while (token_.kind_ != TK_EOF)
         {
-			parseStatement();
+			if (token_.kind_ == TK_Function)
+				parseFunctionDecl();
+			else 
+				parseStatement();
         }
 
 		scope->cfg_->sealOthersBlock();
@@ -965,7 +981,7 @@ namespace
 		pushFunctionScope();
 		scope->cfg_ = func;
 		scope->block_ = scope->cfg_->createBasicBlock(
-			func->getName() + "_entry");
+			func->getFunctionName() + "_entry");
 		func->setEntry(scope->block_);
 	}
 

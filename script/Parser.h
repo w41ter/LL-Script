@@ -12,6 +12,8 @@
 namespace script
 {
     class CFG;
+	class Value;
+	class BasicBlock;
     class IRFunction;
     class IRModule;
 
@@ -120,6 +122,8 @@ namespace script
         Value *parseVariableSuffix();
         Value *parseVariable();
         Value *parseSuffixCommon(Value *value);
+
+		bool isSuffixCommonFisrtFollowSet();
 
         void parseAssignExpr();
         void parseExpression();
