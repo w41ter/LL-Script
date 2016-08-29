@@ -10,6 +10,7 @@
 #include "DumpIR.h"
 #include "CodeGen.h"
 #include "OpcodeModule.h"
+#include "UnreachableBlockElimination.h"
 #include "CompilerInstance.h"
 
 using namespace script;
@@ -45,17 +46,43 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    if (driver.dumpIR_)
-    {
-        std::string filename = driver.filename;
-        filename.resize(filename.find_last_of('.'));
-        DumpIR dumpIR(filename += ".ir");
-        dumpIR.dump(&module);
-    }
+#ifdef _DEBUG
+	if (driver.dumpIR_)
+	{
+		std::string filename = driver.filename;
+		filename.resize(filename.find_last_of('.'));
+		DumpIR dumpIR(filename += ".op_before.ir");
+		dumpIR.dump(&module);
+	}
+#endif // _DEBUG
 
-    OpcodeModule opcode;
-    CodeGen codegen(module);
-    codegen.genOpcode(opcode);
+	if (driver.optimized_)
+	{
+		UnreachableBlockElimination UBElim;
+		for (auto &func : module)
+		{
+			std::cout << "Eliminate unreachable block: " 
+				<< func.first << std::endl;
+			UBElim.runOnFunction(func.second);
+		}
+	}
+
+	if (driver.dumpIR_)
+	{
+		std::string filename = driver.filename;
+		filename.resize(filename.find_last_of('.'));
+		DumpIR dumpIR(filename += ".ir");
+		dumpIR.dump(&module);
+	}
+
+    OpcodeModule opcode; 
+	CodeGen codegen(opcode);
+	for (auto &func : module)
+	{
+		std::cout << "Code generator: "
+			<< func.first << std::endl;
+		codegen.runOnFunction(func.second);
+	}
 
     // generate opcode
     //script::OpcodeContext opcode;

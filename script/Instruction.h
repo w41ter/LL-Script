@@ -58,7 +58,7 @@ namespace script
         bool is_index()         const { return get_opcode() == IndexVal; }
         bool is_set_index()     const { return get_opcode() == SetIndexVal; }
         bool is_phi_node()      const { return get_opcode() == PhiVal; }
-        bool is_tmpvalue()      const {
+        bool is_output()        const {
             unsigned op = get_opcode();
             return !(op == SetIndexVal
                 || op == BranchVal

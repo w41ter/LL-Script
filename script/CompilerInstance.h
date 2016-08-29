@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Semantic\DiagnosisConsumer.h"
+#include "DiagnosisConsumer.h"
 #include "driver.h"
 
 namespace script
