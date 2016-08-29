@@ -3,246 +3,138 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <initializer_list>
+
+#include "User.h"
+#include "Value.h"
+#include "MachineRegister.h"
 
 namespace script
 {
-
     class BasicBlock;
 
-namespace ir 
-{
-    class Value;
-    class User;
-
-    enum class Instructions
-    {
-        IR_Constant,
-        IR_Table,
-        IR_Undef,
-        IR_Store,
-        IR_Invoke,
-        IR_Branch,
-        IR_Goto,
-        IR_Assign,
-        IR_NotOp,
-        IR_Return,
-        IR_ReturnVoid,
-        IR_BinaryOps,
-        IR_Index,
-        IR_SetIndex,
-        IR_Phi,
-    };
-
-    enum class BinaryOps
-    {
-        BO_Add,
-        BO_Sub,
-        BO_Mul,
-        BO_Div,
-        BO_And,
-        BO_Or,
-        BO_Great,
-        BO_NotLess,
-        BO_Less,
-        BO_NotGreat,
-        BO_Equal,
-        BO_NotEqual,
-    };
-
-    // Relation between User and Value.
-    class Use
+    class Instruction : public User
     {
     public:
-        Use(Value *value, User *user);
-        ~Use();
+        enum InstrVal {
+            InvokeVal,
+            BranchVal,
+            GotoVal,
+            AssignVal,
+            NotOpVal,
+            ReturnVal,
+            ReturnVoidVal,
+            BinaryOpsVal,
+            IndexVal,
+            SetIndexVal,
+            PhiVal,
+        };
 
-        Value *getValue() const { return value_; }
-        User *getUser() const { return user_; }
-        void replaceValue(Value *value);
+        Instruction(unsigned value_id);
+        Instruction(unsigned value_id, const char *value_name);
+        Instruction(unsigned value_id, const std::string &value_name);
+        virtual ~Instruction();
 
-        bool operator == (const Use &rhs)
-        {
-            return rhs.value_ == value_ && rhs.user_ == user_
-                && prev_ == rhs.prev_ && next_ == rhs.next_;
+        void set_parent(BasicBlock *parent);
+        BasicBlock *get_parent() { return parent; }
+
+        // does not delete it
+        virtual void remove_from_parent();
+        // deletes it
+		virtual void erase_from_parent();
+        // replace and remove.
+		virtual void replace_with(Instruction *to);
+
+        inline unsigned get_opcode() const { return opcode; };
+
+        bool is_invoke()        const { return get_opcode() == InvokeVal; }
+        bool is_branch()        const { return get_opcode() == BranchVal; }
+        bool is_goto()          const { return get_opcode() == GotoVal; }
+        bool is_assign()        const { return get_opcode() == AssignVal; }
+        bool is_not_op()        const { return get_opcode() == NotOpVal; }
+        bool is_return()        const { return get_opcode() == ReturnVal; }
+        bool is_return_void()   const { return get_opcode() == ReturnVoidVal; }
+        bool is_binary_ops()    const { return get_opcode() == BinaryOpsVal; }
+        bool is_index()         const { return get_opcode() == IndexVal; }
+        bool is_set_index()     const { return get_opcode() == SetIndexVal; }
+        bool is_phi_node()      const { return get_opcode() == PhiVal; }
+        bool is_tmpvalue()      const {
+            unsigned op = get_opcode();
+            return !(op == SetIndexVal
+                || op == BranchVal
+                || op == GotoVal
+                || op == ReturnVal
+                || op == ReturnVoidVal);
         }
-    private:
-        Value *value_;
-        User *user_;
-        User *prev_, *next_;
-    };
 
-    class Value
-    {
-    public:
-        virtual ~Value() = default;
+		void setSelfReg(MachineRegister reg) {
+			self_reg = reg;
+		}
 
-        // addUse/killUse - These two methods should only used by the Use class.
-        void addUse(Use &u) { uses_.push_back(u); }
-        void killUse(Use &u) { uses_.remove(u); }
+		MachineRegister getSelfReg() const {
+			return self_reg;
+		}
 
-        typedef std::list<Use>::iterator use_iterator;
-        use_iterator use_begin() { return uses_.begin(); }
-        use_iterator use_end() { return uses_.end(); }
-        size_t use_size() const { return uses_.size(); }
+		void pushUsingReg(MachineRegister reg) {
+			registers.push_back({ reg });
+		}
 
-        virtual Instructions instance() const = 0;
+		typedef std::vector<MachineRegister>::iterator reg_iterator;
+		reg_iterator reg_begin() { return registers.begin(); }
+		reg_iterator reg_end()   { return registers.end(); }
+		size_t reg_size()        { return registers.size(); }
+		const MachineRegisters &refRegisters() const {
+			return registers; 
+		}
 
-    protected:
-        std::list<Use> uses_;
-    };
-
-    class Constant : public Value
-    {
-    public:
-        enum { Null, Boolean, Character, Integer, Float, String, };
-
-        Constant();
-        Constant(int num);
-        Constant(bool state);
-        Constant(char c);
-        Constant(float fnum);
-        Constant(std::string str);
-
-        virtual ~Constant() = default;
-
-        unsigned type() const { return type_; }
-        int getInteger() const { return num_; }
-        char getChar() const { return c_; }
-        float getFloat() const { return fnum_; }
-        bool getBoolean() const { return bool_; }
-        const std::string &getString() const { return str_; }
-
-        virtual Instructions instance() const { return Instructions::IR_Constant; }
-    protected:
-        unsigned type_;
-        int num_;
-        bool bool_;
-        char c_;
-        float fnum_;
-        std::string str_;
-    };
-
-    class Table : public Value
-    {
-    public:
-        virtual ~Table() = default;
-        virtual Instructions instance() const { return Instructions::IR_Table; }
-    };
-
-    class User : public Value 
-    {
-    protected:
-        // 相对应的，User使用vector来组织Use Object
-        std::vector<Use> operands_;
-    public:
-        virtual ~User() = default;
-        typedef std::vector<Use>::iterator op_iterator;
-        op_iterator op_begin() { return operands_.begin(); }
-        op_iterator op_end() { return operands_.end(); }
-        unsigned getNumOperands() const { return operands_.size(); }
-        void op_reserve(unsigned NumElements) { operands_.reserve(NumElements); }
-        Use getOperand(size_t idx) { return operands_[idx]; }
-    };
-
-    class Instruction : public User 
-    {
-    public:
-        virtual ~Instruction() = default;
-        virtual Instructions instance() const = 0;
-
-        Instruction(const std::string &name);
-
-        void setParent(BasicBlock *parent);
-        void eraseFromParent();
-        void replaceBy(Value *val);
-
-        const std::string &name() const { return name_; }
-        BasicBlock *getParent() { return parent_; }
+		void setID(unsigned ID) { opID = ID; }
+		unsigned getID() const { return opID; }
     protected:    
-        BasicBlock *parent_;
+        BasicBlock *parent;
 
-        std::string name_;
-    };
-
-    class Undef : public Instruction
-    {
-    public:
-        Undef(std::string &name) : Instruction(name) {}
-        virtual ~Undef() = default;
-        
-        virtual Instructions instance() const { return Instructions::IR_Undef; }
-    };
-
-    class Store : public Instruction
-    {
-    public:
-        Store(Value *value, const std::string &name)
-            : Instruction(name)
-        {
-            init(value);
-        }
-
-        virtual ~Store() = default;
-        virtual Instructions instance() const { return Instructions::IR_Store; }
-
-    protected:
-        void init(Value *value);
+		unsigned opID;
+        const unsigned opcode;
+		MachineRegister self_reg;
+        MachineRegisters registers;
     };
 
     class Invoke : public Instruction
     {
     public:
-        Invoke(const std::string functionName, const std::vector<Value*> &args,
-            const std::string name)
-            : Instruction(name)
-            , functionName_(functionName)
-            , callByName_(true)
-        {
-            init(functionName, args);
-        }
-
-        Invoke(Value *function, const std::vector<Value*> &args,
-            const std::string name)
-            : Instruction(name)
-            , functionName_("")
-            , callByName_(false)
-        {
-            init(function, args);
-        }
-
+        Invoke(Value *func, const std::vector<Value*> &args, const char *name);
+        Invoke(Value *func, const std::vector<Value*> &args, const std::string &name);
         virtual ~Invoke() = default;
-        virtual Instructions instance() const { return Instructions::IR_Invoke; }
+        
+        typedef std::vector<Use>::iterator param_iterator;
+        param_iterator param_begin() { return ++operands.begin();}
+        param_iterator param_end() { return operands.end(); }
+        Value *get_func();
 
-        bool isCalledByName() const { return callByName_; }
-        const std::string &invokedName() const { return functionName_; }
+		void enable_tail_call() { tail_call = true; }
+		bool is_enable_tail_call() const { return tail_call; }
     protected:
-        void init(const std::string functionName, const std::vector<Value*> &args);
         void init(Value *function, const std::vector<Value*> &args);
 
-    protected:
-        std::string functionName_;
-        bool callByName_;
+		bool tail_call;
     };
 
     class Branch : public Instruction
     {
     public:
-        Branch(BasicBlock *parent, Value *cond, BasicBlock *then, BasicBlock *_else)
-            : Instruction(""), then_(then), else_(_else)
-        {
-            setParent(parent);
-            init(cond);
-            init(then, _else);
-        }
-
+        Branch(Value *cond, BasicBlock *then, BasicBlock *_else);
         virtual ~Branch() = default;
-        virtual Instructions instance() const { return Instructions::IR_Branch; }
 
+        Value *get_cond();
         BasicBlock *then() { return then_; }
         BasicBlock *_else() { return else_; }
+		void setThen(BasicBlock *then) {
+			then_ = then;
+		}
+		void setElse(BasicBlock *_else) {
+			else_ = _else;
+		}
     protected:
         void init(Value *cond);
-        void init(BasicBlock *then, BasicBlock *_else);
 
     protected:
         BasicBlock *then_;
@@ -252,36 +144,27 @@ namespace ir
     class Goto : public Instruction
     {
     public:
-        Goto(BasicBlock *parent, BasicBlock *block) 
-            : Instruction(""), block_(block)
-        {
-            setParent(parent);
-            init(block);
-        }
-
+        Goto(BasicBlock *block);
         virtual ~Goto() = default;
-        virtual Instructions instance() const { return Instructions::IR_Goto; }
 
-        const BasicBlock *block() const { return block_; }
-    protected:
-        void init(BasicBlock *block);
+		void setTarget(BasicBlock *block) {
+			block_ = block;
+		}
+
+        BasicBlock *block() { return block_; }
 
     protected:
         BasicBlock *block_;
     };
 
-
     class Assign : public Instruction
     {
     public:
-        Assign(Value *value, const std::string &name)
-            : Instruction(name)
-        {
-            init(value);
-        }
-
+        Assign(Value *value, const char *name);
+        Assign(Value *value, const std::string &name);
         virtual ~Assign() = default;
-        virtual Instructions instance() const { return Instructions::IR_Assign; }
+        
+        Value *get_value();
 
     protected:
         void init(Value *value);
@@ -290,15 +173,11 @@ namespace ir
     class NotOp : public Instruction
     {
     public:
-        NotOp(Value *value, const std::string &name)
-            : Instruction(name)
-        {
-            init(value);
-        }
-
+        NotOp(Value *value, const char *name);
+        NotOp(Value *value, const std::string &name);
         virtual ~NotOp() = default;
-        virtual Instructions instance() const { return Instructions::IR_NotOp; }
 
+        Value *get_value();
     protected:
         void init(Value *value);
     };
@@ -306,64 +185,64 @@ namespace ir
     class Return : public Instruction
     {
     public:
-        Return(Value *value)
-            : Instruction("")
-        {
-            init(value);
-        }
-
+        Return(Value *value);
         virtual ~Return() = default;
-        virtual Instructions instance() const { return Instructions::IR_Return; }
 
+        Value *get_value();
+		bool is_tail_call_return() const { return tail_call; }
     protected:
         void init(Value *value);
+		bool tail_call;
     };
 
     class ReturnVoid : public Instruction
     {
     public:
-        ReturnVoid()
-            : Instruction("")
-        {}
-
+        ReturnVoid();
         virtual ~ReturnVoid() = default;
-        virtual Instructions instance() const { return Instructions::IR_ReturnVoid; }
     };
 
     class BinaryOperator : public Instruction 
     {
     public:
-        BinaryOperator(BinaryOps bop, Value *lhs, Value *rhs, std::string &name)
-            : Instruction(name) 
-        {
-            init(bop, lhs, rhs);
-        }
+        enum BinaryOps {
+            Add,
+            Sub,
+            Mul,
+            Div,
+            And,
+            Or,
+            Great,
+            NotLess,
+            Less,
+            NotGreat,
+            Equal,
+            NotEqual,
+        };
 
+        BinaryOperator(unsigned ops, Value *lhs, Value *rhs, const char *name);
+        BinaryOperator(unsigned ops, Value *lhs, Value *rhs, const std::string &name);
         virtual ~BinaryOperator() = default;
-        virtual Instructions instance() const { return Instructions::IR_BinaryOps; }
 
-        BinaryOps op() const { return op_; }
+        unsigned op() const { return op_; }
+        Value *get_lhs();
+        Value *get_rhs();
     protected:
-        void init(BinaryOps bop, Value *lhs, Value* rhs);
+        void init(Value *lhs, Value* rhs);
 
     protected:
-        BinaryOps op_;
+        unsigned op_;
     };
 
     class Index : public Instruction
     {
     public:
-        Index(Value *table, Value *index, std::string &name)
-            : Instruction(name)
-        {
-            init(table, index);
-        }
-
+        Index(Value *table, Value *index, const char *name);
+        Index(Value *table, Value *index, const std::string &name);
         virtual ~Index() = default;
-        virtual Instructions instance() const { return Instructions::IR_Index; }
 
-        Value *table() { return operands_[0].getValue(); }
-        Value *index() { return operands_[1].getValue(); }
+        Value *table();
+        Value *index();
     protected:
         void init(Value *table, Value *index);
     };
@@ -371,15 +250,12 @@ namespace ir
     class SetIndex : public Instruction
     {
     public:
-        SetIndex(Value *table, Value *index, Value *to)
-            : Instruction("")
-        {
-            init(table, index, to);
-        }
-
+        SetIndex(Value *table, Value *index, Value *to);
         virtual ~SetIndex() = default;
-        virtual Instructions instance() const { return Instructions::IR_SetIndex; }
-
+        
+        Value *table();
+        Value *index();
+        Value *to();
     protected:
         void init(Value *table, Value *index, Value *to);
     };
@@ -387,33 +263,15 @@ namespace ir
     class Phi : public Instruction
     {
     public:
-        Phi(std::string &name)
-            : Instruction(name)
-        {
-
-        }
-
-        Phi(std::string &name, std::initializer_list<Value*> &params)
-            : Instruction(name)
-        {
-            init(params);
-        }
+        Phi(const char *name);
+        Phi(const std::string &name);
+        Phi(const char *name, std::initializer_list<Value*> &params);
+        Phi(const std::string &name, std::initializer_list<Value*> &params);
+        virtual ~Phi() = default;
 
         void appendOperand(Value *value);
 
-        virtual ~Phi() = default;
-
-        virtual Instructions instance() const { return Instructions::IR_Phi; }
-
     protected:
-        void init(std::initializer_list<Value*> &params)
-        {
-            for (auto *value : params)
-            {
-                operands_.push_back(Use(value, this));
-            }
-        }
+        void init(std::initializer_list<Value*> &params);
     };
-
-}
 }
