@@ -23,6 +23,7 @@ namespace script
             cout << diag.format() << endl;
         else 
             diags_.push_back(diag);
+		throw;
     }
 
     void DiagnosisConsumer::show()
@@ -33,7 +34,7 @@ namespace script
         }
     }
 
-    void DiagnosisConsumer::undefineID(std::string &name, TokenCoord coord)
+    void DiagnosisConsumer::undefineID(const std::string &name, TokenCoord coord)
     {
         Diagnosis diag(DiagType::DT_Error, coord);
         diag << "Using undefine identifier : " << name;
@@ -50,7 +51,7 @@ namespace script
     void DiagnosisConsumer::outOfScopeBreakOrContinue(TokenCoord coord)
     {
         Diagnosis diag(DiagType::DT_Error, coord);
-        diag << "break/continue Íâ²ãÐèÒª while statement";
+        diag << "break/continue ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òª while statement";
         this->diag(diag);
     }
 
@@ -68,7 +69,7 @@ namespace script
         this->diag(diag);
     }
 
-    void DiagnosisConsumer::redefineAs(std::string & name, TokenCoord coord)
+    void DiagnosisConsumer::redefineAs(const std::string & name, TokenCoord coord)
     {
         Diagnosis diag(DiagType::DT_Error, coord);
         diag << "redefined \"" << name << "\" as " << name;

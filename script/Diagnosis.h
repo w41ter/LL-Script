@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Parser/lexer.h"
+#include "lexer.h"
 #include <string>
 
 namespace script
@@ -31,7 +31,7 @@ namespace script
             return *this;
         }
 
-        Diagnosis &operator << (std::string &str)
+        Diagnosis &operator << (const std::string &str)
         {
             message_ += str;
             return *this;

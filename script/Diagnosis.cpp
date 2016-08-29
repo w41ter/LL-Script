@@ -7,14 +7,14 @@ using std::stringstream;
 
 namespace script
 {
-    static char *tokens[TK_BeginKeywordIDs] = {
+    static const char *tokens[TK_BeginKeywordIDs] = {
         "[None]",
         "[EOF]",
         "[Error]",
         "[NewLine]",
         "[WhiteSpace]",
         "[Comment]",
-        "[BasicTokenEnd]",
+        "[Identifier]",
         "[character]",
         "[LitInteger]",
         "[LitFloat]",
@@ -33,10 +33,10 @@ namespace script
         "==",
         "&",
         "|",
+		"(",
+		")",
         "{",
         "}",
-        "(",
-        ")",
         "[",
         "]",
         ",",
@@ -47,7 +47,7 @@ namespace script
     const char * Diagnosis::TokenToStirng(unsigned kind)
     {
         if (kind >= TK_BeginKeywordIDs)
-            return " ";
+            return "Keyword";
         return tokens[kind];
     }
 
