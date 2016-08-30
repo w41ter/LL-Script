@@ -8,84 +8,76 @@
 
 namespace script
 {
-
     class IRContext
     {
-        using Value = ir::Value;
-        using Branch = ir::Branch;
-        using Goto = ir::Goto;
     public:
-        ~IRContext();
-
         template<typename T, typename ...Args>
-        Value *create(Args ...args)
+        static T *create(Args ...args)
         {
             auto *buffer = new T(args...);
-            codes_.push_back(buffer);
             return buffer;
         }
 
         template<typename Type, typename ...Args>
-        Value *createAtBegin(BasicBlock *block, Args ...args)
+		static Type *createAtBegin(BasicBlock *block, Args ...args)
         {
             assert(block != nullptr);
             auto *tmp = new Type(args...);
-            codes_.push_back(tmp);
+            assert(!tmp->is_value());
             block->push_front(tmp);
             Instruction *instr = (Instruction*)tmp;
-            instr->setParent(block);
+            instr->set_parent(block);
             return tmp;
         }
 
         template<typename Type, typename ...Args>
-        Value *createAtEnd(BasicBlock *block, Args ...args)
+		static Type *createAtEnd(BasicBlock *block, Args ...args)
         {
             assert(block != nullptr);
             auto *tmp = new Type(args...);
-            codes_.push_back(tmp);
+            assert(!tmp->is_value());
             block->push_back(tmp);
             Instruction *instr = (Instruction*)tmp;
-            instr->setParent(block);
+            instr->set_parent(block);
             return tmp;
         }
 
-        Value *createBranchAtEnd(BasicBlock *parent, Value *cond, BasicBlock *then, BasicBlock *_else)
+		static Branch *createBranchAtEnd(
+			BasicBlock *parent, Value *cond, 
+			BasicBlock *then, BasicBlock *_else)
         {
             assert(parent != nullptr);
-            auto *tmp = new Branch(parent, cond, then, _else);
-            codes_.push_back(tmp);
+            auto *tmp = new Branch(cond, then, _else);
             parent->push_back(tmp);
+            parent->addSuccessor(then);
+            parent->addSuccessor(_else);
+            then->addPrecursor(parent);
+            _else->addPrecursor(parent);
+			tmp->set_parent(parent);
             return tmp;
         }
 
-        Value *createBranchAtBegin(BasicBlock *parent, Value *cond, BasicBlock *then, BasicBlock *_else)
+		static Goto *createGotoAtEnd(
+			BasicBlock *parent, BasicBlock *then)
         {
             assert(parent != nullptr);
-            auto *tmp = new Branch(parent, cond, then, _else);
-            codes_.push_back(tmp);
-            parent->push_front(tmp);
-            return tmp;
-        }
-
-        Value *createGotoAtBegin(BasicBlock *parent, BasicBlock *then)
-        {
-            assert(parent != nullptr);
-            auto *tmp = new Goto(parent, then);
-            codes_.push_back(tmp);
-            parent->push_front(tmp);
-            return tmp;
-        }
-
-        Value *createGotoAtEnd(BasicBlock *parent, BasicBlock *then)
-        {
-            assert(parent != nullptr);
-            auto *tmp = new Goto(parent, then);
-            codes_.push_back(tmp);
+            auto *tmp = new Goto(then);
             parent->push_back(tmp);
+            parent->addSuccessor(then);
+            then->addPrecursor(parent);
+			tmp->set_parent(parent);
             return tmp;
         }
 
-    protected:
-        std::list<Value*> codes_;
+		template <typename Type, typename ...Args>
+		static Type *insertAfter(
+			BasicBlock::instr_iterator iter, Args ...args) {
+			auto *tmp = new Type(args...);
+			BasicBlock *parent = (*iter)->get_parent();
+			parent->insert(iter, tmp);
+			tmp->set_parent(parent);
+			++iter;
+			return tmp;
+		}
     };
 }

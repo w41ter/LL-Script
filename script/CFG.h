@@ -16,6 +16,8 @@ namespace script
     class BasicBlock
     {
 		friend class CFG;
+		friend class LiveIntervalAnalysis;
+		friend class RegisterAllocator;
     public:
 		enum BlockVisitState {
 			Unvisit = 0x1,
@@ -77,6 +79,9 @@ namespace script
 		int  getLoopIndex() const { return loopIndex_; }
 		void setLoopDepth(int index) { loopDepth_ = index; }
 		int  getLoopDepth() const { return loopDepth_; }
+
+		unsigned getStart() const { return start_; }
+		unsigned getEnd()	const { return end_; }
     protected:
         void tryRemovePhiNode(Instruction *instr);
         void tryInsertPhiNode(Instruction *instr);
@@ -117,9 +122,13 @@ namespace script
         void setEnd(BasicBlock *end);
         BasicBlock *getEntryBlock();
         
-        typedef std::list<BasicBlock*>::iterator block_iterator;
+        typedef std::list<BasicBlock*>::iterator block_iterator; 
+		typedef std::list<BasicBlock*>::reverse_iterator 
+			block_reverse_iterator;
         block_iterator begin() { return blocks_.begin(); }
         block_iterator end() { return blocks_.end(); }
+		block_reverse_iterator rbegin() { return blocks_.rbegin(); }
+		block_reverse_iterator rend() { return blocks_.rend(); }
         void erase(BasicBlock *block);
         
         // SSA form construction.
