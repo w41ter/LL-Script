@@ -15,13 +15,11 @@
 
 namespace script
 {
-	size_t FrameMaxSize = 256;
-
 	struct VMFrame {
-		VMFrame(size_t RN, size_t PN, VMFrame *parent, unsigned RR,
+		VMFrame(size_t RN, size_t PN, unsigned RR,
 			const OpcodeFunction *func)
 			: regNums(RN), paramsNums(PN), ip(0)
-			, previous(parent), content(func), resReg(RR) {
+			, content(func), resReg(RR) {
 			create();
 		}
 
@@ -72,7 +70,6 @@ namespace script
 		size_t paramsNums;
 		Object *registers;
 		Object *params;
-		VMFrame *previous;
 		const OpcodeFunction *content;
 	};
 
@@ -92,10 +89,18 @@ namespace script
 	public:
 		VMState();
 
-		void execute(VMScene &scene);
+		void bindScene(VMScene *scene);
+		void execute();
+
+		void call(Object func, int32_t paramsNums, unsigned res);
+		void tailCall(Object func, int32_t paramsNums, unsigned res);
+		Object fillClosureWithParams(Object func, int32_t paramsNum);
+
 	private:
 		void runtimeError(const char *str);
-
+		void popParamsStack(size_t nums);
+		void clearSceneStack();
+		
 		int32_t getInteger(size_t & ip);
 		float getFloat(size_t & ip);
 
@@ -122,6 +127,8 @@ namespace script
 		VMFrame *topFrame;
 		VMScene *currentScene;
 	};
+
+	void BindGCProcess(VMScene *scene);
 }
 
 #endif // !__VM_H__

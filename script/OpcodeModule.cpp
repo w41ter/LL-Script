@@ -15,6 +15,7 @@ namespace script
 			return stringMap[str];
 		}
 		stringPool_.push_back(str);
+		stringMap.insert({ str, idx });
 		return idx;
     }
 

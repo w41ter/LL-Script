@@ -1,5 +1,7 @@
 #include "SimpleRegisterAllocation.h"
 
+#include <climits>
+
 #include "CFG.h"
 #include "IRModule.h"
 #include "Instruction.h" 
@@ -46,7 +48,8 @@ namespace script
 
 	void SimpleRegisterAllocation::initAndSortIntervals()
 	{
-		intervals.sort([](const auto &LHS, const auto &RHS) {
+		intervals.sort([](const LiveInterval &LHS,
+			const LiveInterval &RHS) {
 			return LHS.beginNumber() < RHS.beginNumber();
 		});
 	}

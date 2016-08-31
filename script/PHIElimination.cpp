@@ -60,6 +60,7 @@ namespace script
 			// instr->erase_from_parent();
 			// jump at CodeGen
 		}
+		return true;
 	}
 
 	void PhiElimination::splitCriticalEdge(
@@ -101,7 +102,7 @@ namespace script
 					branch->setElse(BB);
 			}
 			else {
-				assert(0 && "²»¿ÉÄÜ");
+				assert(0 && "impossible");
 			}
 		}
 	}

@@ -80,19 +80,19 @@ typedef struct
 	Object params[];
 } UserClosure;
 
-inline size_t SizeOfHashTable() {
+size_t SizeOfHashTable() {
 	return sizeof(HashTable);
 }
 
-inline size_t SizeOfUserClosure(size_t total) {
+size_t SizeOfUserClosure(size_t total) {
 	return sizeof(Closure) + total * sizeof(Object);
 }
 
-inline size_t SizeOfClosure(size_t total) {
+size_t SizeOfClosure(size_t total) {
 	return sizeof(Closure) + total * sizeof(Object);
 }
 
-inline size_t SizeOfString(size_t length) {
+size_t SizeOfString(size_t length) {
 	return sizeof(String) + (length + 1) * sizeof(char);
 }
 
@@ -104,7 +104,7 @@ inline size_t SizeOfString(size_t length) {
  * Fixnum - 0 = false, otherwise 1
  * Struct - true
  */
-inline bool True(Object self)
+bool ToLogicValue(Object self)
 {
 	if (IsTagging(self) || IsReal(self))
 		return true;
@@ -114,61 +114,56 @@ inline bool True(Object self)
 		return GetFixnum(self);
 }
 
-inline bool False(Object self)
-{
-	return !True(self);
-}
-
-inline bool IsCallable(Object self)
+bool IsCallable(Object self)
 {
 	return IsClosure(self);
 }
 
-inline bool IsHashTable(Object self)
+bool IsHashTable(Object self)
 {
 	return (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeHashTable);
 }
 
-inline bool IsUserClosure(Object self)
+bool IsUserClosure(Object self)
 {
 	return (!IsTagging(self) 
 		&& ((CommonObject*)self)->obType == TypeUserFunc);
 }
 
-inline bool IsClosure(Object self)
+bool IsClosure(Object self)
 {
 	return (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeClosure);
 }
 
-inline bool IsString(Object self)
+bool IsString(Object self)
 {
 	return (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeString);
 }
 
-inline bool IsNil(Object self)
+bool IsNil(Object self)
 {
 	return self == TagNil;
 }
 
-inline bool IsReal(Object self)
+bool IsReal(Object self)
 {
 	return (self & TagMask) == TagReal;
 }
 
-inline bool IsSpecal(Object self)
+bool IsSpecal(Object self)
 {
 	return (self & TagMask) == TagSpec;
 }
 
-inline bool IsFixnum(Object self)
+bool IsFixnum(Object self)
 {
 	return (self & TagMask) == TagFixnum;
 }
 
-inline bool IsTagging(Object self)
+bool IsTagging(Object self)
 {
 	return (self & TagMask) != TagNot;
 }
@@ -210,7 +205,7 @@ Object CreateString(Object self, const char *source, size_t length)
 	this->length = length;
 	strncpy(this->str, source, length);
 	this->str[length] = '\0'; // ensure for C call
-	return this;
+	return (Object)this;
 }
 
 const char *StringGet(Object self)
@@ -233,7 +228,7 @@ Object CreateClosure(Object self, void *content, size_t total)
 	this->hold = 0;
 	this->total = total;
 	this->content = content;
-	return this;
+	return (Object)this;
 }
 
 void ClosurePushParam(Object self, Object param)

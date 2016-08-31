@@ -1,5 +1,8 @@
 #include "RegisterAllocation.h"
 
+#include <climits>
+#include <algorithm>
+
 #include "CFG.h"
 #include "IRModule.h"
 #include "Instruction.h"
@@ -163,6 +166,7 @@ namespace script
 			interval.assignedReg = *reg;
 			splitLiveIntervalBefore(interval, freePos[*reg]);
 		}
+		return true;
 	}
 
 	void RegisterAllocator::allocateBlockedReg(LiveInterval &interval)
@@ -173,7 +177,6 @@ namespace script
 		unsigned pos = interval.beginNumber();
 		for (auto *I : active) {
 			if (nextUsePos[I->getAssignReg()] > I->nextUseAfter(pos)) {
-				nextUsePos[I->getAssignReg()] > I->nextUseAfter(pos);
 				values[I->getAssignReg()] = I;
 			}
 		}
@@ -182,7 +185,6 @@ namespace script
 			if (!I->overlaps(interval)) 
 				continue;
 			if (nextUsePos[I->getAssignReg()] > I->nextUseAfter(pos)) {
-				nextUsePos[I->getAssignReg()] > I->nextUseAfter(pos);
 				values[I->getAssignReg()] = I;
 			}
 		}

@@ -10,7 +10,7 @@ namespace script
 		: User(Value::InstructionVal)
 		, parent(0)
 		, opcode(value_id)
-		, output_reg({ 0 })
+		, output_reg(0)
 		, machine_state(false)
     {}
 
@@ -128,16 +128,16 @@ namespace script
 
 	Assign::Assign(Value *value, const char *name)
         : Instruction(Instruction::AssignVal, name)
-		, left({ 0 })
-		, right({ 0 })
+		, left(0)
+		, right(0)
     {
         init(value);
     }
 
     Assign::Assign(Value *value, const std::string &name)
         : Instruction(Instruction::AssignVal, name.c_str())
-		, left({ 0 })
-		, right({ 0 })
+		, left(0)
+		, right(0)
     {
         init(value);
     }

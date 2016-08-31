@@ -41,25 +41,24 @@ void *UserClosureContent(Object slef);
 
 Object CreateHashTable(Object self);
 
-inline size_t SizeOfHashTable();
-inline size_t SizeOfUserClosure(size_t total);
-inline size_t SizeOfClosure(size_t total);
-inline size_t SizeOfString(size_t length);
+size_t SizeOfHashTable();
+size_t SizeOfUserClosure(size_t total);
+size_t SizeOfClosure(size_t total);
+size_t SizeOfString(size_t length);
 
-inline bool True(Object self);
-inline bool False(Object self);
-inline bool IsCallable(Object self);
+bool ToLogicValue(Object self);
+bool IsCallable(Object self);
 
-inline bool IsHashTable(Object self);
-inline bool IsUserClosure(Object self);
-inline bool IsClosure(Object self);
-inline bool IsString(Object self);
+bool IsHashTable(Object self);
+bool IsUserClosure(Object self);
+bool IsClosure(Object self);
+bool IsString(Object self);
 
-inline bool IsNil(Object self);
-inline bool IsReal(Object self);
-inline bool IsSpecal(Object self);
-inline bool IsFixnum(Object self);
-inline bool IsTagging(Object self);
+bool IsNil(Object self);
+bool IsReal(Object self);
+bool IsSpecal(Object self);
+bool IsFixnum(Object self);
+bool IsTagging(Object self);
 
 size_t SizeOfObject(Object self);
 

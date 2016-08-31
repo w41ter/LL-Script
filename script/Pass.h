@@ -18,11 +18,7 @@ namespace script
         FunctionPass() : becalled(false) {}
         virtual ~FunctionPass() = default;
 
-        virtual void runOnFunction(IRFunction *func) = 0
-        {
-            assert(func && "Must point a IRFunction!");
-            assert(!becalled && " Each function pass can be used only once!");
-        }
+		virtual void runOnFunction(IRFunction *func) = 0;
     protected:
         bool becalled;
     };

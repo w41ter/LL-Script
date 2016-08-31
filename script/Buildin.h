@@ -18,6 +18,9 @@ Object Equal	(Object LHS, Object RHS);
 Object NotEqual	(Object LHS, Object RHS);
 Object Not		(Object LHS);
 
+void ProcessGlobals(void *scene);
+void ProcessVariableReference(Object *object);
+
 #ifdef __cplusplus
 }
 #endif 

@@ -80,7 +80,7 @@ namespace script
     {
         size_t offset = obj - (Object)from_space_->bottom_;
         int *forward = (int*)this->forward_;
-        return (forward[offset >> 2] != NULL);
+        return (forward[offset >> 2] != 0);
     }
 
     // set the obj's forward to new addr.
@@ -114,7 +114,7 @@ namespace script
             return;
 
         Object obj = *slot;
-        if (obj == NULL) return;
+        if (obj == 0) return;
 
         if (from_space_->contains(obj))
         {
@@ -169,11 +169,11 @@ namespace script
         assert(variableReference_ && globalVariable_);
 
         Object address = (Object)from_space_->allocateMemory(size);
-        if (address == NULL)
+        if (address == 0)
         {
             garbageCollect();
             address = from_space_->allocateMemory(size);
-            if (address == NULL)
+            if (address == 0)
             {
                 // error
                 throw std::runtime_error("Allocate memory failure!");

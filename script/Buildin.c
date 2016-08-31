@@ -1,6 +1,6 @@
 ﻿#include "Buildin.h"
 
-static inline IsCalable(Object self) 
+static inline bool IsCalable(Object self) 
 {
 	return IsFixnum(self);
 }
@@ -73,4 +73,31 @@ Object NotEqual(Object LHS, Object RHS)
 Object Not(Object LHS)
 {
 	return CreateFixnum(!ToLogicValue(LHS));
+}
+
+void ProcessGlobals(void *scene)
+{
+	//Frame *temp = currentFrame_;
+	//while (true)
+	//{
+	//	for (size_t i = 0; i < temp->localSlot_.size(); ++i)
+	//	{
+	//		gc_.processReference(&(temp->localSlot_[i]));
+	//	}
+	//	temp = temp->previous_;
+	//	if (temp == nullptr) break;
+	//}
+}
+
+void ProcessVariableReference(Object *Object)
+{
+	//if (IsClosure(*Object))
+	//{
+	//	size_t need = ClosureNeed(*Object);
+	//	Object *params = ClosureParams(*Object);
+	//	for (size_t i = 0; i < need; ++i)
+	//	{
+	//		gc_.processReference(&(params[i]));
+	//	}
+	//}
 }
