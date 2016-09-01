@@ -1,19 +1,15 @@
 #include "IRModule.h"
 
 #include "IRContext.h"
-#include "SymbolTable.h"
-
 namespace script
 {
-    IRCode::IRCode() : table_(new SymbolTable())
+    IRCode::IRCode()
     {
 
     }
 
     IRCode::~IRCode()
     {
-        if (table_ != nullptr)
-            delete table_;
     }
 
     IRFunction::IRFunction(std::string name)
@@ -22,19 +18,14 @@ namespace script
         
     }
 
-    std::string & IRFunction::getName()
+    std::string & IRFunction::getFunctionName()
     {
         return name_;
     }
 
-    void IRFunction::setParams(std::vector<std::pair<std::string, Token>> &params)
+    void IRFunction::setParams(std::vector<std::string> &&params)
     {
-        params_ = params;
-    }
-
-    SymbolTable *IRCode::getTable()
-    {
-        return table_;
+        params_ = std::move(params);
     }
 
     IRModule::~IRModule()
@@ -43,10 +34,10 @@ namespace script
             delete i.second;
     }
 
-    IRFunction *IRModule::createFunction(std::string &name)
+    IRFunction *IRModule::createFunction(const std::string &name)
     {
         auto *function = new IRFunction(name);
-        functions_.insert(std::pair<std::string, IRFunction*>(name, function));
+        functions_.insert({ name, function });
         return function;
     }
 }

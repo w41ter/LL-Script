@@ -9,17 +9,12 @@ namespace script
     class IRFunction;
     class IRModule;
     class BasicBlock;
-
-namespace ir
-{
     class Instruction;
     class Constant;
-}
-
+    class Value;
+    
     class DumpIR
     {
-        using Instruction = ir::Instruction;
-        using Constant = ir::Constant;
     public:
         DumpIR(std::string &filename);
         ~DumpIR();
@@ -31,8 +26,8 @@ namespace ir
     protected:
         void dumpBlock(BasicBlock *block);
         void dumpInstr(Instruction *instr);
-        void dumpValue(Constant *instr);
-        void dumpAlloca(Instruction *instr);
+        void dumpValue(Value *value);
+        void dumpConstant(Constant *instr);
         void dumpInvoke(Instruction *instr);
         void dumpBranch(Instruction *instr);
         void dumpGoto(Instruction *instr);
@@ -44,7 +39,6 @@ namespace ir
         void dumpIndex(Instruction *instr);
         void dumpSetIndex(Instruction *instr);
         void dumpPhi(Instruction *instr);
-        void dumpStore(Instruction *instr);
 
     protected:
         std::string filename_;

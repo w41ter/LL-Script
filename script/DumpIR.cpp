@@ -1,18 +1,16 @@
 #include "DumpIR.h"
 
+#include "Value.h"
 #include "Instruction.h"
 #include "IRModule.h"
-
-using namespace script::ir;
 
 using std::endl;
 
 namespace script
 {
     DumpIR::DumpIR(std::string &file)
-        : filename_(file)
+        : filename_(file), file_(file, std::ios::out)
     {
-        file_ = std::fstream(file, std::ios::out);
     }
 
     DumpIR::~DumpIR()
@@ -25,17 +23,14 @@ namespace script
         {
             dump(pair.second);
         }
-
-        file_ << "Begin for expressions:" << endl;
-        dump((IRCode*)module);
     }
 
     void DumpIR::dump(IRFunction *function)
     {
-        file_ << "Define " << function->getName() << " params: ";
+        file_ << "Define " << function->getFunctionName() << " params: ";
         for (auto i = function->param_begin(), e = function->param_end();
             i != e; ++i)
-            file_ << i->first << ' ';
+            file_ << *i << ' ';
         file_ << "{\n";
         dump((IRCode*)function);
         file_ << "}\n\n";
@@ -50,61 +45,82 @@ namespace script
 
     void DumpIR::dumpBlock(BasicBlock *block)
     {
-        file_ << block->getName() << ':' << endl;
+        file_ << block->getBlockName() << ':' << endl;
         for (auto i = block->instr_begin(), e = block->instr_end();
             i != e; ++i)
             dumpInstr(*i);
     }
 
-    void DumpIR::dumpInstr(Instruction *instr)
+    void DumpIR::dumpValue(Value *value)
     {
-        switch (instr->instance())
+		if (value == 0)
+			return;
+        switch (value->get_subclass_id())
         {
-        case Instructions::IR_Constant:
-        {
-            file_ << "[[Error]]";
-            break;
-        }
-        case Instructions::IR_Table:
-        {
-            file_ << "[[Error]]";
-            break;
-        }
-        case Instructions::IR_Undef:
+        case Value::UndefVal:
         {
             file_ << "[[Undef]]";
             break;
         }
-        case Instructions::IR_Invoke:
+        case Value::ConstantVal:
+        {
+            dumpConstant((Constant*)value);
+            break;
+        }
+        case Value::TableVal:
+        {
+            file_ << "[[Table]]";
+            break;
+        }
+        case Value::FunctionVal:
+        {
+            file_ << "[Function]:" << ((Function*)value)->getFuncName();
+            break;
+        }
+		case Value::ParamVal:
+		{
+			file_ << "[Param]:" << ((Param*)value)->getParamName();
+			break;
+		}
+        case Value::InstructionVal:
+            file_ << ((Instruction*)value)->get_value_name();
+            break;
+            //dump((Instruction*)value);
+        }
+    }
+
+    void DumpIR::dumpInstr(Instruction *instr)
+    {
+        switch (instr->get_opcode())
+        {
+        case Instruction::InvokeVal:
             dumpInvoke(instr); break;
-        case Instructions::IR_Branch:
+        case Instruction::BranchVal:
             dumpBranch(instr); break;
-        case Instructions::IR_Goto:
+        case Instruction::GotoVal:
             dumpGoto(instr); break;
-        case Instructions::IR_Assign:
+        case Instruction::AssignVal:
             dumpAssign(instr); break;
-        case Instructions::IR_NotOp:
+        case Instruction::NotOpVal:
             dumpNotOp(instr); break;
-        case Instructions::IR_Return:
+        case Instruction::ReturnVal:
             dumpReturn(instr); break;
-        case Instructions::IR_ReturnVoid:
+        case Instruction::ReturnVoidVal:
             dumpReturnVoid(instr); break;
-        case Instructions::IR_BinaryOps:
+        case Instruction::BinaryOpsVal:
             dumpBinaryOps(instr); break;
-        case Instructions::IR_Index:
+        case Instruction::IndexVal:
             dumpIndex(instr); break;
-        case Instructions::IR_SetIndex:
+        case Instruction::SetIndexVal:
             dumpSetIndex(instr); break;
-        case Instructions::IR_Phi:
+        case Instruction::PhiVal:
             dumpPhi(instr); break;
-        case Instructions::IR_Store:
-            dumpStore(instr); break;
         default:
             break;
         }
     }
 
-    void DumpIR::dumpValue(Constant *cons)
+    void DumpIR::dumpConstant(Constant *cons)
     {
         switch (cons->type())
         {
@@ -133,22 +149,17 @@ namespace script
     void DumpIR::dumpInvoke(Instruction *instr)
     {
         Invoke *invoke = (Invoke*)instr;
-        auto op = invoke->op_begin();
-        file_ << "    " << invoke->name() << " = Invoke ";
-        if (invoke->isCalledByName())
+        file_ << "    " << invoke->get_value_name() << " = Invoke ";
+        dumpValue(invoke->get_func());
+        file_ << " (";
+        
+		size_t op_size = invoke->get_num_operands() - 1;
+        for (auto op = invoke->param_begin(); 
+            op != invoke->param_end(); ++op)
         {
-            file_ << "$" << invoke->invokedName();
-        }
-        else
-        {
-            file_ << ((Instruction*)op++->getValue())->name();
-        }
-        file_ << "( ";
-        while (op != invoke->op_end())
-        {
-            Instruction *in = (Instruction*)op->getValue();
-            file_ << in->name() << ' ';
-            ++op;
+			dumpValue(op->get_value());
+            if (--op_size)
+				file_ << ", ";
         }
         file_ << ")\n";
     }
@@ -156,50 +167,40 @@ namespace script
     void DumpIR::dumpBranch(Instruction *instr)
     {
         Branch *branch = (Branch*)instr;
-        Value *value = branch->op_begin()->getValue();
-        Instruction *cond = (Instruction*)value;
-        std::string name = value->instance() == Instructions::IR_Undef
-            ? "[[Undef]]" : cond->name();
-        file_ << "    Branch " << name << ' '
-            << branch->then()->getName() << ' '
-            << branch->_else()->getName() << endl;
-        //if (branch->hasElseBlock())
+        file_ << "    Branch "; 
+        dumpValue(branch->get_cond());
+        file_ << ' ' << branch->then()->getBlockName() << ' ';
+        file_ << branch->_else()->getBlockName() << endl;
     }
 
     void DumpIR::dumpGoto(Instruction *instr)
     {
         Goto *go = (Goto*)instr;
-        file_ << "    Goto " << go->block()->getName() << endl;
+        file_ << "    Goto " << go->block()->getBlockName() << endl;
     }
 
     void DumpIR::dumpAssign(Instruction *instr)
     {
-        Assign *assign = (Assign*)instr;
-        file_ << "    " << assign->name() << " = ";
-        Value *value = assign->op_begin()->getValue();
-        if (value->instance() == Instructions::IR_Constant)
-            dumpValue((Constant*)value);
-        else if (value->instance() == Instructions::IR_Undef)
-            file_ << "[[Undef]]";
-        else if (value->instance() == Instructions::IR_Table)
-            file_ << "[]";
-        else
-            file_ << ((Instruction*)value)->name();
+		Assign *assign = (Assign*)instr;
+        file_ << "    " << assign->get_value_name() << " = ";
+        dumpValue(assign->get_value());
         file_ << endl;
     }
 
     void DumpIR::dumpNotOp(Instruction *instr)
     {
-        NotOp * not = (NotOp*)instr;
-        Instruction *from = (Instruction*)not->op_begin()->getValue();
-        file_ << "    " << not->name() << " = !" << from->name() << endl;
+        NotOp * not_ = (NotOp*)instr;
+        file_ << "    " << not_->get_value_name() << " = ! ";
+        dumpValue(not_->get_value());
+        file_ << endl;
     }
 
     void DumpIR::dumpReturn(Instruction *instr)
     {
         Return *ret = (Return*)instr;
-        Instruction *from = (Instruction*)ret->op_begin()->getValue();
-        file_ << "    Return " << from->name() << endl;
+        file_ << "    Return ";
+        dumpValue(ret->get_value());
+        file_ << endl;
     }
 
     void DumpIR::dumpReturnVoid(Instruction *instr)
@@ -210,99 +211,92 @@ namespace script
     void DumpIR::dumpBinaryOps(Instruction *instr)
     {
         BinaryOperator *ops = (BinaryOperator*)instr;
-        BinaryOps op = ops->op();
-        auto iter = ops->op_begin();
-        Instruction *lhs = (Instruction*)iter++->getValue();
-        Instruction *rhs = (Instruction*)iter++->getValue();
-        file_ << "    " << ops->name() << " = " << lhs->name() << ' ';
+        unsigned op = ops->op();
+		file_ << "    " << ops->get_value_name() << " = ";
+		dumpValue(ops->get_lhs());
+        file_ << ' ';
         switch (op)
         {
-        case BinaryOps::BO_Add:
+        case BinaryOperator::Add:
             file_ << '+';
             break;
-        case BinaryOps::BO_Sub:
+        case BinaryOperator::Sub:
             file_ << '-';
             break;
-        case BinaryOps::BO_Mul:
+        case BinaryOperator::Mul:
             file_ << '*';
             break;
-        case BinaryOps::BO_Div:
+        case BinaryOperator::Div:
             file_ << '/';
             break;
-        case BinaryOps::BO_And:
+        case BinaryOperator::And:
             file_ << '&';
             break;
-        case BinaryOps::BO_Or:
+        case BinaryOperator::Or:
             file_ << '|';
             break;
-        case BinaryOps::BO_Great:
+        case BinaryOperator::Great:
             file_ << '>';
             break;
-        case BinaryOps::BO_NotLess:
+        case BinaryOperator::NotLess:
             file_ << ">=";
             break;
-        case BinaryOps::BO_Less:
+        case BinaryOperator::Less:
             file_ << '<';
             break;
-        case BinaryOps::BO_NotGreat:
+        case BinaryOperator::NotGreat:
             file_ << "<=";
             break;
-        case BinaryOps::BO_Equal:
+        case BinaryOperator::Equal:
             file_ << "==";
             break;
-        case BinaryOps::BO_NotEqual:
+        case BinaryOperator::NotEqual:
             file_ << "!=";
             break;
         default:
             break;
         }
-        file_ << ' ' << rhs->name() << endl;
+		file_ << ' ';
+		dumpValue(ops->get_rhs());
+		file_ << endl;
     }
 
     void DumpIR::dumpIndex(Instruction *instr)
     {
         Index *index = (Index*)instr;
-        auto op = index->op_begin();
-        Instruction *table = (Instruction*)op++->getValue();
-        Instruction *idx = (Instruction*)op++->getValue();
-        file_ << "    " << index->name() << " = " << table->name()
-            << '[' << idx->name() << ']' << endl;
+		file_ << "    " << index->get_value_name() << " = ";
+		dumpValue(index->table());
+		file_ << '[';
+		dumpValue(index->index());
+		file_ << ']' << endl;
     }
 
     void DumpIR::dumpSetIndex(Instruction *instr)
     {
         SetIndex *set = (SetIndex*)instr;
-        auto op = set->op_begin();
-        Instruction *table = (Instruction*)op++->getValue();
-        Instruction *idx = (Instruction*)op++->getValue();
-        Instruction *from = (Instruction*)op++->getValue();
-        file_ << "    " << table->name() << '[' << idx->name()
-            << ']' << " = " << from->name() << endl;
+		file_ << "    ";
+		dumpValue(set->table());
+		file_ << '[';
+		dumpValue(set->index());
+		file_ << ']' << " = ";
+		dumpValue(set->to());
+		file_ << endl;
     }
 
     void DumpIR::dumpPhi(Instruction *instr)
     {
         Phi *phi = (Phi*)instr;
-        file_ << "    " << phi->name() << " = Phi<";
+        file_ << "    " << phi->get_value_name() << " = Phi<";
         bool first = true;
-        for (auto &use = phi->op_begin(); use != phi->op_end(); ++use)
+        for (auto use = phi->op_begin(); use != phi->op_end(); ++use)
         {
             if (!first)
                 file_ << ", ";
             else
                 first = false;
-            Value *value = use->getValue();
-            //if (value->instance() >= Instructions::IR_Undef)
-            file_ << ((Instruction*)use->getValue())->name();
+            dumpValue(use->get_value());
         }
         file_ << ">\n";
-    }
-
-    void DumpIR::dumpStore(Instruction *instr)
-    {
-        Store *store = (Store*)instr;
-        Instruction *from = (Instruction*)store->op_begin()->getValue();
-        file_ << "    " << store->name() << " := " << from->name() << endl;
     }
 }
 

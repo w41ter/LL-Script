@@ -2,8 +2,9 @@
 
 #include "CFG.h"
 
-#include "../Parser/lexer.h"
+#include "lexer.h"
 #include <map>
+#include <set>
 
 namespace script
 {
@@ -15,11 +16,6 @@ namespace script
     public:
         IRCode();
         ~IRCode();
-
-        SymbolTable *getTable();
-
-    protected:
-        SymbolTable *table_;
     };
 
     class IRFunction : public IRCode
@@ -28,34 +24,30 @@ namespace script
     public:
         IRFunction(std::string name);
 
-        std::string &getName();
-        void setParams(std::vector<std::pair<std::string, Token>> &params);
+        std::string &getFunctionName();
+        void setParams(std::vector<std::string> &&params);
         
-        typedef std::vector<std::pair<std::string, Token>>::iterator param_iterator;
+        typedef std::vector<std::string>::iterator param_iterator;
         param_iterator param_begin() { return params_.begin(); }
         param_iterator param_end() { return params_.end(); }
 
     protected:
         std::string name_;
-        std::vector<std::pair<std::string, Token>> params_;
+        std::vector<std::string> params_;
     };
 
-    class IRModule : public IRCode
+    class IRModule
     {
         friend class DumpIR;
     public:
-
         ~IRModule();
 
-        IRFunction *createFunction(std::string &name);
-        IRFunction *getFunction(std::string &name);
+        IRFunction *createFunction(const std::string &name);
+        IRFunction *getFunctionByName(const std::string &name);
 
-        typedef std::map<std::string, IRFunction*>::iterator func_iterator;
-        func_iterator begin() { return functions_.begin(); }
-        func_iterator end() { return functions_.end(); }
-
-    private:
-        void destory();
+        typedef std::map<std::string, IRFunction*>::iterator iterator;
+		iterator begin() { return functions_.begin(); }
+		iterator end() { return functions_.end(); }
 
     protected:
         std::map<std::string, IRFunction*> functions_;
