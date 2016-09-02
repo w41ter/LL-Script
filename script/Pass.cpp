@@ -1,4 +1,4 @@
-#include "Optimize.h"
+#include "Pass.h"
 
 namespace script
 {

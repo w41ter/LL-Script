@@ -1,20 +1,29 @@
 #pragma once
 
+#include <cassert>
+
 namespace script
 {
     class IRFunction;
 
-    class Optimize
+    class Pass
     {
     public:
-        virtual ~Optimize() = default;
+        virtual ~Pass() = default;
     };
 
-    class FunctionPass : public Optimize
+    class FunctionPass : public Pass
     {
     public:
+        FunctionPass() : becalled(false) {}
         virtual ~FunctionPass() = default;
 
-        virtual void runOnFunction(IRFunction *func) = 0;
+        virtual void runOnFunction(IRFunction *func) = 0
+        {
+            assert(func && "Must point a IRFunction!");
+            assert(!becalled && " Each function pass can be used only once!");
+        }
+    protected:
+        bool becalled;
     };
 }
