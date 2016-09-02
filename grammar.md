@@ -1,3 +1,5 @@
+## EBNF
+
 ```
 keyword_constant:
     true
@@ -79,3 +81,27 @@ let_decl:
 program: 
     { statement | function_decl }
 ```
+
+## Example
+
+```
+let lib = require("other.ll");
+
+function main() {
+    lib.test();
+
+    let table = [ 
+        "string",
+        1,
+        call = lambda () {
+            println("here");
+        }
+    ];
+
+    table.call();
+    println(table[0]);
+
+    return;
+}
+
+
