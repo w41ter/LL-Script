@@ -486,7 +486,7 @@ namespace script
 		const std::string &name = currentScene->module.getString(offset);
 		auto *content = currentScene->module.getUserClosure(name);
 		Object closure = currentScene->GC.allocate(SizeOfUserClosure());
-		CreateUserClosure(closure, content);
+		CreateUserClosure(closure, (void*)(content));
 		topFrame->setRegVal(result, closure);
 	}
 

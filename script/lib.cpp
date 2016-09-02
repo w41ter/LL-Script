@@ -49,7 +49,7 @@ Object lib_to_string(VMState *state, size_t paramsNums)
 		return CreateString(result, str.c_str(), str.size());
 	}
 	else {
-		char *str = "";
+		const char *str = "";
 		if (IsUserClosure(res))
 			str = "<user closure>";
 		else if (IsHash(res))

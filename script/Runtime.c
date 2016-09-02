@@ -3,6 +3,14 @@
 
 #include "Runtime.h"
 
+#if defined(__linux__)
+	#if defined(__x86_64__)
+		#define _WIN64
+	#else 
+		#define _WIN32
+	#endif
+#endif
+
 enum Tag {
 	TagNot = 0,
 	TagFixnum = 1,
@@ -391,11 +399,18 @@ static size_t HashValue(Object key)
 	return key;
 }
 
-static size_t HashSEQ(const unsigned char *_First, size_t _Count)
+static size_t HashSEQ(const char *_First, size_t _Count)
 {	// FNV-1a hash function for bytes in [_First, _First + _Count)
+#if defined(_WIN64)
+	static_assert(sizeof(size_t) == 8, "This code is for 64-bit size_t.");
+	const size_t _FNV_offset_basis = 14695981039346656037ULL;
+	const size_t _FNV_prime = 1099511628211ULL;
+
+#else /* defined(_WIN64) */
 	static_assert(sizeof(size_t) == 4, "This code is for 32-bit size_t.");
 	const size_t _FNV_offset_basis = 2166136261U;
 	const size_t _FNV_prime = 16777619U;
+#endif /* defined(_WIN64) */
 
 	size_t _Val = _FNV_offset_basis;
 	for (size_t _Next = 0; _Next < _Count; ++_Next)
