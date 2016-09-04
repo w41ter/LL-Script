@@ -67,24 +67,25 @@ namespace script
                 || op == ReturnVoidVal);
         }
 
-		void setSelfReg(MachineRegister reg) {
-			self_reg = reg;
+		void setOutputReg(MachineRegister reg) {
+			machine_state = true;
+			output_reg = reg;
 		}
 
-		MachineRegister getSelfReg() const {
-			return self_reg;
+		MachineRegister getOutputReg() const {
+			return output_reg;
 		}
 
-		void pushUsingReg(MachineRegister reg) {
-			registers.push_back({ reg });
+		void pushInputReg(MachineRegister reg) {
+			input_registers.push_back({ reg });
 		}
 
 		typedef std::vector<MachineRegister>::iterator reg_iterator;
-		reg_iterator reg_begin() { return registers.begin(); }
-		reg_iterator reg_end()   { return registers.end(); }
-		size_t reg_size()        { return registers.size(); }
-		const MachineRegisters &refRegisters() const {
-			return registers; 
+		reg_iterator reg_begin() { return input_registers.begin(); }
+		reg_iterator reg_end()   { return input_registers.end(); }
+		size_t reg_size()        { return input_registers.size(); }
+		const MachineRegisters &refInputRegisters() const {
+			return input_registers;
 		}
 
 		void setID(unsigned ID) { opID = ID; }
@@ -92,10 +93,11 @@ namespace script
     protected:    
         BasicBlock *parent;
 
+		bool machine_state;
 		unsigned opID;
         const unsigned opcode;
-		MachineRegister self_reg;
-        MachineRegisters registers;
+		MachineRegister output_reg;
+        MachineRegisters input_registers;
     };
 
     class Invoke : public Instruction
@@ -160,6 +162,7 @@ namespace script
     class Assign : public Instruction
     {
     public:
+		Assign(MachineRegister L, MachineRegister R);
         Assign(Value *value, const char *name);
         Assign(Value *value, const std::string &name);
         virtual ~Assign() = default;
@@ -168,6 +171,9 @@ namespace script
 
     protected:
         void init(Value *value);
+
+		MachineRegister left;
+		MachineRegister right;
     };
 
     class NotOp : public Instruction

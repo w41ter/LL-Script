@@ -6,10 +6,13 @@
 #include "Use.h"
 #include "Value.h"
 
+#include <functional>
+
 namespace script
 {
 	class User : public Value
     {
+		using map = std::function<void(Value *)>;
     public:
 		User(unsigned scid) : Value(scid) { }
 
@@ -33,6 +36,12 @@ namespace script
         op_iterator op_end() { return operands.end(); }
         unsigned get_num_operands() const { return operands.size(); }
         void op_reserve(size_t size) { operands.reserve(size); }
+
+		void op_map(map map)
+		{
+			for (auto &oper : operands)
+				map(oper.get_value());
+		}
         
         Value *get_operand(size_t idx)
         {

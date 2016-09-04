@@ -10,13 +10,13 @@ namespace script
 		: User(Value::InstructionVal)
 		, parent(0)
 		, opcode(value_id)
-		, self_reg({ MachineRegister::Allocated, 0 })
+		, output_reg({ 0 })
+		, machine_state(false)
     {}
 
     Instruction::Instruction(unsigned value_id, const char *value_name)
         : Instruction(value_id)
     {
-    
         this->set_value_name(value_name);
     }
 
@@ -120,14 +120,24 @@ namespace script
         this->block_ = block;
     }
 
+	Assign::Assign(MachineRegister L, MachineRegister R)
+		: Instruction(AssignVal), left(L), right(R)
+	{
+		machine_state = true;
+	}
+
 	Assign::Assign(Value *value, const char *name)
         : Instruction(Instruction::AssignVal, name)
+		, left({ 0 })
+		, right({ 0 })
     {
         init(value);
     }
 
     Assign::Assign(Value *value, const std::string &name)
         : Instruction(Instruction::AssignVal, name.c_str())
+		, left({ 0 })
+		, right({ 0 })
     {
         init(value);
     }
