@@ -167,7 +167,7 @@ namespace script
 				break;
 		}
 		clearSceneStack();
-		throw;
+		throw "";
 	}
 
 	void VMState::popParamsStack(size_t nums)

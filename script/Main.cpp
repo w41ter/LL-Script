@@ -108,8 +108,7 @@ void ExecuteScriptEntry(
 	try {
 		state.execute();
 	}
-	catch (const std::exception &e) {
-		std::cout << e.what() << std::endl;
+	catch (...) {
 		exit(0);
 	}
 }

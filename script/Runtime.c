@@ -429,8 +429,8 @@ typedef struct Hash
 static size_t HashValue(Object key)
 {
 	// hash _Keyval to size_t value one-to-one
-	//return ((size_t)key ^ _HASH_SEED);
-	return key;
+	return ((size_t)key ^ _HASH_SEED);
+	//return key;
 }
 
 static size_t HashSEQ(const char *_First, size_t _Count)
@@ -667,7 +667,7 @@ Object HashFind(Object self, Object key)
 	assert(IsHash(self));
 	Hash *hash = (Hash*)self; 
 	uint32_t hash_key = HashKey(key);
-	uintptr_t index = hash_key & (hash->capacity - 1);
+	uintptr_t index = hash_key % hash->capacity;
 
 	HashNodeList *list = hash->content;
 	while (list->content[index].key != hash_key
