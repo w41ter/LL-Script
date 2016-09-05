@@ -1,6 +1,7 @@
 #include "Use.h"
 
 #include "Value.h"
+#include "User.h"
 
 namespace script
 {
@@ -35,6 +36,7 @@ namespace script
 		{
 			this->value->add_use(this);
 		}
+		user->unique();
 	}
 
 	Use &Use::operator = (const Use &rhs) {
@@ -54,7 +56,8 @@ namespace script
         if (this->value)
             this->value->kill_use(this); 
         this->value = value;
-        if (this->value) 
+		if (this->value) 
             this->value->add_use(this);
+		this->user->unique();
     }
 }

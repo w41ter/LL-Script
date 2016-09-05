@@ -503,7 +503,7 @@ namespace
 
 		IRContext::createGotoAtEnd(scope->block_, breaks_.top());
 
-		//scope->cfg_->sealBlock(scope->block_);
+		scope->cfg_->sealBlock(scope->block_);
 
 		scope->block_ = scope->cfg_->createBasicBlock(
 			getTmpName("full_throught_"));
@@ -523,7 +523,7 @@ namespace
 		IRContext::createGotoAtEnd(
 			scope->block_, continues_.top());
         
-		//scope->cfg_->sealBlock(scope->block_);
+		scope->cfg_->sealBlock(scope->block_);
 
 		scope->block_ = scope->cfg_->createBasicBlock(
             getTmpName("full_throught_"));
@@ -547,7 +547,7 @@ namespace
         match(TK_Semicolon);
         BasicBlock *succBlock = 
             scope->cfg_->createBasicBlock("return_succ_");
-		//scope->cfg_->sealBlock(scope->block_);
+		scope->cfg_->sealBlock(scope->block_);
 		scope->block_ = succBlock;
     }
 
@@ -570,18 +570,19 @@ namespace
         BasicBlock *tmpBlock = scope->block_;
         BasicBlock *condBlock = scope->cfg_->createBasicBlock(
             getTmpName("while_cond_"));
-        BasicBlock *thenBlock = scope->cfg_->createBasicBlock(
-            getTmpName("while_then_"));
-        BasicBlock *endBlock = scope->cfg_->createBasicBlock(
-            getTmpName("end_while_"));
 
 		IRContext::createGotoAtEnd(tmpBlock, condBlock);
-		//scope->cfg_->sealBlock(tmpBlock);
+		scope->cfg_->sealBlock(tmpBlock);
 
 		scope->block_ = condBlock;
         match(TK_LParen);
         Value *expr = parseRightHandExpr();
         match(TK_RParen);
+
+		BasicBlock *thenBlock = scope->cfg_->createBasicBlock(
+			getTmpName("while_then_"));
+		BasicBlock *endBlock = scope->cfg_->createBasicBlock(
+			getTmpName("end_while_"));
 		IRContext::createBranchAtEnd(
 			scope->block_, expr, thenBlock, endBlock);
 
@@ -672,7 +673,8 @@ namespace
         case TK_Define:
             return parseDefineDecl();
         case TK_Semicolon:
-            return parseStatement();
+			advance();
+            return ;
 		case TK_LCurlyBrace:
 			return parseBlock();
         default:

@@ -1,5 +1,6 @@
 #include "lib.h"
 
+#include <ctime>
 #include <iostream>
 #include <functional>
 
@@ -143,11 +144,33 @@ Object lib_require(VMState *state, size_t paramsNums)
 	return CreateUndef();
 }
 
+Object lib_random(VMState *state, size_t paramsNums) 
+{
+	if (paramsNums != 0) {
+		state->runtimeError("random no parameter");
+	}
+	return CreateFixnum(rand() % MAX_FIXNUM);
+}
+
+Object lib_time(VMState *state, size_t paramsNums)
+{
+	if (paramsNums != 0) {
+		state->runtimeError("time no parameter");
+	}
+
+	// FIXME:
+	float per_ms = CLOCKS_PER_SEC / 100;
+	int total = (clock() / per_ms);
+	return CreateFixnum(total);
+}
+
 static Lib libs[] = {
 	{ "output", lib_output },
 	{ "input", lib_input },
 	{ "println", lib_println },
 	{ "require", lib_require },
+	{ "random", lib_random },
+	{ "time", lib_time },
 	{ "is_null", lib_is_null },
 	{ "to_string", lib_to_string },
 	{ "to_integer", lib_to_integer },

@@ -1,7 +1,9 @@
 #pragma once 
 
+#include <set>
 #include <vector>
 #include <cassert>
+#include <algorithm>
 
 #include "Use.h"
 #include "Value.h"
@@ -22,7 +24,8 @@ namespace script
             for (size_t i = 0; i < get_num_operands(); ++i)
             {
                 Value *val = get_operand(i);
-                if (val && val->is_value())    // can't be erase by BasicBlock.
+                if (val && val->is_value())    
+					// can't be erase by BasicBlock.
 					values.push_back(val);
             }
 			drop_all_references();
@@ -48,6 +51,21 @@ namespace script
             assert(idx < get_num_operands());
             return operands[idx].get_value();
         }
+
+		void unique() 
+		{
+			//std::set<Value*> set;
+			//std::vector<Use> opers;
+			//opers.resize(operands.size());
+			//for (auto &use : operands) {
+			//	if (set.count(use.get_value()) == 0) {
+			//		set.insert(use.get_value());
+			//		opers.push_back(use);
+			//	}
+			//}
+			//if (opers.size() != operands.size())
+			//	std::swap(operands, opers);
+		}
 
         void drop_all_references()
         {

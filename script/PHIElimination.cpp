@@ -38,6 +38,8 @@ namespace script
 			// in the corresponding predecessor basic block.
 			for (auto op = instr->op_begin(); op != instr->op_end(); ++op) {
 				Value *OPV = op->get_value();
+				if (OPV->is_undef())
+					continue;
 				assert(!OPV->is_value());
 				Instruction *opI = static_cast<Instruction*>(OPV);
 				BasicBlock *opBlock = findEdge(opI->get_parent(), block);
@@ -79,10 +81,9 @@ namespace script
 			return tmpBlock;
 		};
 
-		for (auto pre = block->precursor_begin();
-			pre != block->precursor_end();
-			++pre) {
-			BasicBlock *PBB = *pre;
+		// FIXME: construction cfg. remove old edge
+		for (size_t pre = 0; pre != block->numOfPrecursors(); ++pre) {
+			BasicBlock *PBB = block->precursor(pre);
 			// Check whether split.
 			if (PBB->numOfSuccessors() <= 1)
 				continue;

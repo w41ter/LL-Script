@@ -9,6 +9,11 @@
 extern "C" {
 #endif
 
+#define MEM_BIT (8*sizeof(uintptr_t))
+
+#define MAX_FIXNUM ((1 << (MEM_BIT - 2)) - 1)
+#define MIN_FIXNUM ((MAX_FIXNUM << 1) | 1)
+
 typedef uintptr_t Object;
 
 typedef struct HashNode
@@ -56,6 +61,10 @@ void HashSetAndUpdate(Object self, Object key, Object value);
 Object CreateUserClosure(Object self, void *func);
 void *UserClosureGet(Object self);
 
+Object CreateUserData(Object self, void *data);
+void *UserDataGet(Object self);
+
+size_t SizeOfUserData();
 size_t SizeOfArray(size_t total);
 size_t SizeOfUserClosure();
 size_t SizeOfClosure(size_t total);
@@ -72,6 +81,7 @@ bool IsHashNodeList(Object self);
 bool IsUserClosure(Object self);
 bool IsClosure(Object self);
 bool IsString(Object self);
+bool IsUserData(Object self);
 
 bool IsUndef(Object self);
 bool IsNil(Object self);

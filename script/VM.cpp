@@ -330,7 +330,9 @@ namespace script
 		auto &opcode = topFrame->content->codes;
 		unsigned resultReg = opcode[ip++];
 		Object func = topFrame->getRegVal(opcode[ip++]);
-		int32_t paramsNums = getInteger(ip);
+		int32_t argc = getInteger(ip);
+
+		assert(currentScene->paramsStack.size() >= argc);
 
 		if (!IsCallable(func)) {
 			runtimeError("try to invoke incallable object");
@@ -338,23 +340,23 @@ namespace script
 		}
 
 		if (IsUserClosure(func)) {
-			callUserClosure(func, paramsNums, resultReg);
+			callUserClosure(func, argc, resultReg);
 			return;
 		}
 
 		int32_t total = ClosureTotal(func);
 		int32_t hold = ClosureHold(func);
-		int32_t target = paramsNums + hold;
+		int32_t target = argc + hold;
 
 		if (target > total) {
 			runtimeError("too many params");
 			return;
 		}
 		if (target == total) 
-			call(func, paramsNums, resultReg);
+			call(func, argc, resultReg);
 		else 
 			topFrame->setRegVal(resultReg,
-				fillClosureWithParams(func, paramsNums));
+				fillClosureWithParams(func, argc));
 	}
 
 	void VMState::executeTailCall(size_t & ip)
@@ -362,7 +364,9 @@ namespace script
 		auto &opcode = topFrame->content->codes;
 		unsigned resultReg = opcode[ip++];
 		Object func = topFrame->getRegVal(opcode[ip++]);
-		int32_t paramsNums = getInteger(ip);
+		int32_t argc = getInteger(ip);
+
+		assert(currentScene->paramsStack.size() >= argc);
 
 		if (!IsCallable(func)) {
 			runtimeError("try to invoke incallable object");
@@ -370,7 +374,7 @@ namespace script
 		}
 
 		if (IsUserClosure(func)) {
-			callUserClosure(func, paramsNums, resultReg);
+			callUserClosure(func, argc, resultReg);
 			return;
 		}
 
@@ -383,10 +387,10 @@ namespace script
 			return;
 		}
 		if (target == total)
-			tailCall(func, paramsNums, resultReg);
+			tailCall(func, argc, resultReg);
 		else
 			topFrame->setRegVal(resultReg,
-				fillClosureWithParams(func, paramsNums));
+				fillClosureWithParams(func, argc));
 	}
 
 	void VMState::executeGoto(size_t & ip)
@@ -460,7 +464,9 @@ namespace script
 		auto &opcode = topFrame->content->codes;
 		unsigned result = opcode[ip++];
 		int32_t offset = getInteger(ip);
-		int32_t paramSize = getInteger(ip);
+		int32_t argc = getInteger(ip);
+
+		assert(currentScene->paramsStack.size() >= argc);
 
 		const std::string &name = currentScene->module.getString(offset);
 		auto *content = &currentScene->module.getFunction(name);
@@ -470,12 +476,12 @@ namespace script
 		CreateClosure(closure, content, numOfParams);
 
 		size_t stackSize = currentScene->paramsStack.size();
-		for (size_t idx = 0; idx < numOfParams; ++idx) {
-			size_t from = stackSize - (numOfParams - idx);
+		for (size_t idx = 0; idx < argc; ++idx) {
+			size_t from = stackSize - (argc - idx);
 			ClosurePushParam(closure, currentScene->paramsStack[from]);
 		}
 		topFrame->setRegVal(result, closure);
-		popParamsStack(numOfParams);
+		popParamsStack(argc);
 	}
 
 	void VMState::executeUserClosure(size_t & ip)

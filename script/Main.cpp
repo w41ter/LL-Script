@@ -2,6 +2,8 @@
 #include <stdexcept>
 #include <memory>
 #include <fstream>
+#include <cstdlib>
+#include <ctime>
 
 #include "VM.h"
 #include "lib.h"
@@ -156,6 +158,8 @@ int main(int argc, char* argv[])
     Driver &driver = compiler.getDriver();
     if (!driver.parseArguments(argc, argv))
         return 0;
+
+	srand(time(NULL));
 
 	OpcodeModule opcode;
 	VMState state;

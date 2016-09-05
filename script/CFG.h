@@ -147,7 +147,7 @@ namespace script
         // SSA
         Value *readVariableRecurisive(std::string name, BasicBlock *block);
         Value *addPhiOperands(std::string name, Phi *phi);
-        Value *tryRemoveTrivialPhi(Phi *phi);
+        Value *tryRemoveTrivialPhi(const std::string &name, Phi *phi);
 
 		// compute block order
 		struct BlockOrderCmp {

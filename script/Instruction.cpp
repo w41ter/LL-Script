@@ -29,6 +29,7 @@ namespace script
     Instruction::~Instruction()
     {
         assert(parent == 0 && "Instruction still linked in the program!");
+		//assert(uses.size() == 0 && "Instruction still used by others");
     }
 
     void Instruction::set_parent(BasicBlock *parent)
@@ -346,6 +347,7 @@ namespace script
 
     void Phi::appendOperand(Value * value)
     {
+		//assert(!value->is_undef());
         operands.push_back(Use(value, this));
     }
 

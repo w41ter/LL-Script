@@ -68,8 +68,7 @@ namespace script
         auto &block2Phi = incompletePhis_[block];
         for (auto &b2p : block2Phi)
         {
-            Value *val = addPhiOperands(b2p.first, (Phi*)b2p.second);
-			saveVariableDef(b2p.first, block, val);
+            addPhiOperands(b2p.first, (Phi*)b2p.second);
         }
 		incompletePhis_.erase(block);
         sealedBlock_.insert(block);
@@ -80,11 +79,6 @@ namespace script
     {
         assert(block != nullptr && value != nullptr);
 		auto &target = currentDef_[name][block];
-		//if (target != nullptr) {
-		//	target->replace_all_uses_with(value);
-		//	if (target->is_value())
-		//		delete target;
-		//}
 		target = value;
     }
 
@@ -140,12 +134,16 @@ namespace script
             e = phiParent->precursor_end();
             i != e; ++i)
         {
-            phi->appendOperand(readVariableDef(name, *i));
+			Value *val = readVariableDef(name, *i);
+			if (val->is_undef())
+				// igonre all undef value from unreachbale precursor
+				continue;	
+            phi->appendOperand(val);
         }
-        return tryRemoveTrivialPhi(phi);
+        return tryRemoveTrivialPhi(name, phi);
     }
 
-    Value * CFG::tryRemoveTrivialPhi(Phi * phi)
+    Value * CFG::tryRemoveTrivialPhi(const std::string &name, Phi * phi)
     {
         Value *same = nullptr;
         for (auto beg = phi->op_begin(); beg != phi->op_end(); beg++)
@@ -161,23 +159,47 @@ namespace script
         }
         if (same == nullptr)
             same = IRContext::create<Undef>();
+
+		// update variable def set.
+		BasicBlock *parent = phi->get_parent();
+		saveVariableDef(name, parent, same);
+
         // try all users except the phi itself.
         // Try to recursively remove all phi users, 
         // which might have become trivial, now just save it
-		std::vector<Phi*> needTryPhiNode;
+		std::set<Phi*> needTryPhiNode;
         for (auto iter = phi->use_begin(); iter != phi->use_end(); ++iter)
         {   
             Instruction *instr = static_cast<Instruction*>(
                 (*iter)->get_user());
 			if (instr != phi && instr->is_phi_node())
-				needTryPhiNode.push_back(static_cast<Phi*>(instr));
+				needTryPhiNode.insert(static_cast<Phi*>(instr));
         }
+
         // Reroute all uses of phi to same and remove phi
 		phi->replace_all_uses_with(same);
-		phi->erase_from_parent();
+
+		// prevent cycle release.
+		phi->drop_all_references();
+
 		// After replace all use of phi, try to remove others trivial node
-		for (auto *P : needTryPhiNode)
-			tryRemoveTrivialPhi(P);
+		for (auto *P : needTryPhiNode) {
+			tryRemoveTrivialPhi(name, P);
+		}
+
+		phi->erase_from_parent();
+
+		// FIXME: 
+		same = readVariableDef(name, parent);
+
+		// update reference
+		auto &def = currentDef_[name];
+		for (auto &B2V : def) {
+			if (B2V.second == phi) {
+				saveVariableDef(name, B2V.first, same);
+			}
+		}
+
         return same;
     }
 
@@ -284,6 +306,19 @@ namespace script
             Phi *phi = *P;
             phi->drop_all_references();
         }
+
+		for (auto succ = block->successor_begin();
+			succ != block->successor_end();
+			++succ) {
+			BasicBlock *SBB = *succ;
+			auto last = std::remove_if(SBB->precursors_.begin(), 
+				SBB->precursors_.end(),
+				[block](const BasicBlock *BB) {
+				return block == BB;
+			});
+			std::vector<BasicBlock*> pre(SBB->precursors_.begin(), last);
+			SBB->precursors_.swap(pre);
+		}
         
         blocks_.remove(block);
         delete block;

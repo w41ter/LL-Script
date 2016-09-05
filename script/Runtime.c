@@ -29,11 +29,12 @@ enum Tag {
 // 8bits
 enum Type {
 	TypeString = 0,
-	TypeClosure = 1,
-	TypeUserFunc = 2,
-	TypeHashTable = 3,
-	TypeHashNode = 4,
-	TypeArray = 5,
+	TypeArray = TypeString + 1,
+	TypeClosure = TypeString + 2,
+	TypeUserFunc = TypeString + 3,
+	TypeHashNode = TypeString + 4,
+	TypeUserData = TypeString + 5,
+	TypeHashTable = TypeString + 6,
 };
 
 // common property of heap object
@@ -89,6 +90,15 @@ typedef struct
 	Object array[];
 } Array;
 
+///
+/// User Data
+///
+typedef struct
+{
+	HEAP_OBJECT_HEAD;
+	void *user_data;
+} UserData;
+
 Object CreateUserClosure(Object self, void * func)
 {
 	UserClosure *this = (UserClosure*)self;
@@ -101,6 +111,24 @@ void * UserClosureGet(Object self)
 {
 	assert(IsUserClosure(self));
 	return ((UserClosure*)self)->content;
+}
+
+Object CreateUserData(Object self, void *data)
+{
+	UserData *this = (UserData*)self;
+	this->obType = TypeUserFunc;
+	this->user_data = data;
+	return self;
+}
+
+void * UserDataGet(Object self)
+{
+	return ((UserData*)self)->user_data;
+}
+
+size_t SizeOfUserData()
+{
+	return sizeof(UserData);
 }
 
 size_t SizeOfArray(size_t total)
@@ -194,6 +222,12 @@ bool IsString(Object self)
 {
 	return (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeString);
+}
+
+bool IsUserData(Object self)
+{
+	return (!IsTagging(self)
+		&& ((CommonObject*)self)->obType == TypeUserData);
 }
 
 bool IsUndef(Object self)
