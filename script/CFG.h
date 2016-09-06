@@ -27,7 +27,10 @@ namespace script
 		};
 
         BasicBlock(std::string name) 
-            : name_(name)
+            : name_(name), state_(Unvisit)
+			, incomingForwardBranches_(0)
+			, loopIndex_(0), loopDepth_(0)
+			, blockID_(0)
         {}
         ~BasicBlock();
 

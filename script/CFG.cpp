@@ -158,7 +158,8 @@ namespace script
                 tryRemoveTrivialPhi((Phi*)instr);
         }
         // Reroute all uses of phi to same and remove phi
-        phi->replace_with(static_cast<Instruction*>(same));
+		phi->replace_all_uses_with(same);
+		phi->erase_from_parent();
         return same;
     }
 
@@ -177,13 +178,14 @@ namespace script
 
 			finalBlockOrder.push_back(block);
 			for (auto *succ : block->successors_) {
-				--succ->incomingForwardBranches_;
+				succ->incomingForwardBranches_ -= 1;
 				if (succ->incomingForwardBranches_ == 0) {
 					queue.push(succ);
 				}
 			}
 		}
 		blocks_.swap(finalBlockOrder);
+		numberOperations();
 	}
 
 	void CFG::loopDetection()
@@ -233,7 +235,7 @@ namespace script
 				set.insert({ block, succ });
 				succ->loopIndex_ = this->numLoopIndex_++;
 				succ->loopDepth_ = 1;
-				--succ->incomingForwardBranches_;
+				succ->incomingForwardBranches_ -= 1;
 				continue;
 			}
 			tryToDetect(set, succ);

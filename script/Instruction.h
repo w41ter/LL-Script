@@ -169,6 +169,8 @@ namespace script
         
         Value *get_value();
 
+		const MachineRegister &getLeftReg() const { return left; }
+		const MachineRegister &getRightReg() const { return right; }
     protected:
         void init(Value *value);
 
