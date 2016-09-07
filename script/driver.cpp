@@ -54,6 +54,10 @@ namespace script
         {
             dumpIR_ = true;
         }
+		else if (strcmp("-dumpOpcode", argv[count]) == 0)
+		{
+			dumpOpcode_ = true;
+		}
         else if (strcmp("-o", argv[count]) == 0)
         {
             optimized_ = true;

@@ -9,6 +9,7 @@
 #include "IRModule.h"
 #include "DumpIR.h"
 #include "CodeGen.h"
+#include "dumpOpcode.h"
 #include "OpcodeModule.h"
 #include "UnreachableBlockElimination.h"
 #include "CompilerInstance.h"
@@ -82,6 +83,14 @@ int main(int argc, char* argv[])
 		std::cout << "Code generator: "
 			<< func.first << std::endl;
 		codegen.runOnFunction(func.second);
+	}
+
+	if (driver.dumpOpcode_)
+	{
+		std::string filename = driver.filename;
+		filename.resize(filename.find_last_of('.'));
+		DumpOpcode dumpOpcode(opcode, filename += ".opcode");
+		dumpOpcode.dump();
 	}
 
     // generate opcode

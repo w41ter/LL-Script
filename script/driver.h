@@ -15,6 +15,7 @@ namespace script
 
     public:
         bool dumpIR_ = false;
+		bool dumpOpcode_ = false;
         bool optimized_ = false;
 
         const char *filename;
