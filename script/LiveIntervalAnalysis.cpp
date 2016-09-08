@@ -61,8 +61,42 @@ namespace {
 
     void LiveIntervalAnalysis::runOnFunction(IRFunction *func)
     {
+		func->computeBlockOrder();
 		computeLocalLiveSet(func);
 		computeGlobalLiveSet(func);
+
+#ifdef _DEBUG
+		std::cout << "Live analysis result:" << std::endl;
+		for (auto block = func->begin(), e = func->end();
+			block != e; ++block) {
+			BasicBlock *BB = *block;
+			std::cout << " " << BB->name_
+				<< "(" << BB->start_ 
+				<< ", " << BB->end_
+				<< "): " << std::endl;
+			std::cout << "  LiveIn = { ";
+			for (auto *val : BB->liveIn_) {
+				dumpValue(val);
+				std::cout << ", ";
+			}
+			std::cout << "}\n  LiveOut = { ";
+			for (auto *val : BB->liveOut_) {
+				dumpValue(val);
+				std::cout << ", ";
+			}
+			std::cout << "}\n  LiveGen = { ";
+			for (auto *val : BB->liveGen_) {
+				dumpValue(val);
+				std::cout << ", ";
+			}
+			std::cout << "}\n  LiveKill = { ";
+			for (auto *val : BB->liveKill_) {
+				dumpValue(val);
+				std::cout << ", ";
+			}
+			std::cout << "}\n" << std::endl;
+		}
+#endif // _DEBUG
 
         buildIntervals(func);
 
@@ -72,8 +106,11 @@ namespace {
 		for (auto &interval : intervals) {
 			std::cout << "    ";
 			dumpValue(interval.reg);
-			std::cout << "  [" << interval.beginNumber()
-				<< ", " << interval.endNumber() << ")\n";
+			for (auto &range : interval.ranges) {
+				std::cout << " [" << range.start
+					<< ", " << range.end << ") ";
+			}
+			std::cout << std::endl;
 		}
 #endif // _DEBUG
 
@@ -113,6 +150,8 @@ namespace {
 
 				if (I->is_output()) {
 					LiveInterval *interval = getInterval(I);
+					if (interval->empty())
+						interval->addRange({ I->getID(), to });
 					interval->setStart(I->getID());
 					interval->addUsePosition(I->getID());
 				}
@@ -124,10 +163,9 @@ namespace {
 					if (val->is_value())
 						continue;
 
-					LiveInterval *interval = getInterval(I);
-					Instruction *OPI = static_cast<Instruction*>(val);
-					interval->addRange({ from, OPI->getID() });
-					interval->addUsePosition(OPI->getID());
+					LiveInterval *interval = getInterval(val);
+					interval->addRange({ from, I->getID() + 2 });
+					interval->addUsePosition(I->getID());
 				}
 			}
         }
@@ -156,7 +194,26 @@ namespace {
 				for (auto op = I->op_begin();
 					op != I->op_end();
 					++op) {
-					BB->liveGen_.insert(op->get_value());
+					Value *val = op->get_value();
+					if (val->is_value())
+						break;
+					if (!I->is_phi_node()) {
+						if (!BB->liveKill_.count(val))
+							BB->liveGen_.insert(val);
+					}
+					else {
+						// FIXME: B1->B2->B3
+						// B1:
+						//		a <- 1
+						//		goto B2
+						// B2:
+						//		...
+						//		goto B3
+						// B3:
+						//		a.1 = phi<a, b>
+						Instruction *phi = static_cast<Instruction*>(val);
+						phi->get_parent()->liveOut_.insert(val);
+					}
 				}
 			}
 		}
@@ -170,14 +227,15 @@ namespace {
 			for (auto block = func->rbegin(), e = func->rend();
 				block != e; ++block) {
 				BasicBlock *BB = *block;
-				BB->liveOut_.clear();
+				//BB->liveOut_.clear();	 
+				size_t before = BB->liveOut_.size();
 				for (auto *succ : BB->successors_) {
-					size_t before = BB->liveOut_.size();
 					BB->liveOut_ += succ->liveIn_;
-					if (before != BB->liveOut_.size())
-						isChange = true;
 				}
-				size_t before = BB->liveIn_.size();
+				if (before != BB->liveOut_.size())
+					isChange = true;
+				
+				before = BB->liveIn_.size();
 				BB->liveIn_ = BB->liveGen_;
 				for (auto *val : BB->liveOut_) {
 					if (!BB->liveKill_.count(val))

@@ -84,7 +84,7 @@ namespace script
 
 	void LiveInterval::addRange(LiveRange LR)
 	{
-		if (beginNumber() <= LR.end) {
+		if (ranges.size() && beginNumber() <= LR.end) {
 			// join intersecting ranges
 			LiveRange &front = ranges.front();
 			front.setStart(std::min(LR.start, front.start));

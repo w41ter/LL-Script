@@ -645,6 +645,8 @@ namespace
             return parseDefineDecl();
         case TK_Semicolon:
             return parseStatement();
+		case TK_LCurlyBrace:
+			return parseBlock();
         default:
             parseExpression();
             return ;
