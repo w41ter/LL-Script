@@ -30,6 +30,8 @@ namespace script
 		void dumpReturn(const Opcode &opcode, size_t &ip);
         void dumpLoad(const Opcode &opcode, size_t &ip);
         void dumpStore(const Opcode &opcode, size_t &ip);
+		void dumpIndex(const Opcode &opcode, size_t &ip);
+		void dumpSetIndex(const Opcode &opcode, size_t &ip);
         void dumpMove(const Opcode &opcode, size_t &ip);
         void dumpMoveF(const Opcode &opcode, size_t &ip);
         void dumpMoveI(const Opcode &opcode, size_t &ip);

@@ -259,7 +259,7 @@ namespace
 		unsigned result)
 	{
 		MakeOpcode(opcode, OK_Index, 
-			table, index, result);
+			result, table, index);
 	}
 	
 	void OPBuilder::GenSetIndex(

@@ -190,6 +190,26 @@ namespace script
         file_ << " into " << getInteger(opcode, ip) << endl;
     }
 
+	void DumpOpcode::dumpIndex(const Opcode & opcode, size_t & ip)
+	{
+		dumpRegister(opcode[ip++]);
+		file_ << " = ";
+		dumpRegister(opcode[ip++]);
+		file_ << "[";
+		dumpRegister(opcode[ip++]);
+		file_ << "]" << endl;
+	}
+
+	void DumpOpcode::dumpSetIndex(const Opcode & opcode, size_t & ip)
+	{
+		dumpRegister(opcode[ip++]);
+		file_ << "[";
+		dumpRegister(opcode[ip++]);
+		file_ << "] = ";
+		dumpRegister(opcode[ip++]);
+		file_ << endl;
+	}
+
     void DumpOpcode::dumpMove(const Opcode &opcode, size_t & ip)
     {
         dumpRegister(opcode[ip++]);
