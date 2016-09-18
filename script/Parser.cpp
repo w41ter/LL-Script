@@ -490,7 +490,7 @@ namespace
 
 		IRContext::createGotoAtEnd(scope->block_, breaks_.top());
 
-		scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(scope->block_);
 
 		scope->block_ = scope->cfg_->createBasicBlock(
 			getTmpName("full_throught_"));
@@ -510,7 +510,7 @@ namespace
 		IRContext::createGotoAtEnd(
 			scope->block_, continues_.top());
         
-		scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(scope->block_);
 
 		scope->block_ = scope->cfg_->createBasicBlock(
             getTmpName("full_throught_"));
@@ -534,7 +534,7 @@ namespace
         match(TK_Semicolon);
         BasicBlock *succBlock = 
             scope->cfg_->createBasicBlock("return_succ_");
-		scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(scope->block_);
 		scope->block_ = succBlock;
     }
 
@@ -550,7 +550,7 @@ namespace
             getTmpName("end_while_"));
 
 		IRContext::createGotoAtEnd(tmpBlock, condBlock);
-		scope->cfg_->sealBlock(tmpBlock);
+		//scope->cfg_->sealBlock(tmpBlock);
 
 		scope->block_ = condBlock;
         match(TK_LParen);
@@ -567,9 +567,9 @@ namespace
 		IRContext::createGotoAtEnd(
 			/*thenBlock==*/scope->block_, condBlock);
         
-		scope->cfg_->sealBlock(thenBlock);
-		scope->cfg_->sealBlock(scope->block_);
-		scope->cfg_->sealBlock(condBlock);
+		//scope->cfg_->sealBlock(thenBlock);
+		//scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(condBlock);
 
 		scope->block_ = endBlock;
         breaks_.pop();
@@ -583,7 +583,7 @@ namespace
         Value *expr = parseRightHandExpr();
         match(TK_RParen);
 
-		scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(scope->block_);
 
         BasicBlock *tmpBlock = scope->block_;
         BasicBlock *thenBlock = scope->cfg_->createBasicBlock(
@@ -606,8 +606,8 @@ namespace
 			scope->block_ = elseBlock;
             parseStatement();
 
-			scope->cfg_->sealBlock(elseBlock);
-			scope->cfg_->sealBlock(scope->block_);
+			//scope->cfg_->sealBlock(elseBlock);
+			//scope->cfg_->sealBlock(scope->block_);
 
             endBlock = scope->cfg_->createBasicBlock(getTmpName("if_end_"));
 			IRContext::createGotoAtEnd(
@@ -620,8 +620,8 @@ namespace
 				tmpBlock, expr, thenBlock, endBlock);
         }
 
-		scope->cfg_->sealBlock(thenBlock);
-		scope->cfg_->sealBlock(thenEndBlock);
+		//scope->cfg_->sealBlock(thenBlock);
+		//scope->cfg_->sealBlock(thenEndBlock);
 
 		IRContext::createGotoAtEnd(thenEndBlock, endBlock);
 		scope->block_ = endBlock;
@@ -807,7 +807,7 @@ namespace
             Value *assign = IRContext::createAtEnd<Assign>(
                 scope->cfg_->getEntryBlock(), param,
                 scope->cfg_->phiName(str));
-			scope->cfg_->saveVariableDef(str, scope->block_, param);
+			scope->cfg_->saveVariableDef(str, scope->block_, assign);
 		}
 
         parseBlock();
@@ -834,12 +834,21 @@ namespace
 		const std::string &name,
 		std::unordered_set<std::string> &captures)
     {
+		bool recursive = false;
+		size_t index = 0;
         std::vector<Value*> paramsVals;
         for (auto &str : captures) {
 			Value *val = scope->cfg_->readVariableDef(str, scope->block_);
 			val = IRContext::createAtEnd<Assign>(
 				scope->block_, val, getTmpName());
             paramsVals.push_back(val);
+			if (!recursive) {
+				if (name == str) {
+					recursive = true;
+				}
+				else
+					index++;
+			}
         }
         
         Value *funcval = IRContext::create<Function>(name);

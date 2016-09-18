@@ -168,7 +168,7 @@ namespace script
         virtual ~Assign() = default;
         
         Value *get_value();
-
+		void set_value(Value *value);
 		const MachineRegister &getLeftReg() const { return left; }
 		const MachineRegister &getRightReg() const { return right; }
     protected:

@@ -51,6 +51,12 @@ namespace script
     {
         for (auto *block : blocks_)
             sealBlock(block);
+
+		// it mean that no info need anymore.
+		currentDef_.clear();
+		assert(incompletePhis_.size() == 0);
+		sealedBlock_.clear();
+		phiCounts_.clear();
     }
 
     void CFG::sealBlock(BasicBlock * block)
@@ -62,8 +68,10 @@ namespace script
         auto &block2Phi = incompletePhis_[block];
         for (auto &b2p : block2Phi)
         {
-            addPhiOperands(b2p.first, (Phi*)b2p.second);
+            Value *val = addPhiOperands(b2p.first, (Phi*)b2p.second);
+			saveVariableDef(b2p.first, block, val);
         }
+		incompletePhis_.erase(block);
         sealedBlock_.insert(block);
     }
 
@@ -71,7 +79,13 @@ namespace script
         BasicBlock * block, Value * value)
     {
         assert(block != nullptr && value != nullptr);
-        currentDef_[name][block] = value;
+		auto &target = currentDef_[name][block];
+		//if (target != nullptr) {
+		//	target->replace_all_uses_with(value);
+		//	if (target->is_value())
+		//		delete target;
+		//}
+		target = value;
     }
 
     Value * CFG::readVariableDef(std::string name, BasicBlock * block)
@@ -149,17 +163,21 @@ namespace script
             same = IRContext::create<Undef>();
         // try all users except the phi itself.
         // Try to recursively remove all phi users, 
-        // which might have become trivial
+        // which might have become trivial, now just save it
+		std::vector<Phi*> needTryPhiNode;
         for (auto iter = phi->use_begin(); iter != phi->use_end(); ++iter)
         {   
             Instruction *instr = static_cast<Instruction*>(
                 (*iter)->get_user());
-            if (instr != phi && instr->is_phi_node())
-                tryRemoveTrivialPhi((Phi*)instr);
+			if (instr != phi && instr->is_phi_node())
+				needTryPhiNode.push_back(static_cast<Phi*>(instr));
         }
         // Reroute all uses of phi to same and remove phi
 		phi->replace_all_uses_with(same);
 		phi->erase_from_parent();
+		// After replace all use of phi, try to remove others trivial node
+		for (auto *P : needTryPhiNode)
+			tryRemoveTrivialPhi(P);
         return same;
     }
 

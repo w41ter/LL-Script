@@ -153,6 +153,11 @@ namespace script
         return get_operand(0);
     }
 
+	void Assign::set_value(Value * value)
+	{
+		operands[0].set(value);
+	}
+
     NotOp::NotOp(Value *value, const char *name)
         : Instruction(Instruction::NotOpVal, name)
     {
