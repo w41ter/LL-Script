@@ -3,11 +3,13 @@
 #include <memory>
 #include <fstream>
 
+#include "VM.h"
 #include "driver.h"
 #include "lexer.h"
 #include "Parser.h"
 #include "IRModule.h"
 #include "DumpIR.h"
+#include "OpBuilder.h"
 #include "CodeGen.h"
 #include "dumpOpcode.h"
 #include "OpcodeModule.h"
@@ -15,6 +17,8 @@
 #include "CompilerInstance.h"
 
 using namespace script;
+
+const char *globalMainName = "$main";
 
 int main(int argc, char* argv[])
 {
@@ -93,23 +97,16 @@ int main(int argc, char* argv[])
 		dumpOpcode.dump();
 	}
 
-    // generate opcode
-    //script::OpcodeContext opcode;
-    //script::CodeGenerator codegen(opcode);
-    //codegen.gen(module);
-
-    //int length = 0;
-    //Byte *opcodes = opcode.getOpcodes(length);
-
-    //try {
-    //    script::VirtualMachine vm;
-    //    //buildin::BuildIn::getInstance().bindGC(vm.getGC());
-    //    vm.excute(opcodes, length);
-    //}
-    //catch (std::runtime_error &e) {
-    //    std::cout << e.what() << std::endl;
-    //    return 0;
-    //}
+	VMState state;
+	VMScene scene { opcode };
+	BindGCProcess(&scene);
+	Object function = scene.GC.allocate(SizeOfClosure(0));
+	auto *content = &opcode.getFunction(globalMainName);
+	OPBuilder::GenHalt(*content);
+	CreateClosure(function, content, 0);
+	state.bindScene(&scene);
+	state.call(function, 0, 0);
+	state.execute();
 
     getchar();
 	return 0;

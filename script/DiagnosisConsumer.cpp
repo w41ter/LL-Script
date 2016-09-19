@@ -23,7 +23,6 @@ namespace script
             cout << diag.format() << endl;
         else 
             diags_.push_back(diag);
-		throw;
     }
 
     void DiagnosisConsumer::show()
@@ -51,7 +50,7 @@ namespace script
     void DiagnosisConsumer::outOfScopeBreakOrContinue(TokenCoord coord)
     {
         Diagnosis diag(DiagType::DT_Error, coord);
-        diag << "break/continue ������Ҫ while statement";
+        diag << "break/continue need in while statement";
         this->diag(diag);
     }
 

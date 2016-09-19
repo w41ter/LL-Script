@@ -10,6 +10,8 @@
 #include "Instruction.h"
 #include "DiagnosisConsumer.h"
 
+extern const char *globalMainName;
+
 namespace script
 {
 namespace
@@ -925,7 +927,7 @@ namespace
 
     void Parser::parse()
     {
-		IRFunction *mainfunc = module_.createFunction("$main");
+		IRFunction *mainfunc = module_.createFunction(globalMainName);
 		pushFunctionScopeAndInit(mainfunc);
 
         advance();
@@ -989,6 +991,7 @@ namespace
 
     void Parser::popFunctionScope() 
     {
+		IRContext::createAtEnd<ReturnVoid>(scope->block_);
         functionStack.pop_back();
 		if (functionStack.size() == 0)
 			scope = nullptr;
