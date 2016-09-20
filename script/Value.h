@@ -15,7 +15,7 @@ namespace script
             UndefVal,
             TableVal,
             ParamVal,
-            FunctionVal,
+            //FunctionVal,
             ConstantVal,
             InstructionVal,
         };
@@ -42,7 +42,7 @@ namespace script
 		bool is_table() const { return get_subclass_id() == TableVal; }
 		bool is_param() const { return get_subclass_id() == ParamVal; }
 		bool is_const() const { return get_subclass_id() == ConstantVal; }
-		bool is_funct() const { return get_subclass_id() == FunctionVal; }
+		//bool is_funct() const { return get_subclass_id() == FunctionVal; }
 		bool is_instr() const { return get_subclass_id() == InstructionVal; }
     protected:
         std::list<Use*> uses;
@@ -98,26 +98,26 @@ namespace script
         virtual ~Undef() = default;
     };
 
-    class Function : public Value 
-    {
-    public:
-        Function(const char *funcname) 
-            : Value(ValueTy::FunctionVal) 
-        {
-            this->set_value_name(funcname);
-        }
+    //class Function : public Value 
+    //{
+    //public:
+    //    Function(const char *funcname) 
+    //        : Value(ValueTy::FunctionVal) 
+    //    {
+    //        this->set_value_name(funcname);
+    //    }
 
-        Function(const std::string &name) 
-            : Value(ValueTy::FunctionVal)
-        {
-            this->set_value_name(name.c_str());
-        }
+    //    Function(const std::string &name) 
+    //        : Value(ValueTy::FunctionVal)
+    //    {
+    //        this->set_value_name(name.c_str());
+    //    }
 
-        const std::string &getFuncName() const
-        {
-            return get_value_name();
-        }
-    };
+    //    const std::string &getFuncName() const
+    //    {
+    //        return get_value_name();
+    //    }
+    //};
 
 	class Param : public Value
 	{

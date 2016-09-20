@@ -1,5 +1,10 @@
 ﻿#include "Buildin.h"
 
+#include <cstring>
+
+#include "VM.h"
+#include "GC.h"
+
 static inline bool IsCalable(Object self) 
 {
 	return IsFixnum(self);
@@ -42,32 +47,38 @@ Object Div(Object LHS, Object RHS)
 
 Object Great(Object LHS, Object RHS)
 {
-	return CreateNil();
+	return CreateFixnum(ToFixnum(LHS) > ToFixnum(RHS));
 }
 
 Object Less(Object LHS, Object RHS)
 {
-	return CreateNil();
+	return CreateFixnum(ToFixnum(LHS) < ToFixnum(RHS));
 }
 
 Object NotGreat(Object LHS, Object RHS)
 {
-	return CreateNil();
+	return CreateFixnum(ToFixnum(LHS) <= ToFixnum(RHS));
 }
 
 Object NotLess(Object LHS, Object RHS)
 {
-	return CreateNil();
+	return CreateFixnum(ToFixnum(LHS) >= ToFixnum(RHS));
 }
 
 Object Equal(Object LHS, Object RHS)
 {
-	return CreateNil();
+	if (IsString(LHS) && IsString(RHS)) {
+		return CreateFixnum(strcmp(StringGet(LHS), StringGet(RHS)) == 0);
+	}
+	return CreateFixnum(ToFixnum(LHS) == ToFixnum(RHS));
 }
 
 Object NotEqual(Object LHS, Object RHS)
 {
-	return CreateNil();
+	if (IsString(LHS) && IsString(RHS)) {
+		return CreateFixnum(strcmp(StringGet(LHS), StringGet(RHS)) != 0);
+	}
+	return CreateFixnum(ToFixnum(LHS) == ToFixnum(RHS));
 }
 
 Object Not(Object LHS)
@@ -77,27 +88,34 @@ Object Not(Object LHS)
 
 void ProcessGlobals(void *scene)
 {
-	//Frame *temp = currentFrame_;
-	//while (true)
-	//{
-	//	for (size_t i = 0; i < temp->localSlot_.size(); ++i)
-	//	{
-	//		gc_.processReference(&(temp->localSlot_[i]));
-	//	}
-	//	temp = temp->previous_;
-	//	if (temp == nullptr) break;
-	//}
+	using script::VMFrame;
+	using script::VMScene;
+	using script::GarbageCollector;
+
+	VMScene *vmscene = static_cast<VMScene*>(scene);
+	GarbageCollector *GC = &vmscene->GC;
+	for (auto *frame : vmscene->frames) {
+		for (size_t i = 0; i < frame->paramsNums; ++i)
+			GC->processReference(&(frame->params[i]));
+		for (size_t i = 0; i < frame->regNums; ++i)
+			if (frame->registers[i])
+				GC->processReference(&(frame->registers[i]));
+	}
+	for (auto &object : vmscene->paramsStack) 
+		GC->processReference(&object);
 }
 
-void ProcessVariableReference(Object *Object)
+void ProcessVariableReference(void *scene, Object *object)
 {
-	//if (IsClosure(*Object))
-	//{
-	//	size_t need = ClosureNeed(*Object);
-	//	Object *params = ClosureParams(*Object);
-	//	for (size_t i = 0; i < need; ++i)
-	//	{
-	//		gc_.processReference(&(params[i]));
-	//	}
-	//}
+	using script::VMScene;
+	using script::GarbageCollector;
+
+	VMScene *vmscene = static_cast<VMScene*>(scene);
+	GarbageCollector *GC = &vmscene->GC;
+	if (IsClosure(*object)) {
+		size_t hold = ClosureHold(*object);
+		Object *params = ClosureParams(*object);
+		for (size_t idx = 0; idx < hold; ++idx)
+			GC->processReference(&(params[idx]));
+	}
 }

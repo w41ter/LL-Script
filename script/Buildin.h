@@ -2,10 +2,6 @@
 
 #include "Runtime.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif 
-
 Object Add		(Object LHS, Object RHS);
 Object Sub		(Object LHS, Object RHS);
 Object Mul		(Object LHS, Object RHS);
@@ -19,8 +15,4 @@ Object NotEqual	(Object LHS, Object RHS);
 Object Not		(Object LHS);
 
 void ProcessGlobals(void *scene);
-void ProcessVariableReference(Object *object);
-
-#ifdef __cplusplus
-}
-#endif 
+void ProcessVariableReference(void *scene, Object *object);

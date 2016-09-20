@@ -31,7 +31,8 @@ namespace script
 		static void GenNewClosure(
 			Opcodes &opcode,
 			unsigned to,
-			int32_t offset);
+			int32_t offset,
+			int32_t paramSize);
 		static void GenNewHash(
 			Opcodes &opcode,
 			unsigned to);

@@ -117,9 +117,41 @@ namespace script
 		case Instruction::SetIndexVal:
 			genSetIndex(function, I);
 			break;
+		case Instruction::NewClosureVal:
+			genNewClosure(function, I);
+			break;
+		case Instruction::StoreVal:
+			genStore(function, I);
+			break;
 		default:	// ignore Phi instr.
 			break;
 		}
+	}
+
+	void CodeGen::genNewClosure(
+		OpcodeFunction & func, 
+		Instruction * I)
+	{
+		NewClosure *closure = static_cast<NewClosure*>(I);
+		auto &registers = I->refInputRegisters();
+		unsigned output = I->getOutputReg().getRegisterNum();
+		unsigned paramSize = registers.size();
+		for (int i = 0; i < registers.size(); ++i) {
+			OPBuilder::GenParam(func, registers[i].getRegisterNum());
+		}
+		unsigned offset = module_.push_string(closure->get_func_name());
+		OPBuilder::GenNewClosure(func, output, offset, paramSize);
+	}
+
+	void CodeGen::genStore(
+		OpcodeFunction & func, 
+		Instruction * instr)
+	{
+		Store *store = static_cast<Store*>(instr);
+		unsigned offset = getParamsSlot(func, store->get_param_name());
+		auto &registers = instr->refInputRegisters();
+		assert(registers.size() == 1);
+		OPBuilder::GenStore(func, registers[0].getRegisterNum(), offset);
 	}
 
 	void CodeGen::genAssign(
@@ -272,12 +304,12 @@ namespace script
 			}
 			break;
 		}
-		case Value::FunctionVal:
-		{
-			unsigned offset = module_.push_string(RHS->get_value_name());
-			OPBuilder::GenNewClosure(func, output, offset);
-			break;
-		}
+		//case Value::FunctionVal:
+		//{
+		//	unsigned offset = module_.push_string(RHS->get_value_name());
+		//	OPBuilder::GenNewClosure(func, output, offset);
+		//	break;
+		//}
 		case Value::ParamVal:
 		{
 			unsigned index = getParamsSlot(func, RHS->get_value_name());

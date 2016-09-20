@@ -22,6 +22,10 @@ namespace script
         dumpStringPool();
     }
 
+	void DumpOpcode::dumpInstruction(Opcode & opcode, size_t & ip)
+	{
+	}
+
 	void DumpOpcode::dumpFunction(OpcodeFunction & func)
 	{
 		const auto &opcode = func.codes;
@@ -262,7 +266,9 @@ namespace script
 		dumpRegister(opcode[ip++]);
 		int32_t offset = getInteger(opcode, ip);
 		const std::string &name = module.getString(offset);
-        file_ << " = new closure : " << name << endl;
+		file_ << " = new closure : " << name;
+		file_ << " <params>:";
+		file_ << getInteger(opcode, ip) << endl;
     }
 
     void DumpOpcode::dumpNewHash(const Opcode &opcode, size_t &ip)

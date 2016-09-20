@@ -25,7 +25,7 @@ size_t StringSize(Object self);
 
 Object CreateClosure(Object self, void *content, size_t total);
 void ClosurePushParam(Object self, Object param);
-const Object *ClosureParams(Object self);
+Object *ClosureParams(Object self);
 Object ClosureParamAt(Object self, size_t index);
 size_t ClosureHold(Object self);
 size_t ClosureTotal(Object self);
@@ -45,6 +45,8 @@ size_t SizeOfHashTable();
 size_t SizeOfUserClosure(size_t total);
 size_t SizeOfClosure(size_t total);
 size_t SizeOfString(size_t length);
+
+int ToFixnum(Object self);
 
 bool ToLogicValue(Object self);
 bool IsCallable(Object self);

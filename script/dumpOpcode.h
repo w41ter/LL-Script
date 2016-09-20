@@ -14,12 +14,13 @@ namespace script
     class DumpOpcode
     {
     public:
+		typedef std::vector<Byte> Opcode;
+
         DumpOpcode(OpcodeModule &OM, std::string &file);
 
         void dump();
-
+		void dumpInstruction(Opcode &opcode, size_t &ip);
     private:
-		typedef std::vector<Byte> Opcode;
 		void dumpFunction(OpcodeFunction &func);
         void dumpBinary(const Opcode &opcode, size_t &ip);
         void dumpNotOP(const Opcode &opcode, size_t &ip);

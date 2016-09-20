@@ -96,6 +96,20 @@ size_t SizeOfString(size_t length) {
 	return sizeof(String) + (length + 1) * sizeof(char);
 }
 
+int ToFixnum(Object self)
+{
+	if (IsReal(self))
+		return GetFixnum(self);
+	else if (IsString(self))
+		return StringSize(self) == 0;
+	else if (!IsTagging(self))
+		return 1;
+	else if (IsNil(self))
+		return 0;
+	else 
+		return GetFixnum(self);
+}
+
 /**
  * True - translate self to bool and return.
  *
@@ -106,7 +120,7 @@ size_t SizeOfString(size_t length) {
  */
 bool ToLogicValue(Object self)
 {
-	if (IsTagging(self) || IsReal(self))
+	if (!IsTagging(self) || IsReal(self))
 		return true;
 	else if (IsNil(self))
 		return false;
@@ -240,7 +254,7 @@ void ClosurePushParam(Object self, Object param)
 	++this->hold;
 }
 
-const Object *ClosureParams(Object self)
+Object *ClosureParams(Object self)
 {
 	assert(IsClosure(self));
 	return ((Closure*)self)->params;

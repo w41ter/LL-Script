@@ -72,11 +72,11 @@ namespace script
             file_ << "[[Table]]";
             break;
         }
-        case Value::FunctionVal:
-        {
-            file_ << "[Function]:" << ((Function*)value)->getFuncName();
-            break;
-        }
+        //case Value::FunctionVal:
+        //{
+        //    file_ << "[Function]:" << ((Function*)value)->getFuncName();
+        //    break;
+        //}
 		case Value::ParamVal:
 		{
 			file_ << "[Param]:" << ((Param*)value)->getParamName();
@@ -115,6 +115,10 @@ namespace script
             dumpSetIndex(instr); break;
         case Instruction::PhiVal:
             dumpPhi(instr); break;
+		case Instruction::StoreVal:
+			dumpStore(instr); break;
+		case Instruction::NewClosureVal:
+			dumpNewClosure(instr); break;
         default:
             break;
         }
@@ -298,5 +302,31 @@ namespace script
         }
         file_ << ">\n";
     }
+
+	void DumpIR::dumpStore(Instruction * instr)
+	{
+		Store *store = static_cast<Store*>(instr);
+		file_ << "    Store ";
+		dumpValue(store->get_value());
+		file_ << " into [Param]:" << store->get_param_name() << endl;
+	}
+
+	void DumpIR::dumpNewClosure(Instruction * instr)
+	{
+		NewClosure *closure = (NewClosure*)instr;
+		file_ << "    " << closure->get_value_name() << " = Closure "
+			<< closure->get_func_name();
+		file_ << " (";
+
+		size_t op_size = closure->get_num_operands();
+		for (auto op = closure->param_begin();
+			op != closure->param_end(); ++op)
+		{
+			dumpValue(op->get_value());
+			if (--op_size)
+				file_ << ", ";
+		}
+		file_ << ")\n";
+	}
 }
 

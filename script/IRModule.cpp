@@ -40,4 +40,11 @@ namespace script
         functions_.insert({ name, function });
         return function;
     }
+
+	IRFunction * IRModule::getFunctionByName(const std::string & name)
+	{
+		assert(functions_.count(name));
+		return functions_[name];
+		return nullptr;
+	}
 }

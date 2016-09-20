@@ -16,11 +16,11 @@ namespace script
 
     Semispace::Semispace(size_t size)
     {
-        size_t space_size = Ceil(size);
-        bottom_ = new char[space_size];
-        end_ = bottom_ + space_size;
+        space_size_ = Ceil(size);
+        bottom_ = new char[space_size_];
+        end_ = bottom_ + space_size_;
         top_ = bottom_;
-        free_space_ = space_size;
+        free_space_ = space_size_;
     }
 
     Semispace::~Semispace()
@@ -36,6 +36,7 @@ namespace script
     inline void Semispace::reset()
     {
         top_ = bottom_;
+		free_space_ = space_size_;
     }
 
     Object Semispace::allocateMemory(size_t size)
@@ -161,6 +162,7 @@ namespace script
         
         std::cout << "[GC] before free: " << old
             << ", after free: " << from_space_->free_space_
+			<< ", used space:" << from_space_->space_size_ - from_space_->free_space_
             << ", total free space: " << from_space_->free_space_ - old << std::endl;
     }
 

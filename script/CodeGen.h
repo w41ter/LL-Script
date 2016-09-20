@@ -30,7 +30,13 @@ namespace script
         void genFunction(IRFunction *func);
 		void genInstr(
 			OpcodeFunction &func,
-			Instruction *instr); 
+			Instruction *instr);
+		void genNewClosure(
+			OpcodeFunction &func,
+			Instruction *instr);
+		void genStore(
+			OpcodeFunction &func,
+			Instruction *instr);
 		void genAssign(
 			OpcodeFunction &func,  
 			Instruction *instr);

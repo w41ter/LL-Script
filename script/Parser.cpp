@@ -62,7 +62,7 @@ namespace
         iter->symbolTable.insert({name, FunctionScope::Let});
 		// save it to SSA form
 		Value *param = IRContext::create<Param>(name);
-        Value *assign = IRContext::createAtEnd<Assign>(
+        Value *assign = IRContext::createAtBegin<Assign>(
             iter->cfg_->getEntryBlock(), param, 
             iter->cfg_->phiName(name));
 		iter->cfg_->saveVariableDef(
@@ -815,15 +815,21 @@ namespace
 		scope->cfg_->sealOthersBlock();
     }
 
-    void Parser::getFunctionPrototype(
+    void Parser::getFunctionPrototype(const std::string &name,
         Strings &prototype, const Strings &params)
     {
         auto &captures = scope->captures;
         prototype.clear();
         prototype.reserve(captures.size() + params.size());
         for (auto &str : captures) {
+			if (str == name)	// for recursive
+				continue;
             prototype.push_back(str);
         }
+
+		// move self to last.
+		if (captures.size() != prototype.size())
+			prototype.push_back(name);
         
         for (auto &str : params) 
             prototype.push_back(str);
@@ -834,32 +840,30 @@ namespace
 		const std::string &name,
 		std::unordered_set<std::string> &captures)
     {
-		bool recursive = false;
-		size_t index = 0;
         std::vector<Value*> paramsVals;
         for (auto &str : captures) {
+			if (str == name)	// for recursive
+				continue; 
 			Value *val = scope->cfg_->readVariableDef(str, scope->block_);
 			val = IRContext::createAtEnd<Assign>(
 				scope->block_, val, getTmpName());
             paramsVals.push_back(val);
-			if (!recursive) {
-				if (name == str) {
-					recursive = true;
-				}
-				else
-					index++;
-			}
         }
         
-        Value *funcval = IRContext::create<Function>(name);
-		funcval = IRContext::createAtEnd<Assign>(
-			scope->block_, funcval, getTmpName());
-        Value *invoke = IRContext::createAtEnd<Invoke>(
-			scope->block_, funcval, paramsVals, getTmpName());
+		Value *closure = IRContext::createAtEnd<NewClosure>(
+			scope->block_, name, paramsVals, getTmpName());
 		Value *func = IRContext::createAtEnd<Assign>(
-			scope->block_, invoke, scope->cfg_->phiName(name));
+			scope->block_, closure, scope->cfg_->phiName(name));
+
+		if (paramsVals.size() != captures.size()) {
+			paramsVals.clear();
+			paramsVals.push_back(func);
+			func = IRContext::createAtEnd<Invoke>(
+				scope->block_, func, paramsVals, getTmpName());
+		}
+		
 		scope->cfg_->saveVariableDef(name, scope->block_, func);
-        return invoke;
+        return func;
     }
 
 	Value *Parser::parseFunctionCommon(const std::string &name)
@@ -873,11 +877,13 @@ namespace
 
 		// save current captures.
 		std::vector<std::string> prototype;
-		getFunctionPrototype(prototype, params);
+		getFunctionPrototype(name, prototype, params);
 		function->setParams(std::move(prototype));
 
 		std::unordered_set<std::string> captures;
 		std::swap(captures, scope->captures);
+		if (captures.find(name) != captures.end())
+			dealRecursiveDecl(name);
 		popFunctionScope(function);
 
 		// create closure for function.
@@ -895,6 +901,21 @@ namespace
 
 		parseFunctionCommon(name);
     }
+
+	void Parser::dealRecursiveDecl(const std::string & name)
+	{
+		BasicBlock *block = scope->cfg_->getEntryBlock();
+		Value *param = IRContext::create<Param>(name);
+		Instruction *assign = IRContext::create<Assign>(param, getTmpName());
+		std::vector<Value*> paramVal = { assign };
+		Instruction *invoke = IRContext::create<Invoke>(
+			assign, paramVal, getTmpName());
+		IRContext::createAtBegin<Store>(block, name, invoke);
+		block->push_front(invoke);
+		block->push_front(assign);
+		invoke->set_parent(block);
+		assign->set_parent(block);
+	}
 
 	void Parser::parseLetDefineCommon(
 		const std::string &name)

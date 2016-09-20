@@ -40,11 +40,11 @@ namespace {
             std::cout << "[[Table]]";
             break;
         }
-        case Value::FunctionVal:
-        {
-            std::cout << "[Function]:" << ((Function*)value)->getFuncName();
-            break;
-        }
+        //case Value::FunctionVal:
+        //{
+        //    std::cout << "[Function]:" << ((Function*)value)->getFuncName();
+        //    break;
+        //}
         case Value::ParamVal:
         {
             std::cout << "[Param]:" << ((Param*)value)->getParamName();

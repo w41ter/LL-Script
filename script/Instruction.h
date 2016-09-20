@@ -17,10 +17,12 @@ namespace script
     {
     public:
         enum InstrVal {
+			NewClosureVal,
             InvokeVal,
             BranchVal,
             GotoVal,
             AssignVal,
+			StoreVal,
             NotOpVal,
             ReturnVal,
             ReturnVoidVal,
@@ -58,13 +60,16 @@ namespace script
         bool is_index()         const { return get_opcode() == IndexVal; }
         bool is_set_index()     const { return get_opcode() == SetIndexVal; }
         bool is_phi_node()      const { return get_opcode() == PhiVal; }
+		bool is_store()			const { return get_opcode() == StoreVal; }
+		bool is_new_closure()   const { return get_opcode() == NewClosureVal; }
         bool is_output()        const {
             unsigned op = get_opcode();
-            return !(op == SetIndexVal
-                || op == BranchVal
-                || op == GotoVal
-                || op == ReturnVal
-                || op == ReturnVoidVal);
+			return !(op == SetIndexVal
+				|| op == BranchVal
+				|| op == GotoVal
+				|| op == ReturnVal
+				|| op == ReturnVoidVal
+				|| op == StoreVal);
         }
 
 		void setOutputReg(MachineRegister reg) {
@@ -99,6 +104,24 @@ namespace script
 		MachineRegister output_reg;
         MachineRegisters input_registers;
     };
+
+	class NewClosure : public Instruction
+	{
+	public:
+		NewClosure(const std::string &FN, const std::vector<Value*> &args, const char *name);
+		NewClosure(const std::string &FN, const std::vector<Value*> &args, const std::string &name);
+		virtual ~NewClosure() = default;
+
+		typedef std::vector<Use>::iterator param_iterator;
+		param_iterator param_begin() { return operands.begin(); }
+		param_iterator param_end() { return operands.end(); }
+		const std::string &get_func_name() const { return func_name; }
+
+	protected:
+		void init(const std::vector<Value*> &args);
+
+		std::string func_name;
+	};
 
     class Invoke : public Instruction
     {
@@ -158,6 +181,21 @@ namespace script
     protected:
         BasicBlock *block_;
     };
+
+	class Store : public Instruction
+	{
+	public:
+		Store(const std::string &params, Value *value);
+		virtual ~Store() = default;
+
+		Value *get_value() { return operands[0].get_value(); }
+		const std::string &get_param_name() const { return param_name; }
+
+	private:
+		void init(Value *val);
+
+		std::string param_name;
+	};
 
     class Assign : public Instruction
     {

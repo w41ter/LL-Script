@@ -119,10 +119,12 @@ namespace
 	void OPBuilder::GenNewClosure(
 		Opcodes & opcode, 
 		unsigned to, 
-		int32_t offset)
+		int32_t offset,
+		int32_t paramSize)
 	{
 		MakeOpcode(opcode, OK_NewClosure, to);
 		PushInteger(opcode, offset);
+		PushInteger(opcode, paramSize);
 	}
 
 	void OPBuilder::GenNewHash(

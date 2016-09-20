@@ -98,6 +98,7 @@ namespace script
         Value *parseFunctionCommon(const std::string &name);
 		void parseParams(Strings &params);
 		void getFunctionPrototype(
+			const std::string &name,
 			Strings &prototype, 
 			const Strings &params
         );
@@ -106,6 +107,7 @@ namespace script
             IRFunction *function
         );
         void parseFunctionDecl();
+		void dealRecursiveDecl(const std::string &name);
 
         void parseTableIdent(Value *table);
         void parseTableOthers(Value *table);

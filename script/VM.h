@@ -7,6 +7,7 @@
 #include <stack>
 #include <queue>
 #include <cassert>
+#include <cstring>
 
 #include "opcode.h"
 #include "Runtime.h"
@@ -30,6 +31,8 @@ namespace script
 		void create() {
 			registers = new Object[regNums];
 			params = new Object[paramsNums];
+			memset(registers, 0, sizeof(Object) * regNums);
+			memset(params, 0, sizeof(Object) * paramsNums);
 		}
 
 		void destory() {
@@ -52,6 +55,11 @@ namespace script
 		Object getParamVal(size_t idx) {
 			assert(idx < paramsNums);
 			return params[idx];
+		}
+
+		void setParamVal(size_t idx, Object val) {
+			assert(idx < paramsNums);
+			params[idx] = val;
 		}
 
 		Object getRegVal(size_t idx) {

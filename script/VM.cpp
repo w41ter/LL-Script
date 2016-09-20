@@ -5,7 +5,8 @@
 #include <functional>
 #include <cassert>
 #include <string.h>
-#include <iostream>
+#include <iostream>	
+#include <iomanip>
 
 #include "Buildin.h"
 
@@ -108,6 +109,8 @@ namespace script
 			default:
 				break;
 			}
+			//if (ip == 104)
+			//	std::cout << GetFixnum(topFrame->getRegVal(0)) << std::endl;
 		}
 	}
 
@@ -119,8 +122,8 @@ namespace script
 			VMFrame *frame = currentScene->frames[total - i];
 			size_t idx = frame->content->name;
 			const std::string &name = currentScene->module.getString(idx);
-
-			std::cout << "\t#" << i << " " << name << std::endl;
+			std::cout << "\t#" << i << "  0x" << std::setfill('0')
+				<< std::setw(8) << frame->ip << ":\t" << name << std::endl;
 			if (total - i == 0)
 				break;
 		}
@@ -157,7 +160,7 @@ namespace script
 		for (size_t i = 0; i < hold; ++i) 
 			newFrame->params[i] = ClosureParamAt(func, i);
 		for (size_t i = hold; i < hold + paramsNums; ++i) {
-			size_t from = stackSize + hold + paramsNums - i;
+			size_t from = stackSize - (hold + paramsNums - i);
 			newFrame->params[i] = currentScene->paramsStack[from];
 		}
 		if (currentScene->frames.size() + 1 >= FrameMaxSize) {
@@ -182,7 +185,7 @@ namespace script
 		for (size_t i = 0; i < hold; ++i)
 			newFrame->params[i] = ClosureParamAt(func, i);
 		for (size_t i = hold; i < hold + paramsNums; ++i) {
-			size_t from = stackSize + hold + paramsNums - i;
+			size_t from = stackSize - (hold + paramsNums - i);
 			newFrame->params[i] = currentScene->paramsStack[from];
 		}
 		popParamsStack(paramsNums);
@@ -203,7 +206,7 @@ namespace script
 		for (size_t idx = 0; idx < hold; ++idx)
 			ClosurePushParam(closure, ClosureParamAt(func, idx));
 		for (size_t idx = hold; idx < hold + paramsNums; ++idx) {
-			size_t from = stackSize - paramsNums + hold - idx;
+			size_t from = stackSize - (hold + paramsNums - idx);
 			ClosurePushParam(closure, currentScene->paramsStack[from]);
 		}
 		popParamsStack(paramsNums);
@@ -301,7 +304,7 @@ namespace script
 
 		int32_t total = ClosureTotal(func);
 		int32_t hold = ClosureHold(func);
-		int32_t target = total + hold;
+		int32_t target = paramsNums + hold;
 
 		if (target > total) {
 			runtimeError("too many params");
@@ -364,7 +367,7 @@ namespace script
 		currentScene->frames.pop_back();
 		if (currentScene->frames.size() > 0)
 			currentScene->frames.back()
-				->setRegVal(topFrame->resReg, val);
+			->setRegVal(topFrame->resReg, val);
 		delete topFrame;
 	}
 
@@ -380,7 +383,9 @@ namespace script
 	void VMState::executeStore(size_t & ip)
 	{
 		auto &opcode = topFrame->content->codes;
-		assert(0);
+		Object val = topFrame->getRegVal(opcode[ip++]);
+		int32_t slot = getInteger(ip);
+		topFrame->setParamVal(slot, val);
 	}
 
 	void VMState::executeIndex(size_t & ip)
@@ -413,12 +418,14 @@ namespace script
 		auto &opcode = topFrame->content->codes;
 		unsigned result = opcode[ip++];
 		int32_t offset = getInteger(ip);
+		int32_t paramSize = getInteger(ip);
 		const std::string &name = currentScene->module.getString(offset);
 		auto *content = &currentScene->module.getFunction(name);
 		size_t numOfParams = content->paramSize;
 		Object closure = currentScene->GC.allocate(
 			SizeOfClosure(numOfParams));
 		CreateClosure(closure, content, numOfParams);
+		fillClosureWithParams(closure, paramSize);
 		topFrame->setRegVal(result, closure);
 	}
 
@@ -453,6 +460,7 @@ namespace script
 	{
 		auto &GC = scene->GC;
 		GC.bindGlobals(std::bind(&ProcessGlobals, scene));
-		GC.bindReference(ProcessVariableReference);
+		GC.bindReference(std::bind(&ProcessVariableReference,
+			scene, std::placeholders::_1));
 	}
 }

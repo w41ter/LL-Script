@@ -39,6 +39,8 @@ namespace script
         void dumpIndex(Instruction *instr);
         void dumpSetIndex(Instruction *instr);
         void dumpPhi(Instruction *instr);
+		void dumpStore(Instruction *instr);
+		void dumpNewClosure(Instruction *instr);
 
     protected:
         std::string filename_;

@@ -18,6 +18,7 @@ namespace script
         char* bottom_;
         char* top_;
         char* end_;
+		size_t space_size_;
         size_t free_space_;
     };
 

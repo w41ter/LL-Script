@@ -65,6 +65,28 @@ namespace script
 		erase_from_parent();
     }
 
+	NewClosure::NewClosure(const std::string &FN,
+		const std::vector<Value*> &args, const char *name)
+		: Instruction(Instruction::NewClosureVal, name), func_name(FN)
+	{
+		init(args);
+	}
+
+	NewClosure::NewClosure(const std::string &FN,
+		const std::vector<Value*> &args, const std::string &name)
+		: NewClosure(FN, args, name.c_str())
+	{
+	}
+
+	void NewClosure::init(const std::vector<Value*>& args)
+	{
+		operands.reserve(args.size());
+		for (Value *value : args)
+		{
+			operands.push_back(Use(value, this));
+		}
+	}
+
     Invoke::Invoke(Value *func, 
         const std::vector<Value*> &args, const char *name)
         : Instruction(Instruction::InvokeVal, name)
@@ -333,4 +355,15 @@ namespace script
         for (auto * value : params)
             operands.push_back(Use(value, this));
     }
+
+	Store::Store(const std::string &params, Value * value)
+		: Instruction(StoreVal), param_name(params)
+	{
+		init(value);
+	}
+
+	void Store::init(Value * val)
+	{
+		operands.push_back(Use(val, this));
+	}
 }
