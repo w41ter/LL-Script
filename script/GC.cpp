@@ -159,12 +159,14 @@ namespace script
 
         delete[]forward_;
         forward_ = nullptr;
-        
+
+#ifdef _DEBUG
         std::cout << "[GC] before free: " << old
             << ", after free: " << from_space_->free_space_
 			<< ", used space:" << from_space_->space_size_ - from_space_->free_space_
             << ", total free space: " << from_space_->free_space_ - old << std::endl;
-    }
+#endif // _DEBUG
+	}
 
     Object GarbageCollector::allocate(size_t size)
     {

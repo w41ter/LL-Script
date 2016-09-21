@@ -41,6 +41,13 @@ void *UserClosureContent(Object slef);
 
 Object CreateHashTable(Object self);
 
+Object CreateArray(Object self, size_t length);
+void ArraySet(Object self, size_t idx, Object value);
+Object ArrayGet(Object self, size_t idx);
+size_t ArraySize(Object self);
+Object *ArrayPointer(Object self);
+
+size_t SizeOfArray(size_t total);
 size_t SizeOfHashTable();
 size_t SizeOfUserClosure(size_t total);
 size_t SizeOfClosure(size_t total);
@@ -51,6 +58,7 @@ int ToFixnum(Object self);
 bool ToLogicValue(Object self);
 bool IsCallable(Object self);
 
+bool IsArray(Object self);
 bool IsHashTable(Object self);
 bool IsUserClosure(Object self);
 bool IsClosure(Object self);

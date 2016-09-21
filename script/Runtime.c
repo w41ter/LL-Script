@@ -24,6 +24,7 @@ enum Type {
 	TypeClosure = 1,
 	TypeUserFunc = 2,
 	TypeHashTable = 3,
+	TypeArray = 4,
 };
 
 // common property of heap object
@@ -80,6 +81,20 @@ typedef struct
 	Object params[];
 } UserClosure;
 
+///
+/// array object
+///
+typedef struct
+{
+	HEAP_OBJECT_HEAD;
+	size_t length;
+	Object array[];
+} Array;
+
+size_t SizeOfArray(size_t total) {
+	return sizeof(Array) + total * sizeof(Array);
+}
+
 size_t SizeOfHashTable() {
 	return sizeof(HashTable);
 }
@@ -131,6 +146,12 @@ bool ToLogicValue(Object self)
 bool IsCallable(Object self)
 {
 	return IsClosure(self);
+}
+
+bool IsArray(Object self)
+{
+	return (!IsTagging(self)
+		&& ((Array*)self)->obType == TypeArray);
 }
 
 bool IsHashTable(Object self)
@@ -286,6 +307,43 @@ void *ClosureContent(Object self)
 	return ((Closure*)self)->content;
 }
 
+Object CreateArray(Object self, size_t length)
+{
+	Array *this = (Array*)self;
+	this->obType = TypeArray;
+	this->length = length;
+	memset(this->array, 0, sizeof(Object) * length);
+	return (Object)this;
+}
+
+void ArraySet(Object self, size_t idx, Object value)
+{
+	assert(IsArray(self));
+	Array *this = (Array*)self;
+	assert(this->length > idx);
+	this->array[idx] = value;
+}
+
+Object ArrayGet(Object self, size_t idx)
+{
+	assert(IsArray(self));
+	Array *this = (Array*)self;
+	assert(this->length > idx);
+	return this->array[idx];
+}
+
+size_t ArraySize(Object self)
+{
+	assert(IsArray(self));
+	return ((Array*)self)->length;
+}
+
+Object *ArrayPointer(Object self)
+{
+	assert(IsArray(self));
+	return ((Array*)self)->array;
+}
+
 size_t SizeOfObject(Object p)
 {
     if (IsTagging(p))
@@ -297,6 +355,8 @@ size_t SizeOfObject(Object p)
         return SizeOfString(((String*)p)->length);
     case TypeClosure:
         return SizeOfClosure(((Closure*)p)->total);
+	case TypeArray:
+		return SizeOfArray(((Array*)p)->length);
     }
     return 0;
 }

@@ -33,7 +33,7 @@ namespace script
 		while (runState) {
 			if (currentScene->frames.size() == 0)
 				break;
-			topFrame = currentScene->frames.back();
+			topFrame = &currentScene->frames.back();
 			auto &ip = topFrame->ip;
 			switch (topFrame->content->codes[ip++])
 			{
@@ -119,11 +119,11 @@ namespace script
 		std::cout << "Except: " << str << std::endl;
 		size_t total = currentScene->frames.size() - 1;
 		for (int i = 0; i < 5; ++i) {
-			VMFrame *frame = currentScene->frames[total - i];
-			size_t idx = frame->content->name;
+			VMFrame &frame = currentScene->frames[total - i];
+			size_t idx = frame.content->name;
 			const std::string &name = currentScene->module.getString(idx);
 			std::cout << "\t#" << i << "  0x" << std::setfill('0')
-				<< std::setw(8) << frame->ip << ":\t" << name << std::endl;
+				<< std::setw(8) << frame.ip << ":\t" << name << std::endl;
 			if (total - i == 0)
 				break;
 		}
@@ -138,12 +138,7 @@ namespace script
 
 	void VMState::clearSceneStack()
 	{
-		while (currentScene->frames.size()) {
-			topFrame = currentScene->frames.back();
-			currentScene->frames.pop_back();
-			delete topFrame;
-		}
-		topFrame = nullptr;
+		currentScene->frames.clear();
 	}
 
 	void VMState::call(Object func, int32_t paramsNums, unsigned res)
@@ -153,21 +148,19 @@ namespace script
 
 		OpcodeFunction *content =
 			static_cast<OpcodeFunction*>(ClosureContent(func));
-		VMFrame *newFrame = new VMFrame{
-			content->numOfregisters, content->paramSize, res, content
-		};
-		
-		for (size_t i = 0; i < hold; ++i) 
-			newFrame->params[i] = ClosureParamAt(func, i);
+		currentScene->pushFrame(res, content);
+
+		VMFrame *newFrame = &currentScene->frames.back();
+		for (size_t i = 0; i < hold; ++i)
+			newFrame->setParamVal(i, ClosureParamAt(func, i));
 		for (size_t i = hold; i < hold + paramsNums; ++i) {
 			size_t from = stackSize - (hold + paramsNums - i);
-			newFrame->params[i] = currentScene->paramsStack[from];
+			newFrame->setParamVal(i, currentScene->paramsStack[from]);
 		}
 		if (currentScene->frames.size() + 1 >= FrameMaxSize) {
 			runtimeError("stackoverflow");
 			return;
 		}
-		currentScene->frames.push_back(newFrame);
 		popParamsStack(paramsNums);
 	}
 
@@ -178,15 +171,17 @@ namespace script
 
 		OpcodeFunction *content =
 			static_cast<OpcodeFunction*>(ClosureContent(func));
+		if (content != topFrame->content) {
+			unsigned resultReg = topFrame->resReg;
+			currentScene->popFrame(0);
+			currentScene->pushFrame(resultReg, content);
+		}
 		VMFrame *newFrame = topFrame;
-		newFrame->resetSlot(content->numOfregisters, content->paramSize);
-		newFrame->resetContent(content);
-
 		for (size_t i = 0; i < hold; ++i)
-			newFrame->params[i] = ClosureParamAt(func, i);
+			newFrame->setParamVal(i, ClosureParamAt(func, i));
 		for (size_t i = hold; i < hold + paramsNums; ++i) {
 			size_t from = stackSize - (hold + paramsNums - i);
-			newFrame->params[i] = currentScene->paramsStack[from];
+			newFrame->setParamVal(i, currentScene->paramsStack[from]);
 		}
 		popParamsStack(paramsNums);
 	}
@@ -364,11 +359,7 @@ namespace script
 	{
 		auto &opcode = topFrame->content->codes;
 		Object val = topFrame->getRegVal(opcode[ip++]);
-		currentScene->frames.pop_back();
-		if (currentScene->frames.size() > 0)
-			currentScene->frames.back()
-			->setRegVal(topFrame->resReg, val);
-		delete topFrame;
+		currentScene->popFrame(val);
 	}
 
 	void VMState::executeLoad(size_t & ip)
@@ -462,5 +453,24 @@ namespace script
 		GC.bindGlobals(std::bind(&ProcessGlobals, scene));
 		GC.bindReference(std::bind(&ProcessVariableReference,
 			scene, std::placeholders::_1));
+	}
+
+	void VMScene::pushFrame(unsigned RR, const OpcodeFunction * content)
+	{
+		size_t regs = content->numOfregisters,
+			args = content->paramSize;
+		Object registers = GC.allocate(SizeOfArray(regs));
+		Object params = GC.allocate(SizeOfArray(args));
+		CreateArray(registers, regs);
+		CreateArray(params, args);
+		frames.push_back({ registers, params, RR, content });
+	}
+
+	void VMScene::popFrame(Object result)
+	{
+		unsigned resReg = frames.back().resReg;
+		frames.pop_back();
+		if (frames.size() > 0)
+			frames.back().setRegVal(resReg, result);
 	}
 }

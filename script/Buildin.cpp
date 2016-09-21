@@ -94,12 +94,9 @@ void ProcessGlobals(void *scene)
 
 	VMScene *vmscene = static_cast<VMScene*>(scene);
 	GarbageCollector *GC = &vmscene->GC;
-	for (auto *frame : vmscene->frames) {
-		for (size_t i = 0; i < frame->paramsNums; ++i)
-			GC->processReference(&(frame->params[i]));
-		for (size_t i = 0; i < frame->regNums; ++i)
-			if (frame->registers[i])
-				GC->processReference(&(frame->registers[i]));
+	for (auto &frame : vmscene->frames) {
+		GC->processReference(&frame.params);
+		GC->processReference(&frame.registers);
 	}
 	for (auto &object : vmscene->paramsStack) 
 		GC->processReference(&object);
@@ -117,5 +114,12 @@ void ProcessVariableReference(void *scene, Object *object)
 		Object *params = ClosureParams(*object);
 		for (size_t idx = 0; idx < hold; ++idx)
 			GC->processReference(&(params[idx]));
+	}
+	else if (IsArray(*object)) {
+		size_t length = ArraySize(*object);
+		Object *array = ArrayPointer(*object);
+		for (size_t idx = 0; idx < length; ++idx)
+			if (array[idx])
+				GC->processReference(&array[idx]);
 	}
 }

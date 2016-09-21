@@ -17,79 +17,59 @@
 namespace script
 {
 	struct VMFrame {
-		VMFrame(size_t RN, size_t PN, unsigned RR,
+		VMFrame(Object regs, Object args, unsigned RR,
 			const OpcodeFunction *func)
-			: regNums(RN), paramsNums(PN), ip(0)
+			: registers(regs), params(args), ip(0)
 			, content(func), resReg(RR) {
-			create();
 		}
 
-		~VMFrame() {
-			destory();
-		}
-
-		void create() {
-			registers = new Object[regNums];
-			params = new Object[paramsNums];
-			memset(registers, 0, sizeof(Object) * regNums);
-			memset(params, 0, sizeof(Object) * paramsNums);
-		}
-
-		void destory() {
-			delete[] registers;
-			delete[] params;
-		}
-
-		void resetSlot(size_t RN, size_t PN) {
-			regNums = RN;
-			paramsNums = PN;
-			destory();
-			create();
-		}
-
-		void resetContent(const OpcodeFunction *func) {
-			content = func;
-			ip = 0;
-		}
+		~VMFrame() { }
 
 		Object getParamVal(size_t idx) {
-			assert(idx < paramsNums);
-			return params[idx];
+			return ArrayGet(params, idx);
 		}
 
 		void setParamVal(size_t idx, Object val) {
-			assert(idx < paramsNums);
-			params[idx] = val;
+			ArraySet(params, idx, val);
+		}
+
+		size_t getParamsSize() {
+			return ArraySize(params);
 		}
 
 		Object getRegVal(size_t idx) {
-			assert(idx < regNums);
-			return registers[idx];
+			return ArrayGet(registers, idx);
 		}
 
 		void setRegVal(size_t idx, Object val) {
-			assert(idx < regNums);
-			registers[idx] = val;
+			return ArraySet(registers, idx, val);
 		}
+
+		size_t getRegistersSize() {
+			return ArraySize(registers);
+		}
+
+		void resetIP() { ip = 0; }
 
 		unsigned resReg;
 		size_t ip;
-		size_t regNums;
-		size_t paramsNums;
-		Object *registers;
-		Object *params;
+		Object registers;
+		Object params;
 		const OpcodeFunction *content;
 	};
 
 	struct VMScene {
 		VMScene(OpcodeModule &OM)
-			: module(OM), GC(1024 * 1024) {}
+			: module(OM), GC(100 * 1024 * 1024) {}
+
+		void pushFrame(unsigned RR, const OpcodeFunction *func);
+		void popFrame(Object result);
 
 		OpcodeModule &module;
 		GarbageCollector GC;
 
 		std::vector<Object> paramsStack;
-		std::vector<VMFrame*> frames;
+		std::vector<VMFrame> frames;
 	};
 
 	class VMState
