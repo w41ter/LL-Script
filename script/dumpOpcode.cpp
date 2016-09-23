@@ -92,6 +92,9 @@ namespace script
 			case OK_MoveS:
 				dumpMoveS(opcode, ip);
 				break;
+			case OK_MoveN:
+				dumpMoveN(opcode, ip);
+				break;
 			case OK_Halt:
 				dumpHalt(opcode, ip);
 				break;
@@ -103,6 +106,12 @@ namespace script
 				break;
 			case OK_NewHash:
 				dumpNewHash(opcode, ip);
+				break;
+			case OK_Index:
+				dumpIndex(opcode, ip);
+				break;
+			case OK_SetIndex:
+				dumpSetIndex(opcode, ip);
 				break;
 			}
 		}
@@ -287,7 +296,7 @@ namespace script
         file_ << "\n\n[String pool]: \n  size = " 
 			<< module.stringPool_.size() << endl;
 
-		for (int i = 0; i < module.stringPool_.size(); ++i) {
+		for (size_t i = 0; i < module.stringPool_.size(); ++i) {
 			file_ << "\t" << i << " : " << module.stringPool_[i] << endl;
 		}
     }

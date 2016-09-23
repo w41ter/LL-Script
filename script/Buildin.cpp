@@ -119,7 +119,15 @@ void ProcessVariableReference(void *scene, Object *object)
 		size_t length = ArraySize(*object);
 		Object *array = ArrayPointer(*object);
 		for (size_t idx = 0; idx < length; ++idx)
-			if (array[idx])
-				GC->processReference(&array[idx]);
+			GC->processReference(&array[idx]);
+	}
+	else if (IsHash(*object)) {
+		GC->processReference(HashNodeListGet(*object));
+	}
+	else if (IsHashNodeList(*object)) {
+		size_t size = NodeListSize(*object);
+		HashNode *nodes = HashElement(*object);
+		for (size_t idx = 0; idx < size; ++idx)	
+			GC->processReference(&nodes[idx].value);
 	}
 }
