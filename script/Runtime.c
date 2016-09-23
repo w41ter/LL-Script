@@ -69,9 +69,6 @@ typedef struct
 {
 	HEAP_OBJECT_HEAD;
 	void *content;
-	size_t total;
-	size_t hold;
-	Object params[];
 } UserClosure;
 
 ///
@@ -84,14 +81,28 @@ typedef struct
 	Object array[];
 } Array;
 
-size_t SizeOfArray(size_t total) 
+Object CreateUserClosure(Object self, void * func)
+{
+	UserClosure *this = (UserClosure*)self;
+	this->obType = TypeUserFunc;
+	this->content = func;
+	return self;
+}
+
+void * UserClosureGet(Object self)
+{
+	assert(IsUserClosure(self));
+	return ((UserClosure*)self)->content;
+}
+
+size_t SizeOfArray(size_t total)
 {
 	return sizeof(Array) + total * sizeof(Array);
 }
 
-size_t SizeOfUserClosure(size_t total) 
+size_t SizeOfUserClosure() 
 {
-	return sizeof(Closure) + total * sizeof(Object);
+	return sizeof(UserClosure);
 }
 
 size_t SizeOfClosure(size_t total) 
@@ -138,7 +149,7 @@ bool ToLogicValue(Object self)
 
 bool IsCallable(Object self)
 {
-	return IsClosure(self);
+	return IsClosure(self) || IsUserClosure(self);
 }
 
 bool IsArray(Object self)

@@ -55,7 +55,7 @@ statement:
     | "break" ";"
     | "continue" ";"
     | expression ";"
-    | decl
+    | variable_decl
 
 block:
     "{" { statement } "}"
@@ -76,10 +76,6 @@ define_decl:
 let_decl:
     "let" ID "=" expression
 
-decl:
-    variable_decl
-    | function_decl
-
 program: 
-    { ( decl | expression ) }
+    { statement | function_decl }
 ```

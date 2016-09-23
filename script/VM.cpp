@@ -43,6 +43,11 @@ namespace script
 		SetGlobalGC(&scene->GC);
 	}
 
+	VMScene * VMState::getScene()
+	{
+		return currentScene;
+	}
+
 	void VMState::execute()
 	{
 		if (!currentScene || !currentScene->frames.size())
@@ -122,6 +127,9 @@ namespace script
 			case OK_NewClosure:
 				executeNewClosure(ip);
 				break;
+			case OK_UserClosure:
+				executeUserClosure(ip);
+				break;
 			case OK_NewHash:
 				executeNewHash(ip);
 				break;
@@ -129,6 +137,16 @@ namespace script
 				break;
 			}
 		}
+	}
+
+	void VMState::callUserClosure(Object closure,
+		int32_t paramsNums, unsigned res)
+	{
+		typedef Object(*UserDefClosure)(VMState*, size_t);
+		UserDefClosure call = (UserDefClosure)UserClosureGet(closure);
+		Object result = call(this, paramsNums);
+		topFrame->setRegVal(res, result);
+		popParamsStack(paramsNums);
 	}
 
 	void VMState::runtimeError(const char * str)
@@ -314,6 +332,11 @@ namespace script
 			return;
 		}
 
+		if (IsUserClosure(func)) {
+			callUserClosure(func, paramsNums, resultReg);
+			return;
+		}
+
 		int32_t total = ClosureTotal(func);
 		int32_t hold = ClosureHold(func);
 		int32_t target = paramsNums + hold;
@@ -338,6 +361,11 @@ namespace script
 
 		if (!IsCallable(func)) {
 			runtimeError("try to invoke incallable object");
+			return;
+		}
+
+		if (IsUserClosure(func)) {
+			callUserClosure(func, paramsNums, resultReg);
 			return;
 		}
 
@@ -438,6 +466,18 @@ namespace script
 		topFrame->setRegVal(result, closure);
 	}
 
+	void VMState::executeUserClosure(size_t & ip)
+	{
+		auto &opcode = topFrame->content->codes;
+		unsigned result = opcode[ip++];
+		int32_t offset = getInteger(ip);
+		const std::string &name = currentScene->module.getString(offset);
+		auto *content = currentScene->module.getUserClosure(name);
+		Object closure = currentScene->GC.allocate(SizeOfUserClosure());
+		CreateUserClosure(closure, content);
+		topFrame->setRegVal(result, closure);
+	}
+
 	void VMState::executeNewHash(size_t & ip)
 	{
 		auto &opcode = topFrame->content->codes;
@@ -489,5 +529,7 @@ namespace script
 		frames.pop_back();
 		if (frames.size() > 0)
 			frames.back().setRegVal(resReg, result);
+		else
+			lastValue = result;
 	}
 }

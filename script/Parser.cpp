@@ -538,6 +538,19 @@ namespace
 		scope->block_ = succBlock;
     }
 
+	void Parser::registerUserClosures()
+	{
+		assert(functionStack.size() == 1 && "must be called at parser.");
+		auto *entryBB = scope->cfg_->getEntryBlock();
+		for (const auto &name : userClosures) {
+			defineIntoScope(name, FunctionScope::Define);
+			Value *closure = IRContext::create<UserClosure>(name);
+			closure = IRContext::createAtEnd<Assign>(
+				entryBB, closure, scope->cfg_->phiName(name));
+			scope->cfg_->saveVariableDef(name, entryBB, closure);
+		}
+	}
+
     void Parser::parseWhileStat()
     {
         advance();
@@ -960,6 +973,8 @@ namespace
 		IRFunction *mainfunc = module_.createFunction(globalMainName);
 		pushFunctionScopeAndInit(mainfunc);
 
+		registerUserClosures();
+
         advance();
         while (token_.kind_ != TK_EOF)
         {
@@ -972,6 +987,11 @@ namespace
 		scope->cfg_->sealOthersBlock();
 		popFunctionScope(mainfunc);
     }
+
+	void Parser::registerUserClosure(const std::string & name)
+	{
+		userClosures.insert(name);
+	}
 
     Parser::Parser(Lexer & lexer, IRModule &module, DiagnosisConsumer &diag) 
         : lexer_(lexer), module_(module), diag_(diag), scope(nullptr)

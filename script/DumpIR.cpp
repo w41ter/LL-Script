@@ -72,11 +72,12 @@ namespace script
             file_ << "[[Table]]";
             break;
         }
-        //case Value::FunctionVal:
-        //{
-        //    file_ << "[Function]:" << ((Function*)value)->getFuncName();
-        //    break;
-        //}
+        case Value::UserClosureVal:
+        {
+            file_ << "[Function]:" <<
+				((UserClosure*)value)->getClosureName();
+            break;
+        }
 		case Value::ParamVal:
 		{
 			file_ << "[Param]:" << ((Param*)value)->getParamName();

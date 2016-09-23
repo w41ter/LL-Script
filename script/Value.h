@@ -15,7 +15,7 @@ namespace script
             UndefVal,
             TableVal,
             ParamVal,
-            //FunctionVal,
+            UserClosureVal,
             ConstantVal,
             InstructionVal,
         };
@@ -98,26 +98,26 @@ namespace script
         virtual ~Undef() = default;
     };
 
-    //class Function : public Value 
-    //{
-    //public:
-    //    Function(const char *funcname) 
-    //        : Value(ValueTy::FunctionVal) 
-    //    {
-    //        this->set_value_name(funcname);
-    //    }
+    class UserClosure : public Value 
+    {
+    public:
+		UserClosure(const char *funcname)
+            : Value(ValueTy::UserClosureVal)
+        {
+            this->set_value_name(funcname);
+        }
 
-    //    Function(const std::string &name) 
-    //        : Value(ValueTy::FunctionVal)
-    //    {
-    //        this->set_value_name(name.c_str());
-    //    }
+		UserClosure(const std::string &name)
+            : Value(ValueTy::UserClosureVal)
+        {
+            this->set_value_name(name.c_str());
+        }
 
-    //    const std::string &getFuncName() const
-    //    {
-    //        return get_value_name();
-    //    }
-    //};
+        const std::string &getClosureName() const
+        {
+            return get_value_name();
+        }
+    };
 
 	class Param : public Value
 	{

@@ -8,6 +8,7 @@
 #include <stack>
 #include <unordered_set>
 #include <unordered_map>
+#include <functional>
 
 #include "lexer.h"
 
@@ -45,10 +46,11 @@ namespace script
 			DiagnosisConsumer &diag);
 
         void parse();
+		void registerUserClosure(const std::string &name);
 
     private:
         struct FunctionScope;
-
+ 
         typedef std::vector<std::string> Strings;
         typedef std::list<FunctionScope>::reverse_iterator scope_iterator;
         
@@ -139,6 +141,7 @@ namespace script
         void parseContinueStat();
         void parseReturnStat();
 
+		void registerUserClosures();
     private:
         Lexer &lexer_;
         Token token_;
@@ -152,6 +155,7 @@ namespace script
 
 		FunctionScope *scope;
         std::list<FunctionScope> functionStack;
+		std::unordered_set<std::string> userClosures;
     };
 }
 

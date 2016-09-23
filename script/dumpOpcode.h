@@ -41,6 +41,7 @@ namespace script
         void dumpHalt(const Opcode &opcode, size_t &ip);
         void dumpParam(const Opcode &opcode, size_t &ip);
         void dumpNewClosure(const Opcode &opcode, size_t &ip);
+		void dumpUserClosure(const Opcode &opcode, size_t &ip);
         void dumpNewHash(const Opcode &opcode, size_t & ip);
 
         void dumpRegister(unsigned reg);

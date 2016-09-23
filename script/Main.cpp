@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "VM.h"
+#include "lib.h"
 #include "driver.h"
 #include "lexer.h"
 #include "Parser.h"
@@ -31,8 +32,22 @@ int main(int argc, char* argv[])
         return 0;
 
     IRModule module;
-    Lexer lexer(diag);
-    Parser parser(lexer, module, diag);
+	OpcodeModule opcode; 
+
+	Lexer lexer(diag);
+	Parser parser(lexer, module, diag);
+
+	VMState state;
+	VMScene scene{ opcode };
+
+	BindGCProcess(&scene);
+	RegisterLibrary([&parser, &opcode](const char *name,
+		UserDefLibClosure closure) {
+		parser.registerUserClosure(name);
+		opcode.pushUserClosure(name, closure);
+	});
+
+
 
     try {
         lexer.setProgram(std::string(driver.filename));
@@ -44,9 +59,10 @@ int main(int argc, char* argv[])
     }
 
     int error = diag.errors(), warning = diag.warnings();
-    std::cout << "error(" << error << "), warning(" << warning << ")" << std::endl;
     if (error)
     {
+		std::cout << "error(" << error << "), warning("
+			<< warning << ")" << std::endl;
         getchar();
         return 0;
     }
@@ -66,8 +82,10 @@ int main(int argc, char* argv[])
 		UnreachableBlockElimination UBElim;
 		for (auto &func : module)
 		{
+#ifdef _DEBUG
 			std::cout << "Eliminate unreachable block: " 
 				<< func.first << std::endl;
+#endif // _DEBUG
 			UBElim.runOnFunction(func.second);
 		}
 	}
@@ -79,13 +97,14 @@ int main(int argc, char* argv[])
 		DumpIR dumpIR(filename += ".ir");
 		dumpIR.dump(&module);
 	}
-
-    OpcodeModule opcode; 
+ 
 	CodeGen codegen(opcode);
 	for (auto &func : module)
 	{
+#ifdef _DEBUG
 		std::cout << "Code generator: "
 			<< func.first << std::endl;
+#endif // _DEBUG
 		codegen.runOnFunction(func.second);
 	}
 
@@ -97,9 +116,6 @@ int main(int argc, char* argv[])
 		dumpOpcode.dump();
 	}
 
-	VMState state;
-	VMScene scene { opcode };
-	BindGCProcess(&scene);
 	Object function = scene.GC.allocate(SizeOfClosure(0));
 	auto *content = &opcode.getFunction(globalMainName);
 	OPBuilder::GenHalt(*content);

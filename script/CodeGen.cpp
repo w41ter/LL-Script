@@ -304,12 +304,12 @@ namespace script
 			}
 			break;
 		}
-		//case Value::FunctionVal:
-		//{
-		//	unsigned offset = module_.push_string(RHS->get_value_name());
-		//	OPBuilder::GenNewClosure(func, output, offset);
-		//	break;
-		//}
+		case Value::UserClosureVal:
+		{
+			unsigned offset = module_.push_string(RHS->get_value_name());
+			OPBuilder::GenUserClosure(func, output, offset);
+			break;
+		}
 		case Value::ParamVal:
 		{
 			unsigned index = getParamsSlot(func, RHS->get_value_name());

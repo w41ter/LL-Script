@@ -104,6 +104,9 @@ namespace script
 			case OK_NewClosure:
 				dumpNewClosure(opcode, ip);
 				break;
+			case OK_UserClosure:
+				dumpUserClosure(opcode, ip);
+				break;
 			case OK_NewHash:
 				dumpNewHash(opcode, ip);
 				break;
@@ -279,6 +282,14 @@ namespace script
 		file_ << " <params>:";
 		file_ << getInteger(opcode, ip) << endl;
     }
+
+	void DumpOpcode::dumpUserClosure(const Opcode & opcode, size_t & ip)
+	{
+		dumpRegister(opcode[ip++]);
+		int32_t offset = getInteger(opcode, ip);
+		const std::string &name = module.getString(offset);
+		file_ << " = new user closure : " << name << endl;
+	}
 
     void DumpOpcode::dumpNewHash(const Opcode &opcode, size_t &ip)
     {

@@ -53,8 +53,11 @@ Object *HashNodeListGet(Object self);
 HashNode *HashElement(Object self);
 void HashSetAndUpdate(Object self, Object key, Object value);
 
+Object CreateUserClosure(Object self, void *func);
+void *UserClosureGet(Object self);
+
 size_t SizeOfArray(size_t total);
-size_t SizeOfUserClosure(size_t total);
+size_t SizeOfUserClosure();
 size_t SizeOfClosure(size_t total);
 size_t SizeOfString(size_t length);
 

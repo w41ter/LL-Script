@@ -35,4 +35,20 @@ namespace script
 		}
         return functions_[idx];
     }
+
+	UserDefClosure OpcodeModule::getUserClosure(const std::string & name)
+	{
+		size_t idx = push_string(name);
+		if (!userClosure.count(idx)) {
+			return nullptr;
+		}
+		return userClosure[idx];
+	}
+
+	void OpcodeModule::pushUserClosure(
+		const std::string & name, UserDefClosure closure)
+	{
+		size_t idx = push_string(name);
+		userClosure[idx] = closure;
+	}
 }

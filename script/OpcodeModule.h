@@ -23,6 +23,9 @@ namespace script
 		size_t codeIndex;
     };
 
+	class VMState;
+	typedef Object(*UserDefClosure)(VMState*, size_t);
+
     class OpcodeModule : public Opcodes
     {
 		friend class DumpOpcode;
@@ -30,7 +33,9 @@ namespace script
         ~OpcodeModule();
 
 		OpcodeFunction &getFunction(const std::string &name);
-
+		UserDefClosure getUserClosure(const std::string &name);
+		void pushUserClosure(const std::string &name, 
+			UserDefClosure closure);
         size_t push_string(const std::string &str);
         const std::string &getString(size_t idx);
 
@@ -39,5 +44,6 @@ namespace script
 		std::vector<std::string> stringPool_;
         std::unordered_map<std::string, const size_t> stringMap;
         std::map<size_t, OpcodeFunction> functions_;
+		std::map<size_t, UserDefClosure> userClosure;
     };
 }

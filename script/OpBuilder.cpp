@@ -127,6 +127,15 @@ namespace
 		PushInteger(opcode, paramSize);
 	}
 
+	void OPBuilder::GenUserClosure(
+		Opcodes & opcode, 
+		unsigned to, 
+		int32_t offset)
+	{
+		MakeOpcode(opcode, OK_UserClosure, to);
+		PushInteger(opcode, offset);
+	}
+
 	void OPBuilder::GenNewHash(
 		Opcodes & opcode, 
 		unsigned to)

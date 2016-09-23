@@ -56,6 +56,7 @@ namespace script
         OK_Return,      // return temp
 		OK_NewHash,		// tmp = new hash
 		OK_NewClosure,	// tmp = new string(idx)
+		OK_UserClosure, // tmp = new user closure
         OK_Halt,        // stop
     };
     

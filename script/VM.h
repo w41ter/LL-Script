@@ -65,6 +65,8 @@ namespace script
 		void pushFrame(unsigned RR, const OpcodeFunction *func);
 		void popFrame(Object result);
 
+		// return value
+		Object lastValue;
 		OpcodeModule &module;
 		GarbageCollector GC;
 
@@ -78,6 +80,7 @@ namespace script
 		VMState();
 
 		void bindScene(VMScene *scene);
+		VMScene *getScene();
 		void execute();
 
 		void call(Object func, int32_t paramsNums, unsigned res);
@@ -85,6 +88,8 @@ namespace script
 		Object fillClosureWithParams(Object func, int32_t paramsNum);
 
 	private:
+		void callUserClosure(Object closure, 
+			int32_t paramsNums, unsigned res);
 		void runtimeError(const char *str);
 		void popParamsStack(size_t nums);
 		void clearSceneStack();
@@ -110,6 +115,7 @@ namespace script
 		void executeSetIndex(size_t &ip);
 		void executeParam(size_t &ip);
 		void executeNewClosure(size_t &ip);
+		void executeUserClosure(size_t &ip);
 		void executeNewHash(size_t &ip);
 
 		VMFrame *topFrame;
