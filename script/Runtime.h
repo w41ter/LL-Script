@@ -11,12 +11,19 @@ extern "C" {
 
 typedef uintptr_t Object;
 
+typedef struct HashNode
+{
+	uintptr_t key;
+	Object value;
+} HashNode;
+
 int GetFixnum(Object self);
 float GetReal(Object self);
 
 Object CreateFixnum(int value);
 Object CreateReal(float value);
 Object CreateNil();
+Object CreateUndef();
 
 /* make string from exist str and memory. */
 Object CreateString(Object self, const char *source, size_t length);
@@ -31,24 +38,22 @@ size_t ClosureHold(Object self);
 size_t ClosureTotal(Object self);
 void *ClosureContent(Object self);
 
-Object CreateUserClosure(Object self, void *content, size_t total);
-void UserClosurePushParam(Object self, Object param);
-Object *UserClosureParams(Object self);
-Object UserClosureParamAt(Object self, size_t index);
-size_t UserClosureHold(Object self);
-size_t UserClosureTotal(Object self);
-void *UserClosureContent(Object slef);
-
-Object CreateHashTable(Object self);
-
 Object CreateArray(Object self, size_t length);
 void ArraySet(Object self, size_t idx, Object value);
 Object ArrayGet(Object self, size_t idx);
 size_t ArraySize(Object self);
 Object *ArrayPointer(Object self);
 
+Object CreateHash();
+size_t HashCapacity(Object hash);
+size_t HashSize(Object self);
+Object HashFind(Object self, Object key);
+size_t NodeListSize(Object self);
+Object *HashNodeListGet(Object self);
+HashNode *HashElement(Object self);
+void HashSetAndUpdate(Object self, Object key, Object value);
+
 size_t SizeOfArray(size_t total);
-size_t SizeOfHashTable();
 size_t SizeOfUserClosure(size_t total);
 size_t SizeOfClosure(size_t total);
 size_t SizeOfString(size_t length);
@@ -59,11 +64,13 @@ bool ToLogicValue(Object self);
 bool IsCallable(Object self);
 
 bool IsArray(Object self);
-bool IsHashTable(Object self);
+bool IsHash(Object self);
+bool IsHashNodeList(Object self);
 bool IsUserClosure(Object self);
 bool IsClosure(Object self);
 bool IsString(Object self);
 
+bool IsUndef(Object self);
 bool IsNil(Object self);
 bool IsReal(Object self);
 bool IsSpecal(Object self);

@@ -453,9 +453,9 @@ namespace
 				if (instr->is_index())
 				{
 					Index *index = static_cast<Index*>(instr);
-					SetIndex *SI = IRContext::create<SetIndex>(
-						index->table(), index->index(), RHS);
-					index->replace_with(SI);
+					SetIndex *SI = IRContext::createAtEnd<SetIndex>(
+						scope->block_, index->table(), index->index(), RHS);
+					index->erase_from_parent();
 					return;
 				}
 			}

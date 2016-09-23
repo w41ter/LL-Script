@@ -136,7 +136,7 @@ namespace script
 		auto &registers = I->refInputRegisters();
 		unsigned output = I->getOutputReg().getRegisterNum();
 		unsigned paramSize = registers.size();
-		for (int i = 0; i < registers.size(); ++i) {
+		for (size_t i = 0; i < registers.size(); ++i) {
 			OPBuilder::GenParam(func, registers[i].getRegisterNum());
 		}
 		unsigned offset = module_.push_string(closure->get_func_name());
@@ -335,7 +335,7 @@ namespace script
 		unsigned output = I->getOutputReg().getRegisterNum();
 		assert(registers.size() >= 1);
 		unsigned paramSize = registers.size() - 1;
-		for (int i = 1; i < registers.size(); ++i) {
+		for (size_t i = 1; i < registers.size(); ++i) {
 			OPBuilder::GenParam(func, registers[i].getRegisterNum());
 		}
 

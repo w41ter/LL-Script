@@ -16,12 +16,31 @@ using std::string;
 namespace script
 {
 	static size_t FrameMaxSize = 256;
+	static GarbageCollector *globalGC;
+
+	void SetGlobalGC(GarbageCollector *GC)
+	{
+		assert(GC);
+		globalGC = GC;
+	}
+
+	void ReleaseGlobalGC()
+	{
+		globalGC = nullptr;
+	}
+
+	extern "C" Object Allocate(size_t size)
+	{
+		assert(globalGC && "Please bind gc object");
+		return globalGC->allocate(size);
+	}
 
 	VMState::VMState() { }
 
 	void VMState::bindScene(VMScene * scene)
 	{
 		currentScene = scene;
+		SetGlobalGC(&scene->GC);
 	}
 
 	void VMState::execute()
@@ -109,8 +128,6 @@ namespace script
 			default:
 				break;
 			}
-			//if (ip == 104)
-			//	std::cout << GetFixnum(topFrame->getRegVal(0)) << std::endl;
 		}
 	}
 
@@ -385,7 +402,8 @@ namespace script
 		unsigned result = opcode[ip++];
 		Object table = topFrame->getRegVal(opcode[ip++]);
 		Object index = topFrame->getRegVal(opcode[ip++]);
-		// TODO: get index and set.
+		Object res = HashFind(table, index);
+		topFrame->setRegVal(result, res);
 	}
 
 	void VMState::executeSetIndex(size_t & ip)
@@ -394,7 +412,7 @@ namespace script
 		Object table = topFrame->getRegVal(opcode[ip++]);
 		Object index = topFrame->getRegVal(opcode[ip++]);
 		Object data = topFrame->getRegVal(opcode[ip++]);
-		// TODO: set hash.
+		HashSetAndUpdate(table, index, data);
 	}
 
 	void VMState::executeParam(size_t & ip)
@@ -424,8 +442,7 @@ namespace script
 	{
 		auto &opcode = topFrame->content->codes;
 		unsigned result = opcode[ip++];
-		Object hash = currentScene->GC.allocate(SizeOfHashTable());
-		topFrame->setRegVal(result, hash);
+		topFrame->setRegVal(result, CreateHash());
 	}
 
 	int32_t VMState::getInteger(size_t & ip)
