@@ -15,7 +15,11 @@ namespace script
 	struct IntervalEndCmp {
 		bool operator () (const LiveInterval *LHS,
 			const LiveInterval *RHS) const {
-			return LHS->endNumber() < RHS->endNumber();
+			auto l = LHS->endNumber(), r = RHS->endNumber();
+			if (l == r)
+				return LHS < RHS;
+			else
+				return l < r;
 		}
 	};
 
@@ -92,7 +96,7 @@ namespace script
 		ActiveSet newActive;
 		ActiveSet newInactive;
 		for (auto *I : active) {
-			if (I->endNumber() < current)
+			if (I->endNumber() <= current)
 				continue;
 			else if (!I->liveAt(current))
 				newInactive.insert(I);
@@ -100,7 +104,7 @@ namespace script
 				newActive.insert(I);
 		};
 		for (auto *I : inactive) {
-			if (I->endNumber() < current)
+			if (I->endNumber() <= current)
 				continue;
 			else if (I->liveAt(current))
 				newActive.insert(I);

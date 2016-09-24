@@ -8,6 +8,8 @@ using script::VMFrame;
 using script::VMState;
 using script::VMScene;
 
+Object lib_input(script::VMState *state, size_t paramsNums);
+Object lib_output(script::VMState *state, size_t paramsNums);
 
 Object lib_input(VMState * state, size_t paramsNums)
 {
@@ -42,6 +44,12 @@ Object lib_output(VMState * state, size_t paramsNums)
 	return CreateNil();
 }
 
+Object lib_println(VMState *state, size_t paramsNums)
+{
+	lib_output(state, paramsNums);
+	std::cout << std::endl;
+	return CreateNil();
+}
 
 struct Lib
 {
@@ -52,6 +60,7 @@ struct Lib
 static Lib libs[] = {
 	{ "output", lib_output },
 	{ "input", lib_input },
+	{ "println", lib_println },
 	{ nullptr, nullptr }
 };
 

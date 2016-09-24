@@ -105,8 +105,11 @@ namespace script
 		}
 
 		void setStart(unsigned S) {
-			assert(!empty() && "empty interval for register");
-			ranges.front().setStart(S);
+			//assert(!empty() && "empty interval for register");
+			if (empty())
+				ranges.push_back({ S, S + 2 });
+			else 
+				ranges.front().setStart(S);
 		}
 
 		void setEnd(unsigned E) {

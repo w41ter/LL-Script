@@ -40,11 +40,12 @@ namespace {
             std::cout << "[[Table]]";
             break;
         }
-        //case Value::FunctionVal:
-        //{
-        //    std::cout << "[Function]:" << ((Function*)value)->getFuncName();
-        //    break;
-        //}
+        case Value::UserClosureVal:
+        {
+            std::cout << "[function]:" <<
+				((UserClosure*)value)->getClosureName();
+            break;
+        }
         case Value::ParamVal:
         {
             std::cout << "[Param]:" << ((Param*)value)->getParamName();
@@ -150,8 +151,8 @@ namespace {
 
 				if (I->is_output()) {
 					LiveInterval *interval = getInterval(I);
-					if (interval->empty())
-						interval->addRange({ I->getID(), to });
+					//if (interval->empty())
+					//	interval->addRange({ I->getID(), to });
 					interval->setStart(I->getID());
 					interval->addUsePosition(I->getID());
 				}
