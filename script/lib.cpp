@@ -132,14 +132,6 @@ Object lib_require(VMState *state, size_t paramsNums)
 		state->runtimeError("require only takes one parameter");
 	}
 
-	///
-	/// FIXEME: 
-	///		test1.ll function xxx();
-	///		test2.ll function xxx();
-	///		test3.ll
-	///				 require("test1.ll");
-	///				 require("test2.ll");
-	///				 xxx(); // which one?
 	Object res = state->getScene()->paramsStack.back();
 	if (IsString(res)) {
 		// save it.

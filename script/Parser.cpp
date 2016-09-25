@@ -16,12 +16,17 @@ namespace script
 {
 namespace
 {
-	std::string GetGlobalMainName(std::string filename)
+	std::string Combinator(std::string filename, std::string funcname)
 	{
 		filename.resize(filename.find_last_of('.'));
 		filename += "\\";
-		filename += globalMainName;
+		filename += funcname;
 		return filename;
+	}
+
+	std::string GetGlobalMainName(const std::string &filename)
+	{
+		return Combinator(filename, globalMainName);
 	}
 
     std::string getTmpName(std::string name = "Tmp_")
@@ -872,7 +877,8 @@ namespace
         }
         
 		Value *closure = IRContext::createAtEnd<NewClosure>(
-			scope->block_, name, paramsVals, getTmpName());
+			scope->block_, Combinator(lexer_.filename(), name),
+			paramsVals, getTmpName());
 		Value *func = IRContext::createAtEnd<Assign>(
 			scope->block_, closure, scope->cfg_->phiName(name));
 
@@ -890,7 +896,9 @@ namespace
 	Value *Parser::parseFunctionCommon(const std::string &name)
 	{
 		// create function and generate parallel invoke.
-		IRFunction *function = module_.createFunction(name);
+		// for module require, need insert file name
+		IRFunction *function = module_.createFunction(
+			Combinator(lexer_.filename(), name));
 		pushFunctionScopeAndInit(function);
 
 		Strings params;
