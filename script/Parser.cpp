@@ -16,6 +16,14 @@ namespace script
 {
 namespace
 {
+	std::string GetGlobalMainName(std::string filename)
+	{
+		filename.resize(filename.find_last_of('.'));
+		filename += "\\";
+		filename += globalMainName;
+		return filename;
+	}
+
     std::string getTmpName(std::string name = "Tmp_")
     {
         static std::map<std::string, int> count;
@@ -970,7 +978,8 @@ namespace
 
     void Parser::parse()
     {
-		IRFunction *mainfunc = module_.createFunction(globalMainName);
+		IRFunction *mainfunc = module_.createFunction(
+			GetGlobalMainName(lexer_.filename()));
 		pushFunctionScopeAndInit(mainfunc);
 
 		registerUserClosures();

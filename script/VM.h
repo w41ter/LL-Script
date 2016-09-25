@@ -65,7 +65,8 @@ namespace script
 		void pushFrame(unsigned RR, const OpcodeFunction *func);
 		void popFrame(Object result);
 
-		// return value
+		// return value, when call user closure,
+		// it save the return reg.
 		Object lastValue;
 		OpcodeModule &module;
 		GarbageCollector GC;
@@ -85,12 +86,12 @@ namespace script
 
 		void call(Object func, int32_t paramsNums, unsigned res);
 		void tailCall(Object func, int32_t paramsNums, unsigned res);
+		void runtimeError(const char *str);
 		Object fillClosureWithParams(Object func, int32_t paramsNum);
 
 	private:
 		void callUserClosure(Object closure, 
 			int32_t paramsNums, unsigned res);
-		void runtimeError(const char *str);
 		void popParamsStack(size_t nums);
 		void clearSceneStack();
 		

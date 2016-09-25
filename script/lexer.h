@@ -120,6 +120,7 @@ namespace script
         Token lookAhead(unsigned num);
         void registerKeyword(const std::string &str, unsigned tok);
 
+		const std::string &filename() const { return fileName_; }
     private:
         char lookChar();
         void unget();

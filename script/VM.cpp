@@ -144,6 +144,10 @@ namespace script
 	{
 		typedef Object(*UserDefClosure)(VMState*, size_t);
 		UserDefClosure call = (UserDefClosure)UserClosureGet(closure);
+		assert(call);
+
+		// save return reg.
+		currentScene->lastValue = res;
 		Object result = call(this, paramsNums);
 		topFrame->setRegVal(res, result);
 		popParamsStack(paramsNums);
@@ -163,6 +167,7 @@ namespace script
 				break;
 		}
 		clearSceneStack();
+		throw;
 	}
 
 	void VMState::popParamsStack(size_t nums)
@@ -456,14 +461,21 @@ namespace script
 		unsigned result = opcode[ip++];
 		int32_t offset = getInteger(ip);
 		int32_t paramSize = getInteger(ip);
+
 		const std::string &name = currentScene->module.getString(offset);
 		auto *content = &currentScene->module.getFunction(name);
 		size_t numOfParams = content->paramSize;
 		Object closure = currentScene->GC.allocate(
 			SizeOfClosure(numOfParams));
 		CreateClosure(closure, content, numOfParams);
-		fillClosureWithParams(closure, paramSize);
+
+		size_t stackSize = currentScene->paramsStack.size();
+		for (size_t idx = 0; idx < numOfParams; ++idx) {
+			size_t from = stackSize - (numOfParams - idx);
+			ClosurePushParam(closure, currentScene->paramsStack[from]);
+		}
 		topFrame->setRegVal(result, closure);
+		popParamsStack(numOfParams);
 	}
 
 	void VMState::executeUserClosure(size_t & ip)
