@@ -13,6 +13,8 @@
 using std::vector;
 using std::string;
 
+extern "C" Object *GlobalObjectBuffer;
+
 namespace script
 {
 	static size_t FrameMaxSize = 256;
@@ -534,9 +536,14 @@ namespace script
 	{
 		size_t regs = content->numOfregisters,
 			args = content->paramSize;
+
 		Object registers = GC.allocate(SizeOfArray(regs));
-		Object params = GC.allocate(SizeOfArray(args));
 		CreateArray(registers, regs);
+
+		GlobalObjectBuffer = &registers;
+		Object params = GC.allocate(SizeOfArray(args));
+		GlobalObjectBuffer = NULL;
+
 		CreateArray(params, args);
 		frames.push_back({ registers, params, RR, content });
 	}

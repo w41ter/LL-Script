@@ -5,6 +5,8 @@
 #include "VM.h"
 #include "GC.h"
 
+extern "C" Object *GlobalObjectBuffer;
+
 static inline bool IsCalable(Object self) 
 {
 	return IsFixnum(self);
@@ -98,8 +100,11 @@ void ProcessGlobals(void *scene)
 		GC->processReference(&frame.params);
 		GC->processReference(&frame.registers);
 	}
-	for (auto &object : vmscene->paramsStack) 
+	for (auto &object : vmscene->paramsStack) {
 		GC->processReference(&object);
+	}
+	if (GlobalObjectBuffer != NULL)
+		GC->processReference(GlobalObjectBuffer);
 }
 
 void ProcessVariableReference(void *scene, Object *object)
@@ -112,22 +117,25 @@ void ProcessVariableReference(void *scene, Object *object)
 	if (IsClosure(*object)) {
 		size_t hold = ClosureHold(*object);
 		Object *params = ClosureParams(*object);
-		for (size_t idx = 0; idx < hold; ++idx)
+		for (size_t idx = 0; idx < hold; ++idx) {
 			GC->processReference(&(params[idx]));
+		}
 	}
 	else if (IsArray(*object)) {
 		size_t length = ArraySize(*object);
 		Object *array = ArrayPointer(*object);
-		for (size_t idx = 0; idx < length; ++idx)
+		for (size_t idx = 0; idx < length; ++idx) {
 			GC->processReference(&array[idx]);
+		}
 	}
 	else if (IsHash(*object)) {
 		GC->processReference(HashNodeListGet(*object));
 	}
 	else if (IsHashNodeList(*object)) {
-		size_t size = NodeListSize(*object);
-		HashNode *nodes = HashElement(*object);
-		for (size_t idx = 0; idx < size; ++idx)	
+		size_t size = NodeListElementCapacity(*object);
+		HashNode *nodes = HashNodeListElement(*object);
+		for (size_t idx = 0; idx < size; ++idx) {
 			GC->processReference(&nodes[idx].value);
+		}
 	}
 }

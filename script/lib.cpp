@@ -149,7 +149,7 @@ Object lib_random(VMState *state, size_t paramsNums)
 	if (paramsNums != 0) {
 		state->runtimeError("random no parameter");
 	}
-	return CreateFixnum(rand());
+	return CreateFixnum(rand() % MAX_FIXNUM);
 }
 
 Object lib_time(VMState *state, size_t paramsNums)
@@ -158,10 +158,7 @@ Object lib_time(VMState *state, size_t paramsNums)
 		state->runtimeError("time no parameter");
 	}
 
-	// FIXME:
-	float per_ms = CLOCKS_PER_SEC / 100;
-	int total = (clock() / per_ms);
-	return CreateFixnum(total);
+	return CreateFixnum(clock());
 }
 
 static Lib libs[] = {

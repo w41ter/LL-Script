@@ -99,6 +99,8 @@ typedef struct
 	void *user_data;
 } UserData;
 
+Object *GlobalObjectBuffer = NULL;
+
 Object CreateUserClosure(Object self, void * func)
 {
 	UserClosure *this = (UserClosure*)self;
@@ -374,7 +376,7 @@ Object CreateArray(Object self, size_t length)
 	Array *this = (Array*)self;
 	this->obType = TypeArray;
 	this->length = length;
-	memset(this->array, 0, sizeof(Object) * length);
+	memset(this->array, CreateUndef(), sizeof(Object) * length);
 	return (Object)this;
 }
 
@@ -526,7 +528,8 @@ static Object HashNewNodeList(size_t capacity)
 
 static void HashSet(Object self, uintptr_t key, Object value)
 {
-	assert(IsHash(self));
+	assert(IsFixnum(value));
+
 	Hash *hash = (Hash*)self;
 	uintptr_t index = key % hash->capacity;
 	uintptr_t slot = hash->capacity;
@@ -600,7 +603,12 @@ static void HashExpand(Object self)
 	assert(IsHash(self));
 	Hash *hash = (Hash*)self;
 	size_t future_capacity = HashExpandSize(hash->capacity);
+
+	// before gc, save it as global object
+	GlobalObjectBuffer = &self;
 	HashNodeList *cap = (HashNodeList*)HashNewNodeList(future_capacity);
+	GlobalObjectBuffer = NULL;
+
 	HashRehash(self, cap);
 }
 
@@ -611,7 +619,12 @@ static void HashShrink(Object self)
 	assert(IsHash(self));
 	Hash *hash = (Hash*)self;
 	size_t future_capacity = HashShrinkSize(hash->capacity);
+
+	// before gc, save it as global object
+	GlobalObjectBuffer = &self;
 	HashNodeList *cap = (HashNodeList*)HashNewNodeList(future_capacity);
+	GlobalObjectBuffer = NULL;
+
 	HashRehash(self, cap);
 }
 
@@ -659,7 +672,13 @@ size_t HashSize(Object self)
 HashNode *HashElement(Object self)
 {
 	assert(IsHash(self));
-	return ((Hash*)self)->content->content;
+	return HashNodeListElement(((Hash*)self)->content);
+}
+
+HashNode * HashNodeListElement(Object self)
+{
+	assert(IsHashNodeList(self));
+	return ((HashNodeList*)self)->content;
 }
 
 Object HashFind(Object self, Object key)
@@ -687,6 +706,12 @@ size_t NodeListSize(Object self)
 {
 	assert(IsHashNodeList(self));
 	return HashNodeListSize(((HashNodeList*)self)->capacity);
+}
+
+size_t NodeListElementCapacity(Object self)
+{
+	assert(IsHashNodeList(self));
+	return ((HashNodeList*)self)->capacity;
 }
 
 Object * HashNodeListGet(Object self)
@@ -727,6 +752,11 @@ size_t SizeOfObject(Object p)
 		return SizeOfHash();
 	case TypeHashNode:
 		return SizeOfHashNodeList(((HashNodeList*)p)->capacity);
+	case TypeUserFunc:
+		return SizeOfUserClosure();
+	case TypeUserData:
+		return SizeOfUserData();
     }
+	assert(0);
     return 0;
 }

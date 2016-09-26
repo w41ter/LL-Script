@@ -40,6 +40,7 @@ namespace script
         void garbageCollect();
 
         void swapSpace();
+		void cleanSpace(Semispace *space);
 
         bool isForwarded(Object obj);
         void forwardTo(Object obj, Object new_addr);

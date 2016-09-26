@@ -54,8 +54,10 @@ size_t HashCapacity(Object hash);
 size_t HashSize(Object self);
 Object HashFind(Object self, Object key);
 size_t NodeListSize(Object self);
+size_t NodeListElementCapacity(Object self);
 Object *HashNodeListGet(Object self);
 HashNode *HashElement(Object self);
+HashNode *HashNodeListElement(Object self);
 void HashSetAndUpdate(Object self, Object key, Object value);
 
 Object CreateUserClosure(Object self, void *func);
