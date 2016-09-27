@@ -198,23 +198,25 @@ namespace {
 					Value *val = op->get_value();
 					if (val->is_value())
 						break;
-					if (!I->is_phi_node()) {
-						if (!BB->liveKill_.count(val))
-							BB->liveGen_.insert(val);
-					}
-					else {
-						// FIXME: B1->B2->B3
-						// B1:
-						//		a <- 1
-						//		goto B2
-						// B2:
-						//		...
-						//		goto B3
-						// B3:
-						//		a.1 = phi<a, b>
-						Instruction *phi = static_cast<Instruction*>(val);
-						phi->get_parent()->liveOut_.insert(val);
-					}
+					if (!BB->liveKill_.count(val))
+						BB->liveGen_.insert(val);
+					//if (!I->is_phi_node()) {
+					//	if (!BB->liveKill_.count(val))
+					//		BB->liveGen_.insert(val);
+					//}
+					//else {
+					//	// FIXME: B1->B2->B3
+					//	// B1:
+					//	//		a <- 1
+					//	//		goto B2
+					//	// B2:
+					//	//		...
+					//	//		goto B3
+					//	// B3:
+					//	//		a.1 = phi<a, b>
+					//	Instruction *phi = static_cast<Instruction*>(val);
+					//	phi->get_parent()->liveOut_.insert(val);
+					//}
 				}
 			}
 		}
@@ -228,8 +230,8 @@ namespace {
 			for (auto block = func->rbegin(), e = func->rend();
 				block != e; ++block) {
 				BasicBlock *BB = *block;
-				//BB->liveOut_.clear();	 
 				size_t before = BB->liveOut_.size();
+				BB->liveOut_.clear();	 
 				for (auto *succ : BB->successors_) {
 					BB->liveOut_ += succ->liveIn_;
 				}
