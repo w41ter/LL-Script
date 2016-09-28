@@ -370,7 +370,7 @@ namespace
             getTmpName("false_expr_"));
 
 		IRContext::createBranchAtEnd(
-            tmpBlock, result, falseBlock, trueBlock);
+            tmpBlock, result, trueBlock, falseBlock);
         while (token_.kind_ == TK_And)
         {
             advance();
@@ -378,7 +378,7 @@ namespace
             Value *expr = parseRelationalExpr();
             trueBlock = scope->cfg_->createBasicBlock(getTmpName("true_expr_"));
 			IRContext::createBranchAtEnd(
-				scope->block_, result, falseBlock, trueBlock);
+				scope->block_, expr, trueBlock, falseBlock);
         }
 
         Value *true_ = IRContext::create<Constant>(true);
@@ -420,7 +420,7 @@ namespace
             falseBlock = scope->cfg_->createBasicBlock(
                 getTmpName("false_expr_"));
 			IRContext::createBranchAtEnd(
-				scope->block_, result, trueBlock, falseBlock);
+				scope->block_, expr, trueBlock, falseBlock);
         }
 
         Value *true_ = IRContext::create<Constant>(true);
