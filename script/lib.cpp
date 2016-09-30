@@ -149,7 +149,7 @@ Object lib_random(VMState *state, size_t paramsNums)
 	if (paramsNums != 0) {
 		state->runtimeError("random no parameter");
 	}
-	return CreateFixnum(rand() % MAX_FIXNUM);
+	return CreateFixnum(rand() % 10);
 }
 
 Object lib_time(VMState *state, size_t paramsNums)

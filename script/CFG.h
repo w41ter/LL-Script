@@ -47,6 +47,7 @@ namespace script
         precursor_iterator precursor_end()   { return precursors_.end(); }
         successor_iterator successor_begin() { return successors_.begin(); }
         successor_iterator successor_end()   { return successors_.end(); }
+		void successor_replace(BasicBlock *from, BasicBlock *block);
         
         typedef std::list<Instruction*>::iterator instr_iterator;
         typedef std::list<Instruction*>::reverse_iterator instr_riterator;

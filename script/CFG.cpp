@@ -311,13 +311,16 @@ namespace script
 			succ != block->successor_end();
 			++succ) {
 			BasicBlock *SBB = *succ;
-			auto last = std::remove_if(SBB->precursors_.begin(), 
-				SBB->precursors_.end(),
-				[block](const BasicBlock *BB) {
-				return block == BB;
-			});
-			std::vector<BasicBlock*> pre(SBB->precursors_.begin(), last);
-			SBB->precursors_.swap(pre);
+			auto &precursors = SBB->precursors_;
+			auto next = precursors.begin(), iter = next;
+			while (iter != precursors.end()) {
+				if (!(*iter == block)) {
+					*next = *iter;
+					++next;
+				}
+				++iter;
+			}
+			precursors.resize(next - precursors.begin());
 		}
         
         blocks_.remove(block);
@@ -361,6 +364,16 @@ namespace script
             return successors_[idx];
         return nullptr;
     }
+
+	void BasicBlock::successor_replace(
+		BasicBlock *from, BasicBlock * block)
+	{
+		auto pos = std::find(successors_.begin(), successors_.end(), from);
+		if (pos == successors_.end())
+			successors_.push_back(block);
+		else
+			*pos = block;
+	}
 
 	void BasicBlock::insert(instr_iterator iter, Instruction * instr)
 	{

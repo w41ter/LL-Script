@@ -503,7 +503,7 @@ namespace
 
 		IRContext::createGotoAtEnd(scope->block_, breaks_.top());
 
-		scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(scope->block_);
 
 		scope->block_ = scope->cfg_->createBasicBlock(
 			getTmpName("full_throught_"));
@@ -523,7 +523,7 @@ namespace
 		IRContext::createGotoAtEnd(
 			scope->block_, continues_.top());
         
-		scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(scope->block_);
 
 		scope->block_ = scope->cfg_->createBasicBlock(
             getTmpName("full_throught_"));
@@ -547,7 +547,7 @@ namespace
         match(TK_Semicolon);
         BasicBlock *succBlock = 
             scope->cfg_->createBasicBlock("return_succ_");
-		scope->cfg_->sealBlock(scope->block_);
+		//scope->cfg_->sealBlock(scope->block_);
 		scope->block_ = succBlock;
     }
 

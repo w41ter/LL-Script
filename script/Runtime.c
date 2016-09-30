@@ -190,43 +190,43 @@ bool IsCallable(Object self)
 
 bool IsArray(Object self)
 {
-	return (!IsTagging(self)
+	return !IsUndef(self) && (!IsTagging(self)
 		&& ((Array*)self)->obType == TypeArray);
 }
 
 bool IsHash(Object self)
 {
-	return (!IsTagging(self)
+	return !IsUndef(self) && (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeHashTable);
 }
 
 bool IsHashNodeList(Object self)
 {
-	return (!IsTagging(self)
+	return !IsUndef(self) && (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeHashNode);
 }
 
 bool IsUserClosure(Object self)
 {
-	return (!IsTagging(self) 
+	return !IsUndef(self) && (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeUserFunc);
 }
 
 bool IsClosure(Object self)
 {
-	return (!IsTagging(self)
+	return !IsUndef(self) && (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeClosure);
 }
 
 bool IsString(Object self)
 {
-	return (!IsTagging(self)
+	return !IsUndef(self) && (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeString);
 }
 
 bool IsUserData(Object self)
 {
-	return (!IsTagging(self)
+	return !IsUndef(self) && (!IsTagging(self)
 		&& ((CommonObject*)self)->obType == TypeUserData);
 }
 
@@ -672,6 +672,8 @@ Object HashFind(Object self, Object key)
 	HashNodeList *list = hash->content;
 	while (list->content[index].key != hash_key
 		&& !IsNil(list->content[index].value)) {
+		if (IsUndef(list->content[index].value))
+			break;
 		index = HashNextIndex(index, list->capacity);
 	}
 

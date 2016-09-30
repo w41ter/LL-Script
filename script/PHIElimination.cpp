@@ -68,22 +68,24 @@ namespace script
 	void PhiElimination::splitCriticalEdge(
 		IRFunction * func, BasicBlock * block)
 	{
-		if (block->numOfPrecursors() <= 1)
-			return;
+		//if (block->numOfPrecursors() <= 1)
+		//	return;
 
-		BasicBlock *tmpBlock = nullptr;
-		auto GetInnerBlock = [&tmpBlock, func, block]
+		auto GetInnerBlock = [func, block]
 			(const std::string &from, const std::string &to) {
-			if (tmpBlock == nullptr) {
-				tmpBlock = func->createBasicBlock(from + "-" + to);
-				IRContext::createGotoAtEnd(tmpBlock, block);
-			}
-			return tmpBlock;
+			BasicBlock *BB = func->createBasicBlock(from + "-" + to);
+			Goto *go2 = IRContext::create<Goto>(block);
+			BB->push_back(go2);
+			BB->addSuccessor(block);
+			go2->set_parent(BB);
+			return BB;
 		};
 
-		// FIXME: construction cfg. remove old edge
-		for (size_t pre = 0; pre != block->numOfPrecursors(); ++pre) {
-			BasicBlock *PBB = block->precursor(pre);
+		size_t size = block->numOfPrecursors();
+		for (auto pre = block->precursor_begin();
+			pre != block->precursor_end();
+			++pre) {
+			BasicBlock *PBB = *pre;
 			// Check whether split.
 			if (PBB->numOfSuccessors() <= 1)
 				continue;
@@ -91,6 +93,10 @@ namespace script
 			// split it.
 			BasicBlock *BB = GetInnerBlock(
 				PBB->getBlockName(), block->getBlockName());
+
+			*pre = BB;
+
+			PBB->successor_replace(block, BB);
 			if (PBB->back()->is_goto()) {
 				Goto *GT = static_cast<Goto*>(PBB->back());
 				GT->setTarget(BB);
