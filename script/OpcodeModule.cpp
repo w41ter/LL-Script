@@ -11,11 +11,11 @@ namespace script
     size_t OpcodeModule::push_string(const std::string & str)
     {
 		size_t idx = stringPool_.size();
-		if (stringMap.count(str)) {
-			return stringMap[str];
+		if (stringMap_.count(str)) {
+			return stringMap_[str];
 		}
 		stringPool_.push_back(str);
-		stringMap.insert({ str, idx });
+		stringMap_.insert({ str, idx });
 		return idx;
     }
 
@@ -39,16 +39,16 @@ namespace script
 	UserDefClosure OpcodeModule::getUserClosure(const std::string & name)
 	{
 		size_t idx = push_string(name);
-		if (!userClosure.count(idx)) {
+		if (!userClosure_.count(idx)) {
 			return nullptr;
 		}
-		return userClosure[idx];
+		return userClosure_[idx];
 	}
 
 	void OpcodeModule::pushUserClosure(
 		const std::string & name, UserDefClosure closure)
 	{
 		size_t idx = push_string(name);
-		userClosure[idx] = closure;
+		userClosure_[idx] = closure;
 	}
 }

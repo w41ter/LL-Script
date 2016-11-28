@@ -42,8 +42,8 @@ namespace script
         size_t string_size() const { return stringPool_.size(); }
     protected:
 		std::vector<std::string> stringPool_;
-        std::unordered_map<std::string, const size_t> stringMap;
+        std::unordered_map<std::string, const size_t> stringMap_;
         std::map<size_t, OpcodeFunction> functions_;
-		std::map<size_t, UserDefClosure> userClosure;
+		std::map<size_t, UserDefClosure> userClosure_;
     };
 }

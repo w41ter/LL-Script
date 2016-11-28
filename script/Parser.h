@@ -42,8 +42,7 @@ namespace script
     class Parser
     {
     public:
-        Parser(Lexer &lexer, IRModule &context, 
-			DiagnosisConsumer &diag);
+        Parser(Lexer &lexer, IRModule &context, DiagnosisConsumer &diag);
 
         void parse();
 		void registerUserClosure(const std::string &name);
@@ -57,6 +56,7 @@ namespace script
         struct FunctionScope {
             typedef std::unordered_map<std::string, unsigned> Symbols;
 
+			// symbol type
             enum { None, Define, Let };
 
             FunctionScope()
@@ -65,10 +65,10 @@ namespace script
             {}
 
             CFG *cfg_;
-            Symbols symbolTable;
-            Symbols upperTable; 
+            Symbols symbolTable_;
+            Symbols upperTable_;	// for mutil scope supprot, not use.
             BasicBlock *block_;
-            std::unordered_set<std::string> captures;
+            std::unordered_set<std::string> captures_;
         };
 
         void pushFunctionScope();
@@ -77,6 +77,7 @@ namespace script
         void popFunctionScope(IRFunction *func);
         void defineIntoScope(const std::string &str, unsigned type);
         void insertIntoScope(const std::string &str, unsigned type);
+		void captureIntoScope(const std::string &str);
         bool isDefineInScope(const std::string &str);
         bool isExistsInScope(const std::string &str);
 

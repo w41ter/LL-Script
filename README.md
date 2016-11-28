@@ -2,17 +2,19 @@
 
 simple script, just for fun.
 
+详细设计访问[介绍](https://github.com/thinkermao/LL-Script/blob/master/introduce.md)。
+
 ## Syntax
 
 [Here](https://github.com/thinkermao/LL-Script/blob/master/grammar.md)
 
 ## Intro
 
-base database: integer, *float*, string, hash table, lambda
+基础类型: integer, *float*, string, hash table, lambda
 
-base statement: if, while, return, break, continue
+基础语句: if, while, return, break, continue
 
-graph:
+工作流程图:
 
 ```
 lexer -> parser -> SSA IR -> reg alloc -> code gen -> OPCODE -> vm
@@ -37,26 +39,29 @@ output("the result of fib(", n, ") is :", result, "\n");
 
 ```
 
-## License
+## FFI
 
-MIT License
+提供了与C语言交互的简单方式：
 
-Copyright (c) 2016 Chuan
+```
+// on `lib.cpp`
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Object lib_output(VMState * state, size_t paramsNums);
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+static Lib libs[] = {
+	{ "output", lib_output },
+  // ...
+	{ nullptr, nullptr }
+};
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Object lib_output(VMState * state, size_t paramsNums)
+{
+	VMScene *scene = state->getScene();
+	for (size_t idx = scene->paramsStack.size() - paramsNums;
+		idx < scene->paramsStack.size(); ++idx) {
+		Object arg = scene->paramsStack[idx];
+		DumpObject(arg);
+	}
+	return CreateNil();
+}
+```

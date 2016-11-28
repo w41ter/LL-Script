@@ -200,23 +200,6 @@ namespace {
 						break;
 					if (!BB->liveKill_.count(val))
 						BB->liveGen_.insert(val);
-					//if (!I->is_phi_node()) {
-					//	if (!BB->liveKill_.count(val))
-					//		BB->liveGen_.insert(val);
-					//}
-					//else {
-					//	// FIXME: B1->B2->B3
-					//	// B1:
-					//	//		a <- 1
-					//	//		goto B2
-					//	// B2:
-					//	//		...
-					//	//		goto B3
-					//	// B3:
-					//	//		a.1 = phi<a, b>
-					//	Instruction *phi = static_cast<Instruction*>(val);
-					//	phi->get_parent()->liveOut_.insert(val);
-					//}
 				}
 			}
 		}

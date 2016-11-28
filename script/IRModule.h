@@ -8,8 +8,6 @@
 
 namespace script
 {
-    class SymbolTable;
-
     class IRCode : public CFG
     {
         friend class DumpIR;

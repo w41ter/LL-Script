@@ -62,17 +62,23 @@ namespace
     }
 }
 
+	//
+	// reverse iterate function stack, if find symbol named "name",
+	// return true, otherwise capture it and save into symbol table,
+	// save it as a param of this function. save it into ssa form.
+	//
     bool Parser::tryToCatchID(scope_iterator iter, std::string &name)
     {
         if (functionStack.rend() == iter) {
             return false;
         }
-        if (iter->symbolTable.count(name)) {
+
+        if (iter->symbolTable_.count(name)) {
             return true;
         }
         // insert into symbol table and capture it.
-        iter->captures.insert(name);
-        iter->symbolTable.insert({name, FunctionScope::Let});
+        iter->captures_.insert(name);
+        iter->symbolTable_.insert({name, FunctionScope::Let});
 		// save it to SSA form
 		Value *param = IRContext::create<Param>(name);
         Value *assign = IRContext::createAtBegin<Assign>(
@@ -83,6 +89,10 @@ namespace
         return tryToCatchID(++iter, name);
     }
 
+	//
+	// When use identifier, find in current scope first, 
+	// if can't found, try upper scope recursively.
+	//
     bool Parser::tryToCatchID(std::string &name)
     {
 		if (isExistsInScope(name))
@@ -125,6 +135,12 @@ namespace
         }
     }
 
+	// 
+	// Variable:
+	//		identifier
+	//		lambda
+	//		'(' RightHandExpression ')'
+	// 
     Value *Parser::parseVariable()
     {
         switch (token_.kind_)
@@ -214,12 +230,27 @@ namespace
 			|| token_.kind_ == TK_Period;
 	}
 
+	//
+	// VariableSuffixExpression
+	//
     Value *Parser::parseVariableSuffix()
     {
         Value *result = parseVariable();
         return parseSuffixCommon(result);
     }
 
+	//
+	// Value:
+	//		float
+	//		string
+	//		integer
+	//		charactor
+	//		true
+	//		false
+	//		null
+	//		'[' TableDecl ']'
+	//		VariableSuffixExpression
+	//
     Value *Parser::parseValue()
     {
         switch (token_.kind_)
@@ -440,11 +471,19 @@ namespace
 			scope->block_, getTmpName(), params);
     }
 
+	//
+	// RightHandExpression:
+	//		OrExpression
+	//
     Value *Parser::parseRightHandExpr()
     {
         return parseOrExpr();
     }
 
+	//
+	// AssignExpression:
+	//		identifier [ Suffix ] '=' RightHandExpression
+	//
     void Parser::parseAssignExpr()
     {
         std::string name = exceptIdentifier();
@@ -484,12 +523,20 @@ namespace
 			name, scope->block_, result);
     }
 
+	//
+	// Expression:
+	//		AssignExpression ';'
+	//
     void Parser::parseExpression()
     {
         parseAssignExpr();
         match(TK_Semicolon);
     }
 
+	//
+	// BreakStat:
+	//		'break' ';'
+	//
     void Parser::parseBreakStat()
     {
         match(TK_Break);
@@ -509,6 +556,10 @@ namespace
 			getTmpName("full_throught_"));
     }
 
+	// 
+	// ContinueStat:
+	//		'continue' ';'
+	// 
     void Parser::parseContinueStat()
     {
         match(TK_Continue);
@@ -529,6 +580,10 @@ namespace
             getTmpName("full_throught_"));
     }
 
+	//
+	// ReturnStat:
+	//		'return' [ RightHandExpr ] ';'
+	//
     void Parser::parseReturnStat()
     {
         advance();
@@ -564,6 +619,10 @@ namespace
 		}
 	}
 
+	//
+	// WhileStat:
+	//		'while' '(' RightHandExpression ')' Statement
+	//
     void Parser::parseWhileStat()
     {
         advance();
@@ -603,6 +662,10 @@ namespace
         continues_.pop();
     }
 
+	//
+	// IfStat:
+	//		'if' '(' RightHandExpression ')' Statement ['else' Statement]
+	//
     void Parser::parseIfStat()
     {
         advance();
@@ -654,6 +717,19 @@ namespace
 		scope->block_ = endBlock;
     }
 
+	// 
+	// Statement:
+	//		IfStat
+	//		WhileStat
+	//		ReturnStat
+	//		BreakStat
+	//		ContinueStat
+	//		LetDecl
+	//		DefineDecl
+	//		Block
+	//		';'
+	//		Expression
+	//
     void Parser::parseStatement()
     {
         switch (token_.kind_)
@@ -683,6 +759,10 @@ namespace
         }
     }
 
+	//
+	// Block:
+	//		'{' [ Statement ]* '}'
+	//
     void Parser::parseBlock()
     {
         match(TK_LCurlyBrace);
@@ -693,6 +773,10 @@ namespace
         advance();
     }
 
+	// 
+	// ConstantOrAssignExpr:
+	//		constant ['=' RightHandExpr]
+	//
     void Parser::parseTableOthers(Value *table)
     {
         Constant *cons = nullptr;
@@ -747,6 +831,10 @@ namespace
         }
     }
 
+	//
+	// IdentifierOrAssignExpr:
+	//		identifier ['=' RightHandExpr]
+	//
     void Parser::parseTableIdent(Value *table)
     {
         std::string name = exceptIdentifier();
@@ -773,6 +861,13 @@ namespace
         }
     }
 
+	//
+	// TableDecl:
+	//		'[' LineDecl [',' LineDecl] * [','] ']'
+	//
+	// LineDecl:
+	//		IdentifierOrAssignExpr | ConstantOrAssignExpr
+	//		
     Value *Parser::parseTableDecl()
     {
         assert(token_.kind_ == TK_LSquareBrace);
@@ -824,6 +919,14 @@ namespace
 		return parseFunctionCommon(name);
 	}
 
+	// 
+	// FunctionParamsAndBody:
+	//		Params Block
+	//
+	// NOTICE:
+	//		'param's are constant so that define assign expr
+	// for it in entry block.
+	//
     void Parser::getFunctionParamsAndBody(
 		Strings &params, IRFunction *function)
     {
@@ -843,10 +946,25 @@ namespace
 		scope->cfg_->sealOthersBlock();
     }
 
+	//
+	// save captured variable as params before all original params,
+	// so we can solve lambda capture as 'std::bind'.
+	// EXAMPLE:
+	//	let a = 10;
+	//	define call = lambda(x) {
+	//		return x + a;
+	//	}
+	// the prototype of 'call' is 'call(a, x)', and define decl as
+	// 'let call_tmp = lambda(a, x) ....
+	//  define call = call_tmp(a);'
+	//
+	// if function is recursively, it reference itself in body,
+	// so push itself into last captured param.
+	//
     void Parser::getFunctionPrototype(const std::string &name,
         Strings &prototype, const Strings &params)
     {
-        auto &captures = scope->captures;
+        auto &captures = scope->captures_;
         prototype.clear();
         prototype.reserve(captures.size() + params.size());
         for (auto &str : captures) {
@@ -895,6 +1013,10 @@ namespace
         return func;
     }
 
+	//
+	// FunctionCommon:
+	//		FunctionParamsAndBody
+	//
 	Value *Parser::parseFunctionCommon(const std::string &name)
 	{
 		// create function and generate parallel invoke.
@@ -912,7 +1034,7 @@ namespace
 		function->setParams(std::move(prototype));
 
 		std::unordered_set<std::string> captures;
-		std::swap(captures, scope->captures);
+		std::swap(captures, scope->captures_);
 		if (captures.find(name) != captures.end())
 			dealRecursiveDecl(name);
 		popFunctionScope(function);
@@ -921,6 +1043,10 @@ namespace
 		return createClosureForFunction(name, captures);
 	}
 
+	//
+	// FunctionDecl:
+	//		function FunctionCommon
+	//
     void Parser::parseFunctionDecl()
     {
         match(TK_Function);
@@ -933,6 +1059,23 @@ namespace
 		parseFunctionCommon(name);
     }
 
+	//
+	// EXAMPLE:
+	//	let fib = lambda(n) {
+	//		if (n < 2)	return 0;
+	//		return fib(n-1) + fib(n-2);
+	//	}
+	// 
+	// will be change to 
+	//	let tmp = lambda(fib, n) {
+	//		fib = fib(fib);
+	//		if (n < 2) return 0;
+	//		return fib(n-1) + fib(n-2);
+	//	}
+	//	let fib = tmp(fib);
+	// 
+	// of course you can solve this problem instead of Y combinator.
+	//
 	void Parser::dealRecursiveDecl(const std::string & name)
 	{
 		BasicBlock *block = scope->cfg_->getEntryBlock();
@@ -948,6 +1091,10 @@ namespace
 		assign->set_parent(block);
 	}
 
+	//
+	// DefineCommon:
+	//		RightHandExpr
+	//
 	void Parser::parseLetDefineCommon(
 		const std::string &name)
 	{
@@ -959,6 +1106,10 @@ namespace
 		match(TK_Semicolon);
 	}
 
+	//
+	// LetDecl:
+	//		'let' '=' DefineCommon
+	//
     void Parser::parseLetDecl()
     {
         match(TK_Let);
@@ -972,6 +1123,10 @@ namespace
 		parseLetDefineCommon(name);
     }
 
+	//
+	// DefineDecl:
+	//		'define' '=' DefineCommon
+	//
     void Parser::parseDefineDecl()
     {
         match(TK_Define);
@@ -986,12 +1141,19 @@ namespace
 		parseLetDefineCommon(name);
     }
 
+	//
+	// Program:
+	//		EOF
+	//		FunctionDecl
+	//		Statement
+	//
     void Parser::parse()
     {
 		IRFunction *mainfunc = module_.createFunction(
 			GetGlobalMainName(lexer_.filename()));
 		pushFunctionScopeAndInit(mainfunc);
 
+		// register user closures into function scope.
 		registerUserClosures();
 
         advance();
@@ -1007,6 +1169,9 @@ namespace
 		popFunctionScope(mainfunc);
     }
 
+	//
+	// register user define closure for FFI support
+	//
 	void Parser::registerUserClosure(const std::string & name)
 	{
 		userClosures.insert(name);
@@ -1074,21 +1239,26 @@ namespace
 		popFunctionScope();
 	}
 
+	void Parser::captureIntoScope(const std::string &str)
+	{
+		scope->captures_.insert(str);
+	}
+
     void Parser::defineIntoScope(const std::string &str, unsigned type) 
     {
-		scope->symbolTable.insert(
+		scope->symbolTable_.insert(
 			std::pair<std::string, unsigned>{str, type});
     }
 
     void Parser::insertIntoScope(const std::string &str, unsigned type)
     {
-		scope->upperTable.insert(
+		scope->upperTable_.insert(
 			std::pair<std::string, unsigned>{str, type});
     }
 
     bool Parser::isDefineInScope(const std::string &str)
     {
-        return scope->symbolTable.count(str);
+        return scope->symbolTable_.count(str);
     }
 
     bool Parser::isExistsInScope(const std::string &str) 
