@@ -6,18 +6,36 @@ keyword_constant:
     | false
     | null
 
-variable:
-    ID 
-    | "(" expression ")"
-    | lambda_decl
-
-variable_suffix:
-    variable { ( "[" expression "]" | "(" expression_list ")" | "." ID )}
-
-value:
+constant:
     INT_CONST
     | CHAR_CONST
     | STRING_CONST
+
+variable:
+    ID 
+    | "(" right_hand_expression ")"
+    | lambda_decl
+
+expression_list:
+    right_hand_expression { "," right_hand_expression }
+
+variable_suffix_common:
+    "[" expression "]" 
+    | "(" [ expression_list ] ")" 
+    | "." ID
+
+variable_suffix:
+    variable { variable_suffix_common }
+
+table_decl_line:
+    ID [ "=" right_hand_expression ]
+    | constant [ "=" right_hand_expression ]
+
+table_decl:
+    "[" table_decl_line { "," table_decl_line } "," "]"
+
+value:
+    constant
     | keyword_constant
     | table_decl
     | variable_suffix
@@ -34,30 +52,34 @@ mul_and_div_expr:
 add_and_sub_expr:
     mul_and_div_expr { ( "+" | "-" ) mul_and_div_expr }
 
-real_expr:
-    add_and_sub_expr [add_and_sub_expr ]
+realtion_expr:
+    add_and_sub_expr {  ( "<" | ">" | ">=" | "<=" | "==" | "!=" )  add_and_sub_expr }
 
 and_expr:
-    real_expr {  ( "<" | ">" | ">=" | "<=" | "==" | "!=" )  real_expr } 
+    realtion_expr {  "&"  realtion_expr } 
 
 or_expr:
-    and_expr { "&" and_expr } 
+    and_expr { "|" and_expr } 
+
+right_hand_expression:
+    or_expr
+
+assignment_expression:
+    or_expr { variable_suffix_common } "=" right_hand_expression
 
 expression:
-    or_expr { "|" or_expr }
-
-expression_list:
-    expression { "," expression }
+    assign_expression ";"
 
 statement:
     block
-    | "if" "(" assign_expression ")" statement [ "else" statement ]
-    | "while" "(" assign_expression ")" statement
-    | "return" [ assign_expression ] ";"
+    | "if" "(" right_hand_expression ")" statement [ "else" statement ]
+    | "while" "(" right_hand_expression ")" statement
+    | "return" [ right_hand_expression ] ";"
     | "break" ";"
     | "continue" ";"
-    | expression ";"
+    | expression
     | variable_decl
+    | ";"
 
 block:
     "{" { statement } "}"
@@ -65,21 +87,21 @@ block:
 param_list:
     ID { ","  ID }
 
+function_common:
+    "(" [ param_list ] ")" block
+
 function_decl:
-    "function" "(" [ param_list ] ")" block
+    "function" function_common
+
+lambda_decl:
+    "lambda" function_common
 
 variable_decl:
-    define_decl
-    | let_decl
-
-define_decl:
     "define" ID "=" expression 
-    
-let_decl:
-    "let" ID "=" expression
+    | "let" ID "=" expression
 
 program: 
-    { statement | function_decl }
+    { statement | function_decl | EOF }
 ```
 
 ## Example
